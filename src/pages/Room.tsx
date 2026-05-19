@@ -176,7 +176,7 @@ export default function Room() {
     return Object.values(room.slots).filter(uid => !!uid) as string[];
   }, [room?.slots]);
 
-  const { remoteStreams, volumes, micError, setMicError } = useVoiceChat(id || '', user?.uid || '', isMicOn, slotParticipants);
+  const { remoteStreams, volumes, micError, setMicError, hasAnotherTabOpen } = useVoiceChat(id || '', user?.uid || '', isMicOn, slotParticipants);
 
   // Handle reset of microfone state if permission is denied / mic error occurs
   useEffect(() => {
@@ -832,7 +832,7 @@ export default function Room() {
         </div>
 
         {/* Chat Feed - Floating style on top of stage area */}
-        <div className="fixed bottom-32 left-6 right-6 z-30 pointer-events-none h-64 flex flex-col justify-end overflow-hidden">
+        <div className="fixed bottom-24 sm:bottom-32 left-4 right-4 sm:left-6 sm:right-6 z-30 pointer-events-none h-48 sm:h-64 flex flex-col justify-end overflow-hidden">
           <div className="space-y-2 pb-4">
             <AnimatePresence mode="popLayout">
               {messages.slice(-15).map((msg, idx) => (
@@ -883,58 +883,58 @@ export default function Room() {
       </main>
 
       {/* Modern Bottom Bar - Ultra Premium Floating Pill */}
-      <div className="fixed bottom-10 left-6 right-6 z-40 pointer-events-none">
-        <div className="max-w-md mx-auto bg-[#0c0c0c] border border-white/[0.08] rounded-[48px] p-3 flex items-center gap-3 pointer-events-auto shadow-[0_40px_100px_rgba(0,0,0,0.8)] relative card-shine overflow-hidden">
+      <div className="fixed bottom-3 sm:bottom-10 left-3 right-3 sm:left-6 sm:right-6 z-40 pointer-events-none pb-[env(safe-area-inset-bottom,0px)]">
+        <div className="max-w-md mx-auto bg-[#0c0c0c] border border-white/[0.08] rounded-[28px] sm:rounded-[48px] p-2 sm:p-3 flex items-center gap-1.5 sm:gap-3 pointer-events-auto shadow-[0_40px_100px_rgba(0,0,0,0.8)] relative card-shine overflow-hidden">
           <button 
              onClick={() => setIsSpeakerOn(!isSpeakerOn)}
-             className={`w-14 h-14 rounded-[28px] flex items-center justify-center transition-all active:scale-90 border ${
+             className={`w-11 h-11 sm:w-14 sm:h-14 rounded-2xl sm:rounded-[28px] flex items-center justify-center transition-all active:scale-90 border flex-shrink-0 ${
                isSpeakerOn 
                  ? 'bg-white/5 border-white/5 text-white/40' 
                  : 'bg-red-500/20 border-red-500/30 text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.2)]'
              }`}
           >
-            {isSpeakerOn ? <Volume2 size={24} /> : <VolumeX size={24} />}
+            {isSpeakerOn ? <Volume2 size={20} className="sm:size-[24px]" /> : <VolumeX size={20} className="sm:size-[24px]" />}
           </button>
 
           <button 
              onClick={() => setShowGifts(true)}
-             className="w-14 h-14 rounded-[28px] flex items-center justify-center bg-white/5 border border-white/5 text-yellow-500 active:scale-90 transition-all"
+             className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl sm:rounded-[28px] flex items-center justify-center bg-white/5 border border-white/5 text-yellow-500 active:scale-90 transition-all flex-shrink-0"
           >
-            <Gift size={24} />
+            <Gift size={20} className="sm:size-[24px]" />
           </button>
 
-          <form onSubmit={handleSendMessage} className="flex-1 h-14 bg-black/60 border border-white/[0.08] rounded-[30px] flex items-center px-6 focus-within:border-purple-500/30 transition-all">
+          <form onSubmit={handleSendMessage} className="flex-1 h-11 sm:h-14 bg-black/60 border border-white/[0.08] rounded-2xl sm:rounded-[30px] flex items-center px-3 sm:px-6 focus-within:border-purple-500/30 transition-all min-w-[70px]">
             <input 
                type="text"
                value={text}
                onChange={(e) => setText(e.target.value)}
                placeholder="Mensagem..."
-               className="flex-1 bg-transparent text-[13px] text-white outline-none placeholder:text-white/10 font-bold italic"
+               className="flex-1 bg-transparent text-[11px] sm:text-[13px] text-white outline-none placeholder:text-white/10 font-bold italic w-full"
             />
-            <button type="submit" disabled={!text.trim()} className="text-white hover:text-purple-400 disabled:opacity-0 transition-all p-1">
-              <Send size={20} />
+            <button type="submit" disabled={!text.trim()} className="text-white hover:text-purple-400 disabled:opacity-0 transition-all p-0.5 sm:p-1 flex-shrink-0">
+              <Send size={16} className="sm:size-[20px]" />
             </button>
           </form>
 
           {room?.slots && Object.entries(room.slots).some(([_, uid]) => uid === user?.uid) && (
             <button 
               onClick={leaveSlot}
-              className="w-14 h-14 rounded-[28px] flex items-center justify-center bg-white/5 border border-white/5 text-white/10 hover:text-red-500 transition-all active:scale-90"
+              className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl sm:rounded-[28px] flex items-center justify-center bg-white/5 border border-white/5 text-white/10 hover:text-red-500 transition-all active:scale-90 flex-shrink-0"
               title="Descer"
             >
-              <LogOut size={22} className="rotate-180" />
+              <LogOut size={18} className="rotate-180 sm:size-[22px]" />
             </button>
           )}
 
           <button 
             onClick={toggleMic}
-            className={`w-18 h-18 rounded-[32px] flex items-center justify-center transition-all active:scale-95 border-2 ${
+            className={`w-12 h-12 sm:w-18 sm:h-18 rounded-2xl sm:rounded-[32px] flex items-center justify-center transition-all active:scale-95 border-2 flex-shrink-0 ${
               isMicOn 
                 ? 'bg-purple-600 border-purple-400 shadow-[0_0_50px_rgba(168,85,247,0.4)]' 
                 : 'bg-white/5 border-white/10 text-white/20'
             }`}
           >
-            {isMicOn ? <Mic size={28} className="text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]" /> : <MicOff size={28} />}
+            {isMicOn ? <Mic size={22} className="text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.4)] sm:size-[28px]" /> : <MicOff size={22} className="sm:size-[28px]" />}
           </button>
         </div>
       </div>
@@ -1289,6 +1289,52 @@ export default function Room() {
                     className="w-full py-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 font-bold text-xs uppercase tracking-widest text-white/60 hover:text-white transition-all"
                   >
                     Entendido / Fechar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Another Tab Warning Modal */}
+      <AnimatePresence>
+        {hasAnotherTabOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/85 backdrop-blur-xl z-[210] flex items-center justify-center p-6"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-[#121214] border border-red-500/20 rounded-3xl p-8 max-w-md w-full relative overflow-hidden shadow-[0_0_50px_rgba(239,68,68,0.15)]"
+            >
+              <div className="absolute top-0 left-12 right-12 h-[2px] bg-gradient-to-r from-transparent via-red-500 to-transparent" />
+              
+              <div className="flex flex-col items-center text-center font-sans">
+                <div className="w-16 h-16 bg-red-500/10 rounded-2xl border border-red-500/20 flex items-center justify-center mb-6">
+                  <AlertCircle size={32} className="text-red-400" />
+                </div>
+                
+                <h3 className="text-xl font-black uppercase tracking-wider text-white mb-3">
+                  Conexão de Voz Ocupada
+                </h3>
+                
+                <p className="text-sm text-white/60 leading-relaxed mb-6">
+                  O sistema de voz detectou que seu ID já está em uso nesta sala. Isso geralmente ocorre se você estiver com <strong>outra guia aberta</strong> para esta mesma sala, ou por uma conexão fantasma temporária após atualizar a página (que fechará em alguns segundos).
+                </p>
+                
+                <div className="flex flex-col gap-3 w-full">
+                  <button
+                    onClick={() => {
+                      window.location.reload();
+                    }}
+                    className="w-full py-4 rounded-2xl bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 font-bold text-xs uppercase tracking-widest text-white shadow-lg active:scale-95 transition-all"
+                  >
+                     Recarregar Conexão
                   </button>
                 </div>
               </div>

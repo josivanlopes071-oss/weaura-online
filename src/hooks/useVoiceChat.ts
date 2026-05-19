@@ -6,35 +6,90 @@ export function useVoiceChat(roomId: string, userId: string, isMicOn: boolean, p
   const [volumes, setVolumes] = useState<{ [uid: string]: number }>({});
   const [isPeerReady, setIsPeerReady] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
+  const [retryTrigger, setRetryTrigger] = useState(0);
+  const [hasAnotherTabOpen, setHasAnotherTabOpen] = useState(false);
   const peerRef = useRef<Peer | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const callsRef = useRef<{ [uid: string]: MediaConnection }>({});
   const audioContextRef = useRef<AudioContext | null>(null);
   const analysersRef = useRef<{ [uid: string]: AnalyserNode }>({});
 
+  // Reset retry trigger when room or user changes
   useEffect(() => {
-    const peer = new Peer(`${roomId}-${userId}`, {
+    setRetryTrigger(0);
+    setHasAnotherTabOpen(false);
+  }, [roomId, userId]);
+
+  // Clean up local media stream on unmount or room/user change
+  useEffect(() => {
+    return () => {
+      localStreamRef.current?.getTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
+        audioContextRef.current = null;
+      }
+    };
+  }, [roomId, userId]);
+
+  useEffect(() => {
+    if (!roomId || !userId) return;
+
+    let active = true;
+    const maxRetries = 3;
+    const isMaxRetriesReached = retryTrigger >= maxRetries;
+    const currentPeerId = isMaxRetriesReached 
+      ? `${roomId}-${userId}-duplicate-${Math.random().toString(36).substring(2, 6)}` 
+      : `${roomId}-${userId}`;
+
+    if (isMaxRetriesReached) {
+      setHasAnotherTabOpen(true);
+    }
+
+    const peer = new Peer(currentPeerId, {
       debug: 1,
-      // Increase reliability with STUN/TURN if needed, but for now just handle errors
     });
     peerRef.current = peer;
 
     peer.on('open', (id) => {
-      // console.log('Peer connected with ID:', id);
+      if (!active) return;
       setIsPeerReady(true);
+      if (!isMaxRetriesReached) {
+        setHasAnotherTabOpen(false);
+      }
     });
 
-    peer.on('error', (err) => {
-      // Handle the case where the peer we are calling doesn't exist (yet)
+    peer.on('error', (err: any) => {
+      if (!active) return;
+
       if (err.type === 'peer-unavailable') {
-        // console.warn('Peer unavailable, common when users are joining/leaving:', err.message);
         return;
       }
+
+      const isIdTaken = err.type === 'unavailable-id' || 
+                        (err.message && err.message.toLowerCase().includes('is taken')) || 
+                        (err.toString && err.toString().toLowerCase().includes('is taken'));
+
+      if (isIdTaken) {
+        if (retryTrigger < maxRetries) {
+          console.warn(`Peer ID taken, retrying in 2 seconds (attempt ${retryTrigger + 1}/${maxRetries})...`);
+          setTimeout(() => {
+            if (active) {
+              setRetryTrigger(prev => prev + 1);
+            }
+          }, 2000);
+        } else {
+          console.error("Max PeerJS ID retries reached. Using fallback ID or staying offline.");
+          setHasAnotherTabOpen(true);
+        }
+        return;
+      }
+
       console.error('Global PeerJS error:', err);
     });
 
     peer.on('call', (call) => {
-      // console.log('Incoming call from:', call.peer);
+      if (!active) return;
       call.answer(localStreamRef.current || undefined);
       
       const callerUid = call.peer.replace(`${roomId}-`, '');
@@ -55,11 +110,10 @@ export function useVoiceChat(roomId: string, userId: string, isMicOn: boolean, p
     });
 
     return () => {
+      active = false;
       peer.destroy();
-      localStreamRef.current?.getTracks().forEach(track => track.stop());
-      audioContextRef.current?.close();
     };
-  }, [roomId, userId]);
+  }, [roomId, userId, retryTrigger]);
 
   const setupAudioAnalysis = (uid: string, stream: MediaStream) => {
     if (!audioContextRef.current) {
@@ -184,5 +238,5 @@ export function useVoiceChat(roomId: string, userId: string, isMicOn: boolean, p
     manageConnections();
   }, [isMicOn, participants, roomId, userId, participantKeys, isPeerReady]);
 
-  return { remoteStreams, volumes, micError, setMicError };
+  return { remoteStreams, volumes, micError, setMicError, hasAnotherTabOpen };
 }
