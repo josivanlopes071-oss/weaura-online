@@ -684,9 +684,18 @@ export default function Room() {
           <audio
             key={uid}
             autoPlay
+            playsInline
             muted={!isSpeakerOn}
             ref={(el) => {
-              if (el) el.srcObject = stream;
+              if (el) {
+                if (el.srcObject !== stream) {
+                  el.srcObject = stream;
+                }
+                // Programmatic play fallback to bypass Android/iOS touch-to-play restrictions 
+                el.play().catch((err) => {
+                  console.warn(`[Audio] Programmatic play blocked for peer ${uid}:`, err);
+                });
+              }
             }}
           />
         ))}
@@ -1369,17 +1378,8 @@ function VoiceSeat({
 }) {
   const sizeClasses = size === 'large' ? 'w-24 h-24' : 'w-16 h-16';
 
-  // Dynamic scale based on volume, optimized as a standard style transformation
-  const scale = isActive ? 1 + (volumeLevel / 100) : 1;
-
   return (
-    <div 
-      className="relative group flex flex-col items-center select-none"
-      style={{ 
-        transform: `scale(${scale})`, 
-        transition: 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.1)' 
-      }}
-    >
+    <div className="relative group flex flex-col items-center select-none">
       {/* Speaking Aura - Ultra Premium */}
       <AnimatePresence>
         {isActive && (
@@ -1432,7 +1432,7 @@ function VoiceSeat({
             
             <UserAvatar 
               uid={userId!} 
-              className={`w-full h-full object-cover transition-all duration-700 ${isActive ? 'scale-105 grayscale-0' : 'grayscale-[0.3] group-hover:grayscale-0 group-hover:scale-110'}`}
+              className={`w-full h-full object-cover transition-all duration-700 ${isActive ? 'grayscale-0' : 'grayscale-[0.3] group-hover:grayscale-0 group-hover:scale-110'}`}
             />
             
             {/* Thinking / Speaking indicator Overlay - Premium Visualizer */}
