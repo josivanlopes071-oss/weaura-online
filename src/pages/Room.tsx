@@ -1369,19 +1369,25 @@ function VoiceSeat({
 }) {
   const sizeClasses = size === 'large' ? 'w-24 h-24' : 'w-16 h-16';
 
-  // Dynamic scale based on volume
+  // Dynamic scale based on volume, optimized as a standard style transformation
   const scale = isActive ? 1 + (volumeLevel / 100) : 1;
 
   return (
-    <div className="relative group flex flex-col items-center">
+    <div 
+      className="relative group flex flex-col items-center select-none"
+      style={{ 
+        transform: `scale(${scale})`, 
+        transition: 'transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.1)' 
+      }}
+    >
       {/* Speaking Aura - Ultra Premium */}
       <AnimatePresence>
         {isActive && (
           <>
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.95, opacity: 0 }}
               animate={{ 
-                scale: [scale * 0.95, scale * 1.6, scale * 0.95], 
+                scale: [0.95, 1.45, 0.95], 
                 opacity: [0, 0.3, 0] 
               }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -1395,7 +1401,7 @@ function VoiceSeat({
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ 
-                scale: [scale * 0.9, scale * 1.3, scale * 0.9], 
+                scale: [0.9, 1.2, 0.9], 
                 opacity: [0, 0.5, 0] 
               }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -1438,12 +1444,12 @@ function VoiceSeat({
                 >
                   <div className="flex gap-1 mb-2 items-end h-6">
                     {[0, 0.15, 0.3, 0.45, 0.6].map(d => {
-                      const h = 4 + (volumeLevel / 5) * (1 - Math.abs(d - 0.3)*2);
+                      const h = 4 + (volumeLevel / 4) * (1 - Math.abs(d - 0.3)*2);
                       return (
                         <motion.div 
                           key={d}
-                          animate={{ height: [4, h + Math.random()*5, 4] }}
-                          transition={{ repeat: Infinity, duration: 0.4, delay: d }}
+                          animate={{ height: h }}
+                          transition={{ type: "spring", stiffness: 220, damping: 15 }}
                           className="w-1 bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.8)]"
                         />
                       );

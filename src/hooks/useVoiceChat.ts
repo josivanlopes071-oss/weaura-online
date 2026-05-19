@@ -130,9 +130,12 @@ export function useVoiceChat(roomId: string, userId: string, isMicOn: boolean, p
 
   // Monitor volumes
   useEffect(() => {
-    let rafId: number;
+    let intervalId: any;
     const updateVolumes = () => {
-      if (Object.keys(analysersRef.current).length > 0 || (isMicOn && localStreamRef.current)) {
+      const hasAnalysers = Object.keys(analysersRef.current).length > 0;
+      const hasLocalMic = isMicOn && localStreamRef.current;
+      
+      if (hasAnalysers || hasLocalMic) {
         const newVolumes: { [uid: string]: number } = {};
         
         Object.entries(analysersRef.current).forEach(([uid, unknownAnalyser]) => {
@@ -140,17 +143,32 @@ export function useVoiceChat(roomId: string, userId: string, isMicOn: boolean, p
           const dataArray = new Uint8Array(analyser.frequencyBinCount);
           analyser.getByteFrequencyData(dataArray);
           const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-          newVolumes[uid] = average;
+          
+          // Noise-gate and bucketing: ignore very quiet hum (< 4) and group speaking updates
+          const bucketed = average < 4 ? 0 : Math.round(average / 4) * 4;
+          newVolumes[uid] = bucketed;
         });
 
-        setVolumes(newVolumes);
+        setVolumes(prev => {
+          const keys1 = Object.keys(newVolumes);
+          const keys2 = Object.keys(prev);
+          if (keys1.length !== keys2.length) return newVolumes;
+          
+          // Only update state if volume changes by a noticeable threshold (delta of 4) 
+          // to dramatically minimize rendering noise
+          const hasChanged = keys1.some(uid => Math.abs(newVolumes[uid] - (prev[uid] || 0)) >= 4);
+          return hasChanged ? newVolumes : prev;
+        });
+      } else {
+        setVolumes(prev => Object.keys(prev).length > 0 ? {} : prev);
       }
-      rafId = requestAnimationFrame(updateVolumes);
     };
 
-    rafId = requestAnimationFrame(updateVolumes);
-    return () => cancelAnimationFrame(rafId);
-  }, [isMicOn, userId]);
+    // 120ms intervals (approx. 8Hz updates) instead of 60fps animation frames (16.7ms intervals)
+    // reduces DOM thrashing and CPU activity enormously on lower-powered mobile devices
+    intervalId = setInterval(updateVolumes, 120);
+    return () => clearInterval(intervalId);
+  }, [isMicOn]);
 
   // Handle local mic toggle and calling others
   const participantKeys = JSON.stringify(participants);
