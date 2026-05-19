@@ -1,0 +1,107 @@
+{
+  "entities": {
+    "user": {
+      "title": "User Profile",
+      "description": "Core user information and social stats",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "bio": { "type": "string" },
+        "level": { "type": "integer" },
+        "xp": { "type": "integer", "description": "Experience points" },
+        "coins": { "type": "integer" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "displayId": { "type": "integer", "description": "Sequential user ID starting from 1" },
+        "isBanned": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["online", "offline", "away"] },
+        "followers": { "type": "array", "items": { "type": "string" } },
+        "following": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "role"]
+    },
+    "room": {
+      "title": "Chat Room",
+      "description": "Voice and text chat rooms",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "members": { "type": "array", "items": { "type": "string" } },
+        "activeSpeakers": { "type": "array", "items": { "type": "string" } },
+        "slots": { "type": "object" },
+        "isLocked": { "type": "boolean" },
+        "category": { "type": "string", "enum": ["Amizade", "Música", "Jogos", "Namoro", "Chat", "Anime", "Livre"] },
+        "participantLimit": { "type": "number" },
+        "password": { "type": "string" },
+        "theme": { "type": "string" },
+        "neonColor": { "type": "string" },
+        "stageLayout": { "type": "string" },
+        "allowFreeMic": { "type": "boolean" },
+        "moderators": { "type": "array", "items": { "type": "string" } },
+        "mutedUsers": { "type": "array", "items": { "type": "string" } },
+        "coHosts": { "type": "array", "items": { "type": "string" } },
+        "coverURL": { "type": "string" },
+        "hostInfo": {
+          "type": "object",
+          "properties": {
+            "displayName": { "type": "string" },
+            "photoURL": { "type": "string" }
+          }
+        },
+        "lastActive": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["public", "private"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "message": {
+      "title": "Message",
+      "description": "Room messages",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "text": { "type": "string" },
+        "type": { "type": "string", "enum": ["text", "gift", "system"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
+    "private_chat": {
+      "title": "Private Chat",
+      "description": "One-to-one conversation between users",
+      "type": "object",
+      "properties": {
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "lastMessage": { "type": "string" },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["participants"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "user",
+      "description": "User profiles"
+    },
+    "/rooms/{roomId}": {
+      "schema": "room",
+      "description": "Chat rooms"
+    },
+    "/rooms/{roomId}/messages/{messageId}": {
+      "schema": "message",
+      "description": "Messages inside a room"
+    },
+    "/private_chats/{chatId}": {
+      "schema": "private_chat",
+      "description": "One-to-one conversations"
+    },
+    "/private_chats/{chatId}/messages/{messageId}": {
+      "schema": "message",
+      "description": "Private messages"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "WE AURA",
+  "description": "Uma plataforma social completa com salas de voz, mensagens em tempo real e minijogos multiplayer com estética neon moderna.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

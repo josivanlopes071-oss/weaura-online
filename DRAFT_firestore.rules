@@ -1,0 +1,119 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Blueprints ---
+
+    function isValidUser(data) {
+      return data.uid == request.auth.uid 
+        && data.displayName is string && data.displayName.size() <= 50
+        && data.bio is string && data.bio.size() <= 200
+        && (data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 500))
+        && data.level is int && data.level >= 1
+        && data.xp is int && data.xp >= 0
+        && data.coins is int && data.coins >= 0
+        && data.badges is list
+        && (data.status in ['online', 'offline', 'gaming']);
+    }
+
+    function isValidRoom(data) {
+      return data.name is string && data.name.size() <= 100
+        && data.description is string && data.description.size() <= 500
+        && data.ownerId == request.auth.uid
+        && (data.type in ['public', 'private', 'game'])
+        && data.members is list && data.members.size() <= 500
+        && data.activeSpeakers is list && data.activeSpeakers.size() <= 20;
+    }
+
+    function isValidMessage(data) {
+      return data.authorId == request.auth.uid
+        && data.text is string && data.text.size() <= 1000
+        && (data.type in ['text', 'gift', 'system'])
+        && (data.type != 'gift' || (data.giftType is string && data.giftType.size() <= 50));
+    }
+
+    // --- Core Match Blocks ---
+
+    // Users
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId) 
+        && isValidUser(incoming())
+        && incoming().createdAt == request.time
+        && incoming().coins == 100; // Starting coins enforced
+      
+      allow update: if isOwner(userId)
+        && isValidUser(incoming())
+        && (
+          // Action: Profile Update
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'bio', 'status', 'updatedAt'])
+          && incoming().updatedAt == request.time
+        );
+
+      match /friends/{friendId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId) && isValidId(friendId);
+      }
+    }
+
+    // Rooms
+    match /rooms/{roomId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() 
+        && isValidId(roomId)
+        && isValidRoom(incoming())
+        && incoming().createdAt == request.time;
+      
+      allow update: if isSignedIn() && (
+        // Action: Join/Leave or Mic Toggle
+        (incoming().diff(existing()).affectedKeys().hasOnly(['members', 'activeSpeakers', 'gameId']))
+        || 
+        // Action: Room Settings (Owner only)
+        (isOwner(existing().ownerId) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'type']))
+      );
+
+      allow delete: if isOwner(existing().ownerId);
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() 
+          && isValidMessage(incoming())
+          && incoming().timestamp == request.time;
+      }
+    }
+
+    // Games
+    match /gameSessions/{sessionId} {
+      allow read: if isSignedIn();
+      // Only system or restricted updates if we had a backend. 
+      // For pure client-side, we restrict who can change the winner.
+      allow write: if isSignedIn() && isValidId(sessionId);
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    "status": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "$uid === auth.uid",
+        "online": { ".validate": "newData.isBoolean()" },
+        "last_changed": { ".validate": "newData.isNumber()" }
+      }
+    },
+    "rooms_active": {
+      "$roomId": {
+        ".read": "auth != null",
+        "participants": {
+          "$uid": {
+            ".write": "$uid === auth.uid",
+            "mic": { ".validate": "newData.isBoolean()" },
+            "speaking": { ".validate": "newData.isBoolean()" }
+          }
+        }
+      }
+    }
+  }
+}
