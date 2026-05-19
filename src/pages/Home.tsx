@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../lib/firebase';
-import { collection, onSnapshot, query, orderBy, limit, addDoc, serverTimestamp, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, limit, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../lib/firebase';
-import { Plus, Users, Mic, Flame, MessageSquare, X, Lock, Gamepad2, Music, Coffee, MessageCircle, Trophy, Megaphone, ExternalLink, Crown } from 'lucide-react';
+import { Plus, Users, Mic, Flame, MessageSquare, X, Lock, Gamepad2, Music, Coffee, MessageCircle, Trophy } from 'lucide-react';
 
 interface Room {
   id: string;
@@ -40,39 +40,18 @@ export default function Home() {
   const [newRoomName, setNewRoomName] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Chat');
   const [activeFilter, setActiveFilter] = useState('Tudo');
-  const [announcements, setAnnouncements] = useState<any[]>([]);
   const { user, profile } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!user) return;
-
-    const qAnn = query(collection(db, 'announcements'), where('active', '==', true), orderBy('timestamp', 'desc'), limit(3));
-    const unsubAnn = onSnapshot(qAnn, (snap) => {
-      setAnnouncements(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    }, (error) => {
-      console.warn("Erro ao carregar anúncios:", error);
-    });
-
     const q = query(collection(db, 'rooms'), orderBy('createdAt', 'desc'), limit(50));
-    const unsubRooms = onSnapshot(q, (snapshot) => {
+    return onSnapshot(q, (snapshot) => {
       const roomList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Room));
-      // Sort: Spotlight rooms first
-      const sortedRooms = [...roomList].sort((a: any, b: any) => {
-        if (a.isSpotlight && !b.isSpotlight) return -1;
-        if (!a.isSpotlight && b.isSpotlight) return 1;
-        return 0;
-      });
-      setRooms(sortedRooms);
+      setRooms(roomList);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'rooms');
     });
-
-    return () => {
-      if (typeof unsubAnn === 'function') unsubAnn();
-      if (typeof unsubRooms === 'function') unsubRooms();
-    };
-  }, [user]);
+  }, []);
 
   const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -243,51 +222,6 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      {/* Announcements Banner */}
-      <AnimatePresence>
-        {announcements.length > 0 && (
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="space-y-4"
-          >
-            {announcements.map(ann => (
-              <div 
-                key={ann.id}
-                onClick={() => ann.roomId && navigate(`/room/${ann.roomId}`)}
-                className={`p-5 rounded-[32px] border flex items-center gap-4 relative overflow-hidden transition-all ${
-                  ann.roomId ? 'cursor-pointer hover:scale-[1.02] active:scale-95' : ''
-                } ${
-                  ann.type === 'alert' ? 'bg-red-500/10 border-red-500/20 text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.1)]' :
-                  ann.type === 'event' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.1)]' :
-                  'bg-purple-500/10 border-purple-500/20 text-purple-400'
-                }`}
-              >
-                <div className={`p-3 rounded-2xl ${
-                  ann.type === 'alert' ? 'bg-red-500 text-white' :
-                  ann.type === 'event' ? 'bg-blue-500 text-white' :
-                  'bg-purple-500 text-white'
-                }`}>
-                  <Megaphone size={16} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-0.5">
-                    {ann.type === 'alert' ? 'AVISO CRÍTICO' : ann.type === 'event' ? 'EVENTO AO VIVO' : 'COMUNICADO'}
-                  </p>
-                  <p className="text-xs font-bold leading-tight line-clamp-2">{ann.content}</p>
-                </div>
-                {ann.roomId && (
-                  <div className="shrink-0 bg-white/10 p-2 rounded-xl">
-                    <ExternalLink size={14} />
-                  </div>
-                )}
-              </div>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Premium Header */}
       <section className="flex items-center justify-between pt-4">
         <div className="flex items-center gap-3">
@@ -396,36 +330,14 @@ export default function Home() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleRoomClick(room)}
-                className={`rounded-[32px] border p-4 flex gap-5 group cursor-pointer transition-all shadow-[0_10px_40px_rgba(0,0,0,0.6)] relative overflow-hidden active:bg-zinc-900/50 ${
-                  (room as any).isSpotlight 
-                    ? 'bg-gradient-to-br from-purple-900/40 to-black border-purple-500/40 ring-1 ring-purple-500/20' 
-                    : 'bg-[#0c0c0c] border-white/[0.05] active:border-purple-500/30'
-                }`}
+                className="bg-[#0c0c0c] rounded-[32px] border border-white/[0.05] p-4 flex gap-5 group cursor-pointer active:border-purple-500/30 transition-all shadow-[0_10px_40px_rgba(0,0,0,0.6)] relative overflow-hidden active:bg-zinc-900/50"
               >
-                {/* Spotlight/Event Badges */}
-                <div className="absolute top-0 right-0 pt-4 pr-6 z-20 flex flex-col gap-2 items-end">
-                  {(room as any).isSpotlight && (
-                    <div className="bg-yellow-500 text-black px-3 py-1 rounded-full flex items-center gap-1.5 shadow-[0_0_20px_rgba(234,179,8,0.4)] animate-pulse">
-                      <Crown size={10} fill="currentColor" />
-                      <span className="text-[8px] font-black uppercase tracking-widest italic">Destaque</span>
-                    </div>
-                  )}
-                  {(room as any).isEvent && (
-                    <div className="bg-red-600 text-white px-3 py-1 rounded-full flex items-center gap-1.5 shadow-[0_0_20px_rgba(239,68,68,0.4)]">
-                      <div className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
-                      <span className="text-[8px] font-black uppercase tracking-widest italic">Ao Vivo</span>
-                    </div>
-                  )}
-                </div>
-
                 {/* Glow Effect */}
                 <div className="absolute inset-0 bg-gradient-to-r from-purple-500/0 via-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 
                 {/* Left: Large Avatar */}
                 <div className="relative shrink-0">
-                  <div className={`w-[110px] h-[110px] rounded-[28px] overflow-hidden border shadow-premium relative z-10 transition-all duration-500 group-hover:rounded-[22px] ${
-                    (room as any).isSpotlight ? 'border-purple-500/30' : 'border-white/10'
-                  }`}>
+                  <div className="w-[110px] h-[110px] rounded-[28px] overflow-hidden border border-white/10 shadow-premium relative z-10 transition-all duration-500 group-hover:rounded-[22px]">
                     <img 
                       src={room.hostInfo?.photoURL || (room as any).coverURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${room.id}`} 
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
@@ -447,18 +359,14 @@ export default function Home() {
                     
                     {/* Room Name */}
                     <div className="flex items-center justify-between">
-                      <h3 className={`text-xl font-black truncate italic uppercase tracking-tighter leading-tight group-hover:text-purple-400 transition-colors ${
-                        (room as any).isSpotlight ? 'text-purple-100' : 'text-white'
-                      }`}>
+                      <h3 className="text-xl font-black text-white truncate italic uppercase tracking-tighter leading-tight group-hover:text-purple-400 transition-colors">
                         {room.name}
                       </h3>
                       <span className="text-lg grayscale group-hover:grayscale-0 transition-all opacity-40 group-hover:opacity-100">🇧🇷</span>
                     </div>
 
                     {/* Host & Info */}
-                    <p className={`text-[11px] font-medium truncate uppercase tracking-widest italic ${
-                      (room as any).isSpotlight ? 'text-purple-300/40' : 'text-white/30'
-                    }`}>
+                    <p className="text-[11px] font-medium text-white/30 truncate uppercase tracking-widest italic">
                       {(room as any).description || 'Sintonize nesta vibração agora'}
                     </p>
                   </div>
@@ -466,13 +374,9 @@ export default function Home() {
                   {/* Footer Stats */}
                   <div className="flex items-center justify-between mt-2">
                     <div className="flex items-center gap-4">
-                      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-2xl border ${
-                        (room as any).isSpotlight ? 'bg-purple-500/10 border-purple-500/20' : 'bg-white/5 border-white/5'
-                      }`}>
-                        <Users size={12} className={(room as any).isSpotlight ? 'text-purple-400' : 'text-white/40'} />
-                        <span className={`text-[10px] font-black tabular-nums tracking-wide ${
-                          (room as any).isSpotlight ? 'text-purple-300' : 'text-white'
-                        }`}>{room.members?.length || 0}</span>
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-2xl border border-white/5">
+                        <Users size={12} className="text-white/40" />
+                        <span className="text-[10px] font-black text-white tabular-nums tracking-wide">{room.members?.length || 0}</span>
                       </div>
                       
                       <div className="flex -space-x-2">
@@ -486,9 +390,7 @@ export default function Home() {
 
                     <div className="flex gap-0.5 items-end h-5">
                        {[1, 2, 3, 4].map(i => (
-                         <div key={i} className={`w-[3px] rounded-full animate-bounce ${
-                           (room as any).isSpotlight ? 'bg-purple-400' : 'bg-purple-500/30'
-                         }`} 
+                         <div key={i} className="w-[3px] bg-purple-500/30 rounded-full animate-bounce" 
                            style={{ height: `${20 + Math.random() * 80}%`, animationDelay: `${i * 0.1}s`, animationDuration: `${0.5 + Math.random()}s` }} 
                          />
                        ))}

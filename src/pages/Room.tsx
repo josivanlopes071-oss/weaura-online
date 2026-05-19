@@ -76,10 +76,11 @@ function UserDisplayName({ uid, fallback }: { uid?: string | null, fallback: str
 
     if (nameCache[uid]) {
       setName(nameCache[uid]);
+      return;
     }
 
     const userRef = doc(db, 'users', uid);
-    const unsubscribe = onSnapshot(userRef, (snap) => {
+    getDoc(userRef).then(snap => {
       if (snap.exists()) {
         const data = snap.data();
         const displayName = data.displayName;
@@ -88,9 +89,7 @@ function UserDisplayName({ uid, fallback }: { uid?: string | null, fallback: str
         if (photoURL) photoCache[uid] = photoURL;
         setName(displayName);
       }
-    }, (err) => console.warn("Error subscribing to user name:", err));
-
-    return () => unsubscribe();
+    }).catch(err => console.warn("Error fetching user name:", err));
   }, [uid, user?.uid, profile?.displayName]);
 
   if (!uid) return <>{fallback}</>;
@@ -115,10 +114,11 @@ function UserAvatar({ uid, className, alt = "" }: { uid?: string | null, classNa
 
     if (photoCache[uid]) {
       setPhoto(photoCache[uid]);
+      return;
     }
 
     const userRef = doc(db, 'users', uid);
-    const unsubscribe = onSnapshot(userRef, (snap) => {
+    getDoc(userRef).then(snap => {
       if (snap.exists()) {
         const data = snap.data();
         const photoURL = data.photoURL;
@@ -129,9 +129,7 @@ function UserAvatar({ uid, className, alt = "" }: { uid?: string | null, classNa
         }
         if (displayName) nameCache[uid] = displayName;
       }
-    }, (err) => console.warn("Error subscribing to user photo:", err));
-
-    return () => unsubscribe();
+    }).catch(err => console.warn("Error fetching user photo:", err));
   }, [uid, user?.uid, profile?.photoURL]);
 
   const src = photo || `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid || 'default'}`;

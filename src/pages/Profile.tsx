@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth, UserRole, getRoleLevel } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Settings, Shield, Trophy, MapPin, Calendar, LogOut, Edit2, X, Check, Camera, RefreshCw, UserMinus, Search, ChevronRight, UserPlus, MessageCircle, Star, Flame, Gamepad2 } from 'lucide-react';
@@ -14,6 +14,11 @@ export default function Profile() {
   const [displayProfile, setDisplayProfile] = useState<any>(null);
   const [isMyProfile, setIsMyProfile] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+  const [targetUid, setTargetUid] = useState('');
+  const [foundUser, setFoundUser] = useState<any>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchType, setSearchType] = useState<'uid' | 'displayId'>('displayId');
   const [editName, setEditName] = useState('');
   const [editBio, setEditBio] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -36,12 +41,104 @@ export default function Profile() {
         } else {
           navigate('/profile');
         }
-      }, (err) => console.warn("Error reading profile snapshot:", err));
+      });
       return () => unsubscribe();
     }
   }, [id, user, myProfile]);
 
   if (!displayProfile || !user || !myProfile) return null;
+
+  const SUPER_ADMINS = ['josivanlopes071@gmail.com', 'manoeldasilva631kejr@gmail.com'];
+  const isSuperAdmin = SUPER_ADMINS.includes(user.email || '');
+
+  const handleSearchUser = async () => {
+    if (!targetUid) return;
+    setIsSearching(true);
+    try {
+      if (searchType === 'uid') {
+        const userRef = doc(db, 'users', targetUid);
+        const snap = await getDoc(userRef);
+        if (snap.exists()) {
+          setFoundUser({ ...snap.data(), id: snap.id });
+        } else {
+          alert("Usuário não encontrado");
+          setFoundUser(null);
+        }
+      } else {
+        // Search by numeric ID
+        const numericalId = parseInt(targetUid);
+        if (isNaN(numericalId)) {
+          alert("Insira um número válido");
+          return;
+        }
+        const { collection, query, where, getDocs, limit } = await import('firebase/firestore');
+        const q = query(collection(db, 'users'), where('displayId', '==', numericalId), limit(1));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const userDoc = snap.docs[0];
+          setFoundUser({ ...userDoc.data(), id: userDoc.id });
+        } else {
+          alert("ID Numérico não encontrado");
+          setFoundUser(null);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const toggleBanUser = async (duration?: number) => {
+    if (!foundUser) return;
+    
+    // Super Admin Protection
+    if (SUPER_ADMINS.includes(foundUser.email || '')) {
+      alert("Operação negada: Este usuário é um Administrador Mestre e não pode ser banido.");
+      return;
+    }
+
+    const newBanState = !foundUser.isBanned;
+    const bannedUntil = duration ? new Date(Date.now() + duration) : null;
+
+    try {
+      const userRef = doc(db, 'users', foundUser.id);
+      await updateDoc(userRef, { 
+        isBanned: newBanState,
+        bannedUntil: newBanState ? bannedUntil : null
+      });
+      setFoundUser({ ...foundUser, isBanned: newBanState, bannedUntil: newBanState ? bannedUntil : null });
+      alert(newBanState ? (duration ? `Banido por ${Math.round(duration/3600000)}h!` : "Banido Permanentemente!") : "Desbanido!");
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao realizar ação");
+    }
+  };
+
+  const toggleAdminRole = async () => {
+    if (!foundUser) return;
+    if (!isSuperAdmin) {
+      alert("Apenas administradores mestre podem realizar esta ação.");
+      return;
+    }
+
+    // Super Admin Protection
+    if (SUPER_ADMINS.includes(foundUser.email || '')) {
+      alert("Operação negada: Este usuário é um Administrador Mestre.");
+      return;
+    }
+
+    const nextRole = foundUser.role === 'admin' ? 'user' : 'admin';
+    try {
+      const userRef = doc(db, 'users', foundUser.id);
+      await updateDoc(userRef, { role: nextRole });
+      setFoundUser({ ...foundUser, role: nextRole });
+      alert(nextRole === 'admin' ? "Promovido a ADM!" : "Rebaixado a Usuário!");
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao alterar cargo. Verifique suas permissões.");
+    }
+  };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -129,9 +226,9 @@ export default function Profile() {
           </button>
           
           <div className="flex gap-3">
-            {isMyProfile && getRoleLevel(myProfile.role) >= 1 && (
+            {isMyProfile && myProfile.role === 'admin' && (
               <button 
-                onClick={() => navigate('/admin')}
+                onClick={() => setIsAdminPanelOpen(true)}
                 className="w-12 h-12 bg-red-500 rounded-2xl text-white shadow-[0_10px_30px_rgba(239,68,68,0.3)] flex items-center justify-center active:scale-90 transition-all"
               >
                 <Shield size={22} />
@@ -191,10 +288,7 @@ export default function Profile() {
               {displayProfile.displayName}
             </h2>
             <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.4em] italic mb-4">
-              {displayProfile.role === 'owner' ? 'OWNER • SUPREMO' : 
-               displayProfile.role === 'superadmin' ? 'SYSTEM • MASTER' :
-               displayProfile.role === 'admin' ? 'ADM • AURA' :
-               displayProfile.role === 'moderator' ? 'MOD • SENTINELA' : 'AURORA • EXPLORADOR'}
+              {displayProfile.role === 'admin' ? 'ADM + AURA + EGO' : 'AURORA • EXPLORADOR'}
             </p>
             
             <div className="flex items-center justify-center gap-3">
@@ -305,6 +399,148 @@ export default function Profile() {
         </div>
       </div>
 
+      <AnimatePresence>
+        {isAdminPanelOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsAdminPanelOpen(false)}
+              className="fixed inset-0 bg-black/90 backdrop-blur-md z-[80]"
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              className="fixed right-0 top-0 bottom-0 w-[320px] bg-[#020202] border-l border-white/5 p-8 z-[90] flex flex-col shadow-[-20px_0_100px_rgba(0,0,0,0.9)]"
+            >
+              <div className="flex justify-between items-center mb-10">
+                <div className="flex flex-col">
+                   <h3 className="text-xl font-bold text-red-500 leading-none tracking-widest uppercase">MODERAÇÃO</h3>
+                   <span className="text-[9px] font-bold text-white/20 uppercase tracking-[0.2em] mt-1">Protocolo Administrativo</span>
+                </div>
+                <button onClick={() => setIsAdminPanelOpen(false)} className="p-2 bg-white/5 rounded-xl text-white/20 hover:text-white">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto space-y-10 pr-2 scrollbar-hide">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between px-1">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-white/30">Busca de Alvo</label>
+                    <div className="flex gap-1.5 p-1 bg-white/5 rounded-lg">
+                      <button 
+                        onClick={() => setSearchType('displayId')}
+                        className={`text-[9px] font-bold uppercase px-2 py-1 rounded-md transition-all ${searchType === 'displayId' ? 'bg-red-500 text-white shadow-lg' : 'text-white/20 hover:text-white/40'}`}
+                      >
+                        ID
+                      </button>
+                      <button 
+                        onClick={() => setSearchType('uid')}
+                        className={`text-[9px] font-bold uppercase px-2 py-1 rounded-md transition-all ${searchType === 'uid' ? 'bg-red-500 text-white shadow-lg' : 'text-white/20 hover:text-white/40'}`}
+                      >
+                        UID
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder={searchType === 'displayId' ? "ID..." : "UID..."}
+                      value={targetUid}
+                      onChange={(e) => setTargetUid(e.target.value)}
+                      className="flex-1 bg-white/5 border border-white/5 rounded-2xl px-6 py-4 text-xs text-white focus:outline-none focus:border-red-500/50"
+                    />
+                    <button 
+                      onClick={handleSearchUser}
+                      disabled={isSearching}
+                      className="bg-red-600 px-6 rounded-2xl text-white flex items-center justify-center active:scale-90 transition-all disabled:opacity-30"
+                    >
+                      <Search size={22} className={isSearching ? 'animate-spin' : ''} />
+                    </button>
+                  </div>
+                </div>
+
+                {foundUser && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-6 bg-red-500/[0.03] rounded-[32px] border border-red-500/10 space-y-6"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="relative">
+                        <img src={foundUser.photoURL} alt="" className="w-14 h-14 rounded-2xl bg-zinc-900 border-2 border-red-500/20 object-cover" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-base font-bold text-white truncate leading-none">{foundUser.displayName}</div>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <span className="text-[9px] font-bold text-white/20 tracking-widest uppercase">ID: {foundUser.displayId}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="h-px bg-red-500/10 w-full"></div>
+
+                    <div className="flex flex-col gap-4">
+                       <label className="text-[10px] text-white/30 font-bold uppercase tracking-[0.2em] ml-1">Ações de Moderação</label>
+                       <div className="grid grid-cols-2 gap-2">
+                          {[
+                            { l: '1 HORA', v: 3600000 },
+                            { l: '24 HORAS', v: 86400000 },
+                            { l: '7 DIAS', v: 604800000 },
+                            { l: 'PERMA', v: null }
+                          ].map(t => (
+                            <button 
+                              key={t.l}
+                              onClick={() => toggleBanUser(t.v || undefined)} 
+                              className="text-[9px] font-bold bg-white/5 py-4 rounded-2xl hover:bg-white/10 text-white/60 transition-colors border border-white/5"
+                            >
+                              {t.l}
+                            </button>
+                          ))}
+                       </div>
+                       
+                       <div className="grid grid-cols-1 gap-3 mt-2">
+                         <button 
+                           onClick={() => toggleBanUser()}
+                           className={`py-5 rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] transition-all shadow-lg ${
+                             foundUser.isBanned 
+                               ? 'bg-green-600 text-white shadow-lg' 
+                               : 'bg-red-600 text-white shadow-lg'
+                           }`}
+                         >
+                           {foundUser.isBanned ? 'Desbanir Usuário' : 'Efetuar Banimento'}
+                         </button>
+   
+                         {isSuperAdmin && (
+                           <button 
+                             onClick={toggleAdminRole}
+                             className={`py-5 rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] transition-all border ${
+                               foundUser.role === 'admin'
+                                 ? 'bg-orange-500/10 text-orange-500 border-orange-500/20'
+                                 : 'bg-white text-black'
+                             }`}
+                           >
+                             {foundUser.role === 'admin' ? 'Revogar ADM' : 'Conceder ADM'}
+                           </button>
+                         )}
+                       </div>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+
+              <div className="mt-8 p-6 bg-red-600/5 rounded-[32px] border border-red-500/10">
+                <p className="text-[10px] text-red-500/60 font-black italic uppercase text-center leading-relaxed tracking-wider">
+                  Operação Monitorada • Ações Gravadas em Log de Segurança
+                </p>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Edit Modal */}
       <AnimatePresence>
         {isEditing && (
@@ -391,14 +627,6 @@ export default function Profile() {
           </>
         )}
       </AnimatePresence>
-
-      <input 
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileChange}
-        accept="image/*"
-        className="hidden"
-      />
     </motion.div>
   );
 }

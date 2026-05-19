@@ -33,8 +33,6 @@ const PageLoading = () => (
   </div>
 );
 
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
-
 function AppContent() {
   const { user, profile, loading, connectionError, isOnline, refreshConnection } = useAuth();
   const location = useLocation();
@@ -97,7 +95,6 @@ function AppContent() {
               <Route path="/profile" element={<Profile />} />
               <Route path="/profile/:id" element={<Profile />} />
               <Route path="/challenges" element={<Challenges />} />
-              <Route path="/admin" element={<AdminDashboard />} />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </Suspense>

@@ -3,8 +3,6 @@ import { User, onAuthStateChanged, signInAnonymously, signOut, signInWithEmailAn
 import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, runTransaction, updateDoc } from 'firebase/firestore';
 
-export type UserRole = 'user' | 'moderator' | 'admin' | 'superadmin' | 'owner';
-
 interface UserProfile {
   uid: string;
   displayName: string;
@@ -13,35 +11,16 @@ interface UserProfile {
   level: number;
   xp: number;
   coins: number;
-  role: UserRole;
+  role: 'user' | 'admin';
   displayId: number;
   following?: string[];
   followers?: string[];
   isBanned?: boolean;
   bannedUntil?: any; // Timestamp
-  isMuted?: boolean;
-  mutedUntil?: any; // Timestamp
   status: 'online' | 'offline' | 'away';
-  lastSeen?: any;
-  deviceInfo?: {
-    platform: string;
-    userAgent: string;
-  };
-  verified?: boolean;
 }
 
 const SUPER_ADMINS = ['josivanlopes071@gmail.com', 'manoeldasilva631kejr@gmail.com'];
-
-export function getRoleLevel(role: UserRole): number {
-  switch (role) {
-    case 'user': return 0;
-    case 'moderator': return 1;
-    case 'admin': return 2;
-    case 'superadmin': return 3;
-    case 'owner': return 4;
-    default: return 0;
-  }
-}
 
 export function isSuperAdmin(email?: string | null) {
   return SUPER_ADMINS.includes(email || '');
@@ -149,16 +128,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               level: 1,
               xp: 0,
               coins: 100,
-              role: isAdminEmail ? 'owner' : 'user',
+              role: isAdminEmail ? 'admin' : 'user',
               displayId: numericalId,
               following: [],
               followers: [],
               isBanned: false,
               status: 'online',
-              deviceInfo: {
-                platform: navigator.platform,
-                userAgent: navigator.userAgent
-              }
             };
             try {
               await setDoc(userRef, {
@@ -177,10 +152,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             let needsUpdate = false;
             const updates: any = {};
 
-            // Auto-upgrade to owner if email is in the list but role is not owner
-            if (isAdminEmail && data.role !== 'owner') {
-              data.role = 'owner';
-              updates.role = 'owner';
+            // Auto-upgrade to admin if email is in the list but role is not admin
+            if (isAdminEmail && data.role !== 'admin') {
+              data.role = 'admin';
+              updates.role = 'admin';
               needsUpdate = true;
             }
 

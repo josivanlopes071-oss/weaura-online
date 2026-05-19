@@ -23,7 +23,7 @@ service cloud.firestore {
       return isSignedIn() && (
         isSuperAdmin() ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') in ['moderator', 'admin', 'superadmin', 'owner'])
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') == 'admin')
       );
     }
 
@@ -41,39 +41,18 @@ service cloud.firestore {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    // --- Collections ---
-
-    // 1. Admin and Safety
-    match /adminLogs/{logId} {
-      allow read, create: if isAdmin();
-    }
-    match /reports/{reportId} {
-      allow read: if isAdmin();
-      allow create: if isNotBanned();
-      allow update: if isAdmin();
-    }
-    match /announcements/{annId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    match /settings/{settingId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    // 2. System Counters
+    // 1. System Counters (MUST be accessible for user creation)
     match /counters/{counterId} {
       allow read, write: if isSignedIn();
     }
 
-    // 3. Users Collection
+    // 2. Users Collection
     match /users/{userId} {
       allow read: if isSignedIn();
       allow create: if isOwner(userId);
       allow update: if (isOwner(userId) && (!resource.data.get('isBanned', false) || isSuperAdmin())) || 
                     isAdmin() ||
-                    (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers', 'following', 'followingCount', 'followersCount', 'updatedAt']));
+                    (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers']));
 
       match /notifications/{notifId} {
         allow read: if isOwner(userId);
@@ -81,7 +60,7 @@ service cloud.firestore {
       }
     }
 
-    // 4. App Content
+    // 3. App Content
     function isValidRoom(data) {
       return data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
              data.ownerId is string && data.ownerId == request.auth.uid &&
@@ -130,7 +109,7 @@ service cloud.firestore {
       }
     }
 
-    // 5. Default Deny
+    // 4. Default Deny
     match /{document=**} {
       allow read, write: if false;
     }

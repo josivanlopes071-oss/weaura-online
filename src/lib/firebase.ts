@@ -89,6 +89,8 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   
   // No alerts to avoid intrusive UI in production/dev
+  
+  throw new Error(JSON.stringify(errInfo));
 }
 
 export { app, db, auth, enableNetwork, disableNetwork };
