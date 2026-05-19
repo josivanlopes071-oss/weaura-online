@@ -80,9 +80,41 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["participants"]
+    },
+    "system_announcement": {
+      "title": "System Announcement",
+      "description": "Admin broadcast messages visible to all users",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "adminName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["text", "adminName", "createdAt"]
+    },
+    "admin_audit_log": {
+      "title": "Admin Audit Log",
+      "description": "Logs of admin operations for transparency and tracking",
+      "type": "object",
+      "properties": {
+        "adminId": { "type": "string" },
+        "adminEmail": { "type": "string" },
+        "action": { "type": "string" },
+        "type": { "type": "string", "enum": ["info", "warning", "success", "critical"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["adminId", "adminEmail", "action", "type", "timestamp"]
     }
   },
   "firestore": {
+    "/system_announcements/{announcementId}": {
+      "schema": "system_announcement",
+      "description": "Global admin announcements"
+    },
+    "/admin_audit_logs/{logId}": {
+      "schema": "admin_audit_log",
+      "description": "Trace audit logs of admin holographic workspace actions"
+    },
     "/users/{userId}": {
       "schema": "user",
       "description": "User profiles"

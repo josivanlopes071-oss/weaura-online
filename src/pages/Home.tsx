@@ -22,6 +22,9 @@ interface Room {
     displayName: string;
     photoURL: string;
   };
+  isPinned?: boolean;
+  isOfficial?: boolean;
+  isTrending?: boolean;
 }
 
 const CATEGORIES = [
@@ -105,9 +108,16 @@ export default function Home() {
     }
   };
 
-  const filteredRooms = activeFilter === 'Tudo' 
+  const filteredRooms = (activeFilter === 'Tudo' 
     ? rooms 
-    : rooms.filter(r => r.category === activeFilter);
+    : rooms.filter(r => r.category === activeFilter))
+    .sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      if (a.isOfficial && !b.isOfficial) return -1;
+      if (!a.isOfficial && b.isOfficial) return 1;
+      return 0;
+    });
 
   const [passwordRoom, setPasswordRoom] = useState<Room | null>(null);
   const [roomPassword, setRoomPassword] = useState('');
@@ -353,8 +363,20 @@ export default function Home() {
                 <div className="flex-1 min-w-0 py-1 flex flex-col justify-between relative z-10">
                   <div className="space-y-1.5">
                     {/* Category Tag */}
-                    <div className={`w-fit px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-[0.15em] italic ${tagColor}`}>
-                      {category}
+                    <div className="flex flex-wrap gap-1.5 items-center">
+                      <div className={`w-fit px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-[0.15em] italic ${tagColor}`}>
+                        {category}
+                      </div>
+                      {room.isPinned && (
+                        <div className="bg-[#00BFFF]/20 border border-[#00BFFF]/40 text-[#00BFFF] px-2.5 py-1 rounded-full text-[8.5px] font-black uppercase tracking-[0.1em]">
+                          📌 FIXADA
+                        </div>
+                      )}
+                      {room.isOfficial && (
+                        <div className="bg-[#a855f7]/20 border border-[#a855f7]/40 text-purple-300 px-2.5 py-1 rounded-full text-[8.5px] font-black uppercase tracking-[0.1em]">
+                          ⭐️ OFICINA
+                        </div>
+                      )}
                     </div>
                     
                     {/* Room Name */}

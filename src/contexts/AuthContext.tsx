@@ -18,6 +18,7 @@ interface UserProfile {
   isBanned?: boolean;
   bannedUntil?: any; // Timestamp
   status: 'online' | 'offline' | 'away';
+  email?: string;
 }
 
 const SUPER_ADMINS = ['josivanlopes071@gmail.com', 'manoeldasilva631kejr@gmail.com'];
@@ -119,10 +120,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               handleFirestoreError(trError, OperationType.WRITE, 'counters/users');
               throw trError;
             }
-            
-            const newProfile: UserProfile = {
+                         const newProfile: UserProfile = {
               uid: authenticatedUser.uid,
               displayName: authenticatedUser.email?.split('@')[0] || 'Usuário',
+              email: authenticatedUser.email || '',
               photoURL: authenticatedUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${authenticatedUser.uid}`,
               bio: 'Bem-vindo ao WE AURA!',
               level: 1,
@@ -151,6 +152,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             
             let needsUpdate = false;
             const updates: any = {};
+
+            // Ensure email is saved in Firestore for searching
+            if (!data.email && authenticatedUser.email) {
+              data.email = authenticatedUser.email;
+              updates.email = authenticatedUser.email;
+              needsUpdate = true;
+            }
 
             // Auto-upgrade to admin if email is in the list but role is not admin
             if (isAdminEmail && data.role !== 'admin') {

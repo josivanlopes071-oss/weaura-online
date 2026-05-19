@@ -120,7 +120,7 @@ export default function Header() {
                     <div 
                       key={notif.id}
                       onClick={() => handleNotificationClick(notif)}
-                      className={`px-6 py-5 flex items-start gap-4 hover:bg-white/[0.02] transition-all cursor-pointer border-b border-white/5 last:border-0 ${!notif.read ? 'bg-purple-500/[0.03]' : ''}`}
+                      className={`px-6 py-5 flex items-start gap-4 hover:bg-white/[0.02] transition-colors cursor-pointer border-b border-white/5 last:border-0 ${!notif.read ? 'bg-purple-500/[0.03]' : ''}`}
                     >
                       <div className={`mt-1 p-2.5 rounded-2xl ${!notif.read ? 'bg-purple-500/20 text-purple-400' : 'bg-white/5 text-white/30'}`}>
                         {getIcon(notif.type)}
