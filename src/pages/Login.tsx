@@ -24,7 +24,17 @@ export default function Login() {
     setLoading(true);
     setError(null);
     try { await loginWithGoogle(); } 
-    catch (err: any) { setError(err.message || "Erro no login com Google"); } 
+    catch (err: any) { 
+      console.error("Google Auth error:", err);
+      if (err.code === 'auth/unauthorized-domain' || 
+          (err.message && err.message.toLowerCase().includes('unauthorized-domain')) ||
+          (err.message && err.message.toLowerCase().includes('authorized-domain')) ||
+          (err.message && err.message.toLowerCase().includes('domain'))) {
+        setError(`Erro de Domínio: O domínio "${window.location.hostname}" deve ser adicionado aos "Domínios Autorizados" no Console Firebase (Authentication > Configurações > Domínios Autorizados) do projeto "weaura-390c7".`);
+      } else {
+        setError(err.message || "Erro no login com Google");
+      }
+    } 
     finally { setLoading(false); }
   };
 
