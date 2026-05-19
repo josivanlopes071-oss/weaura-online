@@ -5,6 +5,7 @@ export function useVoiceChat(roomId: string, userId: string, isMicOn: boolean, p
   const [remoteStreams, setRemoteStreams] = useState<{ [uid: string]: MediaStream }>({});
   const [volumes, setVolumes] = useState<{ [uid: string]: number }>({});
   const [isPeerReady, setIsPeerReady] = useState(false);
+  const [micError, setMicError] = useState<string | null>(null);
   const peerRef = useRef<Peer | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const callsRef = useRef<{ [uid: string]: MediaConnection }>({});
@@ -108,6 +109,7 @@ export function useVoiceChat(roomId: string, userId: string, isMicOn: boolean, p
           try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             localStreamRef.current = stream;
+            setMicError(null);
             if (userId) setupAudioAnalysis(userId, stream);
             
             // If we just got the stream, we might need to "upgrade" existing calls
@@ -117,8 +119,9 @@ export function useVoiceChat(roomId: string, userId: string, isMicOn: boolean, p
               delete callsRef.current[uid];
               // They will be recreated below
             });
-          } catch (err) {
+          } catch (err: any) {
             console.error("Mic error:", err);
+            setMicError(err?.message || "Ocorreu um erro ao acessar o microfone.");
             // We can still continue to just listen
           }
         } else {
@@ -126,6 +129,7 @@ export function useVoiceChat(roomId: string, userId: string, isMicOn: boolean, p
           localStreamRef.current.getAudioTracks().forEach(t => t.enabled = true);
         }
       } else {
+        setMicError(null);
         // Just disable tracks instead of stopping everything to keep connections alive if they are already there
         // Actually, stopping tracks is better for the browser's "camera/mic in use" indicator.
         // But if we stop, we have to restart the connection to send it again.
@@ -180,5 +184,5 @@ export function useVoiceChat(roomId: string, userId: string, isMicOn: boolean, p
     manageConnections();
   }, [isMicOn, participants, roomId, userId, participantKeys, isPeerReady]);
 
-  return { remoteStreams, volumes };
+  return { remoteStreams, volumes, micError, setMicError };
 }

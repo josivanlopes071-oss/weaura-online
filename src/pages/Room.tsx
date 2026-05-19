@@ -176,7 +176,20 @@ export default function Room() {
     return Object.values(room.slots).filter(uid => !!uid) as string[];
   }, [room?.slots]);
 
-  const { remoteStreams, volumes } = useVoiceChat(id || '', user?.uid || '', isMicOn, slotParticipants);
+  const { remoteStreams, volumes, micError, setMicError } = useVoiceChat(id || '', user?.uid || '', isMicOn, slotParticipants);
+
+  // Handle reset of microfone state if permission is denied / mic error occurs
+  useEffect(() => {
+    if (micError) {
+      if (isMicOn) {
+        setIsMicOn(false);
+        if (id && user) {
+          const roomRef = doc(db, 'rooms', id);
+          updateDoc(roomRef, { activeSpeakers: arrayRemove(user.uid) }).catch(() => {});
+        }
+      }
+    }
+  }, [micError, isMicOn, id, user]);
 
   const [showGifts, setShowGifts] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -1219,6 +1232,67 @@ export default function Room() {
                 </div>
               </div>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Mic Error Modal warning */}
+      <AnimatePresence>
+        {micError && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-center justify-center p-6 animate-fade-in"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-[#121214] border border-white/10 rounded-3xl p-8 max-w-md w-full relative overflow-hidden shadow-[0_0_50px_rgba(168,85,247,0.15)]"
+            >
+              {/* Decorative top pulse */}
+              <div className="absolute top-0 left-12 right-12 h-[2px] bg-gradient-to-r from-transparent via-purple-500 to-transparent" />
+              
+              <div className="flex flex-col items-center text-center font-sans">
+                <div className="w-16 h-16 bg-red-500/10 rounded-2xl border border-red-500/20 flex items-center justify-center mb-6">
+                  <AlertCircle size={32} className="text-red-400" />
+                </div>
+                
+                <h3 className="text-xl font-black uppercase tracking-wider text-white mb-3">
+                  Microfone Bloqueado
+                </h3>
+                
+                <p className="text-sm text-white/60 leading-relaxed mb-6">
+                  {micError.toLowerCase().includes("not allowed by the user agent") || 
+                   micError.toLowerCase().includes("permission denied") || 
+                   micError.toLowerCase().includes("not allowed") ? (
+                    <span>
+                      O navegador bloqueou o acesso ao microfone na visualização atual. Para usar o chat de voz, clique em <strong>Abrir em Nova Guia</strong> ou conceda permissão de microfone nas configurações do seu navegador.
+                    </span>
+                  ) : (
+                    micError
+                  )}
+                </p>
+                
+                <div className="flex flex-col gap-3 w-full">
+                  <button
+                    onClick={() => {
+                      window.open(window.location.href, '_blank');
+                    }}
+                    className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 font-bold text-xs uppercase tracking-widest text-white shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                     Abrir em Nova Guia
+                  </button>
+                  <button
+                    onClick={() => setMicError(null)}
+                    className="w-full py-4 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/5 font-bold text-xs uppercase tracking-widest text-white/60 hover:text-white transition-all"
+                  >
+                    Entendido / Fechar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
