@@ -12,7 +12,8 @@ import {
   onSnapshot, 
   limit, 
   serverTimestamp,
-  addDoc
+  addDoc,
+  orderBy
 } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -178,31 +179,57 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
       handleFirestoreError(error, OperationType.LIST, 'rooms');
     });
 
-    // Handle System Announcements through localStorage for client compatibility
-    const savedAnnouncements = localStorage.getItem('we_aura_announcements');
-    if (savedAnnouncements) {
-      try {
-        setAnnouncements(JSON.parse(savedAnnouncements));
-      } catch (e) {
-        console.warn("Could not parse saved announcements", e);
-      }
+    // Subscribe to System Announcements from Firestore
+    let unsubscribeAnnouncements = () => {};
+    try {
+      const announceQuery = query(collection(db, 'system_announcements'), orderBy('createdAt', 'desc'), limit(15));
+      unsubscribeAnnouncements = onSnapshot(announceQuery, (snap) => {
+        const list = snap.docs.map(doc => {
+          const data = doc.data();
+          let formattedDate = new Date().toISOString();
+          if (data.createdAt) {
+            try {
+              formattedDate = data.createdAt.toDate().toISOString();
+            } catch (e) {
+              formattedDate = new Date(data.createdAt).toISOString();
+            }
+          }
+          return {
+            id: doc.id,
+            text: data.text || '',
+            adminName: data.adminName || 'ADM',
+            createdAt: formattedDate
+          };
+        });
+        setAnnouncements(list);
+      }, (err) => {
+        console.warn("Firestore access error for announcements index, launching localStorage listener:", err);
+        setupLocalAnnouncementsFallback();
+      });
+    } catch (e: any) {
+      console.warn("Firestore query startup error:", e);
+      setupLocalAnnouncementsFallback();
     }
 
-    // Set up a window event listener to sync announcements to other tabs/local contexts if needed
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'we_aura_announcements' && e.newValue) {
-        try {
-          setAnnouncements(JSON.parse(e.newValue));
-        } catch (err) {
-          console.warn(err);
+    function setupLocalAnnouncementsFallback() {
+      const loadLocal = () => {
+        const saved = localStorage.getItem('we_aura_announcements');
+        if (saved) {
+          try {
+            setAnnouncements(JSON.parse(saved));
+          } catch (err) {
+            console.warn(err);
+          }
         }
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
+      };
+      loadLocal();
+      window.addEventListener('storage', loadLocal);
+      unsubscribeAnnouncements = () => window.removeEventListener('storage', loadLocal);
+    }
 
     return () => {
       unsubscribeRooms();
-      window.removeEventListener('storage', handleStorageChange);
+      unsubscribeAnnouncements();
     };
   }, [isOpen]);
 
@@ -320,6 +347,29 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
     } catch (err: any) {
       console.error(err);
       addAdminLog(`Erro na atualização do perfil VIP: ${err.message}`, 'critical');
+    }
+  };
+
+  const handleToggleAdmin = async () => {
+    if (!targetUser) return;
+    playCyberSound('success');
+    
+    const nextRole = targetUser.role === 'admin' ? 'user' : 'admin';
+    const isSuperAdmin = ['josivanlopes071@gmail.com', 'manoeldasilva631kejr@gmail.com'].includes(targetUser.email || '');
+    if (isSuperAdmin && nextRole === 'user') {
+      addAdminLog(`Operação Recusada: Mestre ${targetUser.displayName} é super admin e não pode ser rebaixado.`, 'critical');
+      return;
+    }
+
+    try {
+      const userRef = doc(db, 'users', targetUser.id);
+      await updateDoc(userRef, { role: nextRole });
+      setTargetUser({ ...targetUser, role: nextRole });
+      
+      addAdminLog(`Cargo de ${targetUser.displayName} atualizado para: ${nextRole.toUpperCase()}`, 'success');
+    } catch (err: any) {
+      console.error(err);
+      addAdminLog(`Erro ao atualizar cargo de ADM: ${err.message}`, 'critical');
     }
   };
 
@@ -485,34 +535,51 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
     if (!globalAnnouncement.trim()) return;
     playCyberSound('success');
     
+    const announcementText = globalAnnouncement.trim();
+    const adminDisplayName = profile?.displayName || 'ADM';
+    
+    // Always save to localStorage immediately so local/offline sessions get it instantly
     try {
-      const newAnnounce = {
-        id: Math.random().toString(36).substring(2, 9),
-        text: globalAnnouncement.trim(),
-        adminName: profile?.displayName || 'ADM',
+      const saved = localStorage.getItem('we_aura_announcements');
+      const currentList = saved ? JSON.parse(saved) : [];
+      const newLocalItem = {
+        id: 'local_' + Math.random().toString(36).substring(2, 9),
+        text: announcementText,
+        adminName: adminDisplayName,
         createdAt: new Date().toISOString()
       };
+      const updatedList = [...currentList, newLocalItem].slice(-15);
+      localStorage.setItem('we_aura_announcements', JSON.stringify(updatedList));
       
-      const current = [...announcements, newAnnounce].slice(-4);
-      localStorage.setItem('we_aura_announcements', JSON.stringify(current));
-      setAnnouncements(current);
-      
-      // Dispatch storage event to notify other windows instantly
+      // Dispatch storage event to notify local tabs instantly
       window.dispatchEvent(new StorageEvent('storage', {
         key: 'we_aura_announcements',
-        newValue: JSON.stringify(current)
+        newValue: JSON.stringify(updatedList)
       }));
+    } catch (localErr) {
+      console.warn("Could not write to localStorage cache:", localErr);
+    }
 
-      addAdminLog(`Aviso Global ADM enviado para todos os canais: "${globalAnnouncement}"`, 'warning');
+    try {
+      await addDoc(collection(db, 'system_announcements'), {
+        text: announcementText,
+        adminName: adminDisplayName,
+        createdAt: serverTimestamp()
+      });
+
+      addAdminLog(`Aviso Global ADM enviado para todos os canais: "${announcementText}"`, 'warning');
       setGlobalAnnouncement('');
     } catch (err: any) {
       console.error(err);
-      addAdminLog(`Erro ao criar aviso global: ${err.message}`, 'critical');
+      addAdminLog(`Aviso enviado localmente (O Firestore retornou erro de permissão ou rede: ${err.message})`, 'warning');
+      setGlobalAnnouncement('');
     }
   };
 
   const handleClearGlobalAnnouncements = async () => {
     playCyberSound('alert');
+    
+    // Always clear localStorage immediately
     try {
       localStorage.removeItem('we_aura_announcements');
       setAnnouncements([]);
@@ -520,9 +587,20 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
         key: 'we_aura_announcements',
         newValue: null
       }));
-      addAdminLog(`Histórico de avisos globais limpo com sucesso do painel.`, 'info');
+    } catch (localErr) {
+      console.warn(localErr);
+    }
+
+    try {
+      const { getDocs, deleteDoc } = await import('firebase/firestore');
+      const snap = await getDocs(collection(db, 'system_announcements'));
+      for (const d of snap.docs) {
+        await deleteDoc(doc(db, 'system_announcements', d.id));
+      }
+      addAdminLog(`Histórico de avisos globais limpo com sucesso do painel, do Firestore e localmente.`, 'info');
     } catch (e: any) {
       console.error(e);
+      addAdminLog(`Avisos limpos localmente (O Firestore retornou erro de permissão ou rede: ${e.message})`, 'info');
     }
   };
 
@@ -835,6 +913,16 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
 
                       <div className="flex gap-2.5">
                         {/* VIP, Nickname commands */}
+                        <button 
+                          onClick={handleToggleAdmin}
+                          className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
+                            targetUser.role === 'admin' 
+                              ? 'bg-gradient-to-r from-[#8A2EFF]/20 to-purple-650/20 border-[#8A2EFF]/40 text-[#8A2EFF] shadow-[0_0_15px_rgba(138,46,255,0.15)]' 
+                              : 'bg-white/5 border-white/5 text-white/40 hover:text-white hover:border-[#8A2EFF]/25'
+                          }`}
+                        >
+                          {targetUser.role === 'admin' ? 'Remover ADM' : 'Tornar ADM'}
+                        </button>
                         <button 
                           onClick={handleToggleVip}
                           className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${

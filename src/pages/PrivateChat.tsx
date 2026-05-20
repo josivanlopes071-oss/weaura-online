@@ -8,6 +8,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { handleFirestoreError, OperationType } from '../lib/firebase';
+import UserAvatar from '../components/UserAvatar';
 import { 
   ChevronLeft, Send, Gift, MoreVertical, Search, 
   MessageSquare, Volume2, X, Star, Heart, Flame, Trophy, Gamepad2
@@ -99,7 +100,7 @@ export default function PrivateChat() {
 
   const sendGift = async (gift: { label: string; cost: number }) => {
     if (!chatId || !profile || !profile.coins || profile.coins < gift.cost || !id) {
-      alert("Aura insuficiente! Recarregue na Loja.");
+      alert("Saldo EGO insuficiente! Recarregue na Loja.");
       return;
     }
     try {
@@ -112,7 +113,8 @@ export default function PrivateChat() {
         giftType: gift.label,
         timestamp: serverTimestamp()
       });
-      await gainXp(20);
+      const xpEarned = Math.max(20, gift.cost);
+      await gainXp(xpEarned);
       await sendNotification({ type: 'gift', fromId: profile.uid, fromName: profile.displayName, toId: id, text: `Enviou um ${gift.label} para você!` });
       setShowGifts(false);
     } catch (err: any) { alert(err.message || "Erro no envio."); }
@@ -136,10 +138,8 @@ export default function PrivateChat() {
             className="flex items-center gap-5 cursor-pointer group"
           >
             <div className="relative">
-               <div className="p-0.5 rounded-[22px] bg-white/10 group-hover:bg-purple-500/50 transition-colors duration-500 shadow-2xl">
-                  <img src={targetUser.photoURL} className="w-14 h-14 rounded-[20px] bg-[#0c0c0c] border-4 border-[#0c0c0c] object-cover" alt="" />
-               </div>
-               <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-4 border-[#0c0c0c] ${targetUser.status === 'online' ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-gray-600'}`}></div>
+              <UserAvatar uid={id} className="w-14 h-14" />
+              <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-4 border-[#0c0c0c] z-20 ${targetUser.status === 'online' ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-gray-600'}`}></div>
             </div>
             <div>
               <h2 className="font-black italic uppercase text-xl text-white leading-none tracking-tight group-hover:text-purple-400 transition-colors">{targetUser.displayName}</h2>
@@ -156,7 +156,7 @@ export default function PrivateChat() {
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto px-6 py-12 space-y-10 bg-[#020202] scrollbar-hide">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-6 bg-[#050505] scrollbar-hide">
         {messages.map((msg, idx) => {
           const isMe = msg.authorId === user?.uid;
           const showTime = idx === 0 || (msg.timestamp?.seconds - messages[idx-1]?.timestamp?.seconds > 300);
@@ -164,38 +164,38 @@ export default function PrivateChat() {
           return (
             <div key={msg.id} className="flex flex-col">
               {showTime && (
-                <div className="text-center py-10 opacity-40">
-                  <span className="text-[10px] uppercase tracking-[0.5em] text-white/40 font-black italic flex items-center justify-center gap-4">
-                    <span className="w-12 h-px bg-white/10"></span>
+                <div className="text-center py-6 opacity-40">
+                  <span className="text-[9px] uppercase tracking-[0.3em] text-white/30 font-black flex items-center justify-center gap-3">
+                    <span className="w-8 h-px bg-white/5"></span>
                     {msg.timestamp?.toDate ? new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(msg.timestamp.toDate()) : 'Sincronizado'}
-                    <span className="w-12 h-px bg-white/10"></span>
+                    <span className="w-8 h-px bg-white/5"></span>
                   </span>
                 </div>
               )}
               <motion.div 
-                initial={{ opacity: 0, y: 15, scale: 0.95 }}
+                initial={{ opacity: 0, y: 10, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
+                className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-1.5`}
               >
-                <div className={`max-w-[80%] px-8 py-6 rounded-[40px] text-base relative group transition-all font-medium leading-relaxed italic card-shine ${
+                <div className={`max-w-[75%] px-4.5 py-3 rounded-[20px] text-[13px] sm:text-[14px] relative group transition-all font-medium leading-relaxed ${
                   isMe 
-                    ? 'bg-white text-black rounded-tr-none shadow-[0_20px_40px_rgba(255,255,255,0.05)]' 
-                    : 'glass-dark text-white/80 border border-white/[0.08] rounded-tl-none shadow-premium'
+                    ? 'bg-gradient-to-r from-[#8A2EFF] to-purple-600 text-white rounded-tr-none shadow-[0_8px_25px_rgba(138,46,255,0.18)] border border-[#8A2EFF]/20' 
+                    : 'bg-[#121214] text-white/90 border border-white/[0.04] rounded-tl-none shadow-premium'
                 }`}>
                   {msg.type === 'gift' ? (
-                     <div className="flex flex-col items-center gap-5 py-4 min-w-[160px]">
-                        <div className={`w-20 h-20 rounded-[30px] flex items-center justify-center bg-black/40 border border-white/10 shadow-2xl ${isMe ? 'text-purple-600' : 'text-yellow-400'}`}>
-                           <Gift size={48} className="drop-shadow-[0_0_15px_currentColor]" />
+                     <div className="flex flex-col items-center gap-4 py-3 min-w-[140px]">
+                        <div className={`w-16 h-16 rounded-[20px] flex items-center justify-center bg-black/40 border border-white/5 shadow-xl ${isMe ? 'text-purple-300' : 'text-yellow-400'}`}>
+                           <Gift size={36} className="drop-shadow-[0_0_12px_currentColor]" />
                         </div>
                         <div className="text-center">
-                           <span className="font-black uppercase text-[11px] tracking-[0.2em] block italic">Mimo Aura</span>
-                           <span className={`text-[10px] font-bold uppercase tracking-widest mt-1 block opacity-40 italic ${isMe ? 'text-black' : 'text-white'}`}>{msg.giftType}</span>
+                           <span className="font-black uppercase text-[10px] tracking-[0.15em] block text-purple-200">Mimo Aura</span>
+                           <span className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 block opacity-50 ${isMe ? 'text-white/80' : 'text-white'}`}>{msg.giftType}</span>
                         </div>
                      </div>
                   ) : (
-                    <span className="block">{msg.text}</span>
+                    <span className="block break-words whitespace-pre-wrap">{msg.text}</span>
                   )}
-                  <div className={`absolute -bottom-8 ${isMe ? 'right-4' : 'left-4'} opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0 text-[9px] font-black uppercase text-white/20 tracking-widest italic`}>
+                  <div className={`absolute -bottom-5 ${isMe ? 'right-2' : 'left-2'} opacity-0 group-hover:opacity-100 transition-all duration-300 text-[8px] font-bold uppercase text-white/30 tracking-widest`}>
                     {msg.timestamp?.toDate ? new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(msg.timestamp.toDate()) : ''}
                   </div>
                 </div>
@@ -204,54 +204,54 @@ export default function PrivateChat() {
           );
         })}
         {targetIsTyping && (
-          <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-4 ml-4">
-            <div className="flex gap-2 p-4 px-6 glass-dark rounded-full border border-white/[0.08] shadow-premium">
-              <motion.div animate={{ opacity: [0.3, 1, 0.3], scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.5 }} className="w-2 h-2 bg-purple-500 rounded-full shadow-[0_0_8px_#a855f7]" />
-              <motion.div animate={{ opacity: [0.3, 1, 0.3], scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.5, delay: 0.3 }} className="w-2 h-2 bg-purple-500 rounded-full shadow-[0_0_8px_#a855f7]" />
-              <motion.div animate={{ opacity: [0.3, 1, 0.3], scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.5, delay: 0.6 }} className="w-2 h-2 bg-purple-500 rounded-full shadow-[0_0_8px_#a855f7]" />
+          <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3 ml-2">
+            <div className="flex gap-1.5 p-3 px-4 bg-[#121214] rounded-full border border-white/[0.04] shadow-premium">
+              <motion.div animate={{ opacity: [0.3, 1, 0.3], scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.5 }} className="w-1.5 h-1.5 bg-[#8A2EFF] rounded-full shadow-[0_0_6px_#a855f7]" />
+              <motion.div animate={{ opacity: [0.3, 1, 0.3], scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.5, delay: 0.3 }} className="w-1.5 h-1.5 bg-[#8A2EFF] rounded-full shadow-[0_0_6px_#a855f7]" />
+              <motion.div animate={{ opacity: [0.3, 1, 0.3], scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.5, delay: 0.6 }} className="w-1.5 h-1.5 bg-[#8A2EFF] rounded-full shadow-[0_0_6px_#a855f7]" />
             </div>
           </motion.div>
         )}
-        <div ref={chatEndRef} className="h-10" />
+        <div ref={chatEndRef} className="h-4" />
       </div>
 
       {/* Premium Input Area */}
-      <div className="p-8 glass-dark border-t border-white/[0.04] pb-16 relative z-20 shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
+      <div className="p-4 sm:p-6 bg-[#0c0c0d] border-t border-white/[0.04] pb-[env(safe-area-inset-bottom,16px)] relative z-20 shadow-[0_-15px_40px_rgba(0,0,0,0.6)]">
         <AnimatePresence>
           {showGifts && (
             <motion.div
-              initial={{ y: 50, opacity: 0, scale: 0.9 }}
+              initial={{ y: 30, opacity: 0, scale: 0.95 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: 50, opacity: 0, scale: 0.9 }}
-              className="absolute bottom-full left-6 right-6 mb-8 glass-dark border border-white/[0.1] rounded-[50px] p-10 shadow-[0_40px_100px_rgba(0,0,0,1)] z-30"
+              exit={{ y: 30, opacity: 0, scale: 0.95 }}
+              className="absolute bottom-full left-4 right-4 mb-4 bg-[#121215]/95 border border-white/[0.08] rounded-[28px] p-6 shadow-[0_25px_60px_rgba(0,0,0,0.95)] z-30 backdrop-blur-md"
             >
-              <div className="flex justify-between items-center mb-10">
-                <div className="flex items-center gap-3">
-                   <div className="w-8 h-px bg-purple-500 rounded-full shadow-[0_0_8px_#a855f7]"></div>
-                   <h3 className="text-white text-[11px] font-black italic uppercase tracking-[0.4em] italic leading-none">Mimos VIP Aura</h3>
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-2">
+                   <div className="w-4 h-px bg-[#8A2EFF] rounded-full"></div>
+                   <h3 className="text-white text-[10px] font-black uppercase tracking-[0.3em] leading-none">Mimos VIP Aura</h3>
                 </div>
-                <button onClick={() => setShowGifts(false)} className="w-10 h-10 bg-white/5 rounded-xl text-white/30 hover:text-white transition-colors border border-white/5"><X size={20} /></button>
+                <button onClick={() => setShowGifts(false)} className="w-8 h-8 bg-white/5 rounded-lg text-white/40 hover:text-white transition-colors flex items-center justify-center border border-white/5"><X size={16} /></button>
               </div>
-              <div className="grid grid-cols-4 gap-6">
+              <div className="grid grid-cols-4 gap-3">
                 {[
-                  { icon: Heart, label: 'Amor', color: 'text-red-500 bg-red-500/10 shadow-[0_0_20px_rgba(239,68,68,0.2)]', cost: 10 },
-                  { icon: Star, label: 'Estrela', color: 'text-yellow-500 bg-yellow-500/10 shadow-[0_0_20px_rgba(234,179,8,0.2)]', cost: 25 },
-                  { icon: Flame, label: 'Fogo', color: 'text-orange-500 bg-orange-500/10 shadow-[0_0_20px_rgba(249,115,22,0.2)]', cost: 50 },
-                  { icon: Trophy, label: 'Elite', color: 'text-blue-500 bg-blue-500/10 shadow-[0_0_20px_rgba(59,130,246,0.2)]', cost: 100 },
+                  { icon: Heart, label: 'Amor', color: 'text-red-500 bg-red-500/10 shadow-[0_0_15px_rgba(239,68,68,0.15)]', cost: 10 },
+                  { icon: Star, label: 'Estrela', color: 'text-yellow-500 bg-yellow-500/10 shadow-[0_0_15px_rgba(234,179,8,0.15)]', cost: 25 },
+                  { icon: Flame, label: 'Fogo', color: 'text-orange-500 bg-orange-500/10 shadow-[0_0_15px_rgba(249,115,22,0.15)]', cost: 50 },
+                  { icon: Trophy, label: 'Elite', color: 'text-blue-500 bg-blue-500/10 shadow-[0_0_15px_rgba(59,130,246,0.15)]', cost: 100 },
                 ].map((g) => (
                   <button
                     key={g.label}
                     onClick={() => sendGift(g)}
-                    className="flex flex-col items-center gap-5 p-6 bg-black/40 rounded-[35px] hover:bg-white/5 active:scale-95 transition-all group border border-white/[0.05] card-shine"
+                    className="flex flex-col items-center gap-3 p-4 bg-black/20 rounded-[22px] hover:bg-white/5 active:scale-95 transition-all group border border-white/[0.03]"
                   >
-                     <div className={`w-16 h-16 rounded-[24px] flex items-center justify-center ${g.color} border border-white/5 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500`}>
-                        <g.icon size={32} className="drop-shadow-lg" />
+                     <div className={`w-12 h-12 rounded-[16px] flex items-center justify-center ${g.color} border border-white/5 group-hover:scale-105 transition-all duration-300`}>
+                        <g.icon size={22} className="drop-shadow-md" />
                      </div>
-                    <div className="flex flex-col items-center space-y-2">
-                      <span className="text-[11px] font-black text-white uppercase italic tracking-tighter">{g.label}</span>
-                      <div className="flex items-center gap-1.5 bg-yellow-500 px-3 py-1 rounded-full shadow-lg">
-                         <Gamepad2 size={10} className="text-black" />
-                         <span className="text-[9px] font-black italic text-black uppercase tabular-nums">{g.cost}</span>
+                    <div className="flex flex-col items-center space-y-1">
+                      <span className="text-[10px] font-bold text-white uppercase tracking-tight">{g.label}</span>
+                      <div className="flex items-center gap-1 bg-yellow-400 px-2 py-0.5 rounded-full">
+                         <Gamepad2 size={8} className="text-black" />
+                         <span className="text-[8px] font-black text-black uppercase tabular-nums">{g.cost}</span>
                       </div>
                     </div>
                   </button>
@@ -261,13 +261,13 @@ export default function PrivateChat() {
           )}
         </AnimatePresence>
 
-        <form onSubmit={handleSendMessage} className="flex items-center gap-5">
+        <form onSubmit={handleSendMessage} className="flex items-center gap-3">
           <button 
             type="button" 
             onClick={() => setShowGifts(!showGifts)}
-            className={`w-16 h-16 rounded-[28px] flex items-center justify-center transition-all border duration-500 ${showGifts ? 'bg-purple-600 text-white border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.5)]' : 'bg-white/5 text-white/30 border-white/5 hover:text-white hover:border-white/10'}`}
+            className={`w-12 h-12 rounded-[18px] flex items-center justify-center transition-all border duration-300 ${showGifts ? 'bg-[#8A2EFF] text-white border-[#8A2EFF] shadow-[0_0_15px_rgba(138,46,255,0.4)]' : 'bg-white/5 text-white/40 border-white/5 hover:text-white hover:border-white/10'}`}
           >
-            <Gift size={28} />
+            <Gift size={20} />
           </button>
           
           <div className="flex-1 relative group">
@@ -277,15 +277,15 @@ export default function PrivateChat() {
               onFocus={() => handleTyping(true)}
               onBlur={() => handleTyping(false)}
               onChange={(e) => { setText(e.target.value); if (!isTyping) handleTyping(true); }}
-              placeholder="Sintonize sua Aura aqui..."
-              className="w-full bg-black/60 border border-white/[0.08] rounded-[32px] px-10 py-6 text-base text-white focus:outline-none focus:border-purple-500/30 focus:shadow-[0_0_25px_rgba(168,85,247,0.1)] transition-all font-black placeholder:text-white/10 shadow-inner italic"
+              placeholder="Sintonize sua mensagem..."
+              className="w-full bg-[#121214]/60 border border-white/[0.06] rounded-[20px] pl-5 pr-14 py-3.5 text-sm text-white focus:outline-none focus:border-[#8A2EFF]/30 focus:shadow-[0_0_15px_rgba(138,46,255,0.05)] transition-all font-medium placeholder:text-white/25 shadow-inner"
             />
             <button 
               type="submit" 
               disabled={!text.trim()}
-              className="absolute right-3 top-1/2 -translate-y-1/2 bg-white text-black w-14 h-14 rounded-[24px] flex items-center justify-center disabled:opacity-5 disabled:grayscale transition-all active:scale-90 shadow-2xl hover:scale-105"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 bg-[#8A2EFF] text-white w-9 h-9 rounded-[14px] flex items-center justify-center disabled:opacity-10 transition-all active:scale-90 hover:scale-105"
             >
-              <Send size={24} className="ml-1" />
+              <Send size={14} className="ml-0.5" />
             </button>
           </div>
         </form>

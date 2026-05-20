@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Peer, MediaConnection } from 'peerjs';
 
-export function useVoiceChat(roomId: string, userId: string, isMicOn: boolean, participants: string[]) {
+export function useVoiceChat(
+  roomId: string,
+  userId: string,
+  isMicOn: boolean,
+  participants: string[],
+  voicePeerIds?: { [userId: string]: string },
+  onPeerIdReady?: (peerId: string) => void
+) {
   const [remoteStreams, setRemoteStreams] = useState<{ [uid: string]: MediaStream }>({});
   const [volumes, setVolumes] = useState<{ [uid: string]: number }>({});
   const [isPeerReady, setIsPeerReady] = useState(false);
@@ -18,6 +25,12 @@ export function useVoiceChat(roomId: string, userId: string, isMicOn: boolean, p
   const analysersRef = useRef<{ [uid: string]: AnalyserNode }>({});
 
   const participantKeys = JSON.stringify(participants);
+  const voicePeerIdKeys = JSON.stringify(voicePeerIds || {});
+
+  const onPeerIdReadyRef = useRef(onPeerIdReady);
+  useEffect(() => {
+    onPeerIdReadyRef.current = onPeerIdReady;
+  }, [onPeerIdReady]);
 
   // 1. Reset metrics and triggers on Room context swap
   useEffect(() => {
@@ -60,13 +73,8 @@ export function useVoiceChat(roomId: string, userId: string, isMicOn: boolean, p
     let active = true;
     const maxRetries = 3;
     const isMaxRetriesReached = retryTrigger >= maxRetries;
-    const currentPeerId = isMaxRetriesReached 
-      ? `${roomId}-${userId}-duplicate-${Math.random().toString(36).substring(2, 6)}` 
-      : `${roomId}-${userId}`;
-
-    if (isMaxRetriesReached) {
-      setHasAnotherTabOpen(true);
-    }
+    // Add a small random string to avoid ID is taken errors when quick-switching or tab duplicating
+    const currentPeerId = `${roomId}-${userId}-${Math.random().toString(36).substring(2, 6)}`;
 
     console.log(`[Voice] Starting resilient PeerJS connection, ID: ${currentPeerId}`);
     const peer = new Peer(currentPeerId, {
@@ -87,7 +95,8 @@ export function useVoiceChat(roomId: string, userId: string, isMicOn: boolean, p
       if (!isMaxRetriesReached) {
         setHasAnotherTabOpen(false);
       }
-      console.log("[Voice] Peer server connection established successfully");
+      console.log("[Voice] Peer server connection established successfully, ID:", currentPeerId);
+      onPeerIdReadyRef.current?.(currentPeerId);
     });
 
     peer.on('disconnected', () => {
@@ -147,8 +156,21 @@ export function useVoiceChat(roomId: string, userId: string, isMicOn: boolean, p
         return;
       }
       
-      const senderUid = call.peer.replace(`${roomId}-`, '');
-      console.log(`[Voice] Incoming call received from: ${senderUid}`);
+      let senderUid = call.peer.replace(`${roomId}-`, '');
+      if (voicePeerIds) {
+        const foundUid = Object.entries(voicePeerIds).find(([_, pId]) => pId === call.peer)?.[0];
+        if (foundUid) {
+          senderUid = foundUid;
+        }
+      }
+      if (senderUid.includes('-')) {
+        const parts = senderUid.split('-');
+        if (parts.length > 0) {
+          senderUid = parts[0];
+        }
+      }
+
+      console.log(`[Voice] Incoming call received from: ${senderUid} (Peer ID: ${call.peer})`);
 
       // If we already have a recorded call stream with this user, close old instance to prevent feedback/echo
       if (callsRef.current[senderUid]) {
@@ -342,8 +364,9 @@ export function useVoiceChat(roomId: string, userId: string, isMicOn: boolean, p
 
       if (shouldCall && !callsRef.current[pUid]) {
         try {
-          console.log(`[Voice] Starting outgoing connection to ${pUid}`);
-          const call = peerRef.current!.call(`${roomId}-${pUid}`, localStream || undefined);
+          const targetPeerId = (voicePeerIds && voicePeerIds[pUid]) || `${roomId}-${pUid}`;
+          console.log(`[Voice] Starting outgoing connection to ${pUid} using Peer ID: ${targetPeerId}`);
+          const call = peerRef.current!.call(targetPeerId, localStream || undefined);
           
           if (call) {
             callsRef.current[pUid] = call;
@@ -382,7 +405,7 @@ export function useVoiceChat(roomId: string, userId: string, isMicOn: boolean, p
       }
     });
 
-  }, [isPeerReady, participantKeys, localStream, roomId, userId]);
+  }, [isPeerReady, participantKeys, voicePeerIdKeys, localStream, roomId, userId]);
 
   // 6. Throttled CPU/Memory friendly Volume detection
   useEffect(() => {

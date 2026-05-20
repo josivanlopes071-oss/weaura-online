@@ -3,18 +3,19 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../lib/firebase';
 import { 
-  doc, onSnapshot, collection, addDoc, serverTimestamp, query, orderBy, limit, updateDoc, arrayUnion, arrayRemove, setDoc, getDoc 
+  doc, onSnapshot, collection, addDoc, serverTimestamp, query, orderBy, limit, updateDoc, arrayUnion, arrayRemove, setDoc, getDoc, deleteField, increment, getDocs, deleteDoc, where 
 } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { handleFirestoreError, OperationType } from '../lib/firebase';
 import { useVoiceChat } from '../hooks/useVoiceChat';
+import UserAvatar from '../components/UserAvatar';
 import { 
   Mic, MicOff, Send, Gift, ChevronLeft, MoreVertical, 
   Users, MessageSquare, Volume2, X, Star, Heart, Flame, Trophy,
   Smile, ThumbsUp, PartyPopper, Ghost as GhostIcon,
   Music, Lock, Plus, LayoutGrid, ShoppingBag, VolumeX, MessageCircle,
   Settings, Shield, Camera, Palette, UserMinus, BellOff, Crown, Eye, EyeOff,
-  Trash2, LogOut, AlertCircle
+  Trash2, LogOut, AlertCircle, Sparkles, Rocket, Gem, Coins, Zap
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -33,6 +34,7 @@ interface Message {
   type: 'text' | 'gift' | 'system';
   giftType?: string;
   timestamp: any;
+  clientCreatedAt?: number;
 }
 
 interface RoomData {
@@ -53,6 +55,8 @@ interface RoomData {
   mutedUsers?: string[];
   coHosts?: string[];
   coverURL?: string;
+  voicePeerIds?: { [userId: string]: string };
+  giftRank?: { [userId: string]: { displayName: string, photoURL: string, totalSpent: number } };
 }
 
 const nameCache: { [uid: string]: string } = {};
@@ -96,53 +100,6 @@ function UserDisplayName({ uid, fallback }: { uid?: string | null, fallback: str
   return <>{name || '...'}</>;
 }
 
-function UserAvatar({ uid, className, alt = "" }: { uid?: string | null, className?: string, alt?: string }) {
-  const { profile, user } = useAuth();
-  const [photo, setPhoto] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!uid) {
-      setPhoto(null);
-      return;
-    }
-    
-    // If it's the current user, use the profile photo directly for real-time updates
-    if (user && uid === user.uid && profile?.photoURL) {
-      setPhoto(profile.photoURL);
-      return;
-    }
-
-    if (photoCache[uid]) {
-      setPhoto(photoCache[uid]);
-      return;
-    }
-
-    const userRef = doc(db, 'users', uid);
-    getDoc(userRef).then(snap => {
-      if (snap.exists()) {
-        const data = snap.data();
-        const photoURL = data.photoURL;
-        const displayName = data.displayName;
-        if (photoURL) {
-          photoCache[uid] = photoURL;
-          setPhoto(photoURL);
-        }
-        if (displayName) nameCache[uid] = displayName;
-      }
-    }).catch(err => console.warn("Error fetching user photo:", err));
-  }, [uid, user?.uid, profile?.photoURL]);
-
-  const src = photo || `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid || 'default'}`;
-  
-  return (
-    <img 
-      src={src} 
-      className={className} 
-      alt={alt} 
-    />
-  );
-}
-
 const VOICE_SLOTS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 const ROOM_THEMES = [
@@ -162,8 +119,14 @@ export default function Room() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [text, setText] = useState('');
-  const [joinTime] = useState(new Date());
+  const sessionStartTimeRef = useRef<number>(Date.now());
   const [isMicOn, setIsMicOn] = useState(false);
+
+  // Set session start time on mount or whenever the room ID changes, and clear messages cache
+  useEffect(() => {
+    setMessages([]);
+    sessionStartTimeRef.current = Date.now();
+  }, [id]);
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [isPasswordVerified, setIsPasswordVerified] = useState(location.state?.passwordVerified || false);
@@ -176,7 +139,38 @@ export default function Room() {
     return Object.values(room.slots).filter(uid => !!uid) as string[];
   }, [room?.slots]);
 
-  const { remoteStreams, volumes, micError, setMicError, hasAnotherTabOpen } = useVoiceChat(id || '', user?.uid || '', isMicOn, slotParticipants);
+  const sortedContributors = React.useMemo(() => {
+    if (!room?.giftRank) return [];
+    return Object.entries(room.giftRank)
+      .map(([uid, info]) => ({
+        uid,
+        displayName: (info as any).displayName || '',
+        photoURL: (info as any).photoURL || '',
+        totalSpent: (info as any).totalSpent || 0
+      }))
+      .sort((a, b) => b.totalSpent - a.totalSpent);
+  }, [room?.giftRank]);
+
+  const { remoteStreams, volumes, micError, setMicError, hasAnotherTabOpen } = useVoiceChat(
+    id || '', 
+    user?.uid || '', 
+    isMicOn, 
+    slotParticipants,
+    room?.voicePeerIds,
+    async (peerId) => {
+      if (id && user && db) {
+        try {
+          const rRef = doc(db, 'rooms', id);
+          await updateDoc(rRef, {
+            [`voicePeerIds.${user.uid}`]: peerId
+          });
+          console.log(`[Room] Registered active voice Peer ID ${peerId} in Firestore`);
+        } catch (err) {
+          console.warn("[Room] Error updating voicePeerIds in Firestore:", err);
+        }
+      }
+    }
+  );
 
   // Handle reset of microfone state if permission is denied / mic error occurs
   useEffect(() => {
@@ -192,6 +186,7 @@ export default function Room() {
   }, [micError, isMicOn, id, user]);
 
   const [showGifts, setShowGifts] = useState(false);
+  const [giftActiveTab, setGiftActiveTab] = useState<'gifts' | 'ranking'>('gifts');
   const [showSettings, setShowSettings] = useState(false);
   const [showUserActions, setShowUserActions] = useState<string | null>(null);
   
@@ -269,36 +264,49 @@ export default function Room() {
           theme: data.theme || 'aura',
           coverURL: data.coverURL || '',
           allowFreeMic: data.allowFreeMic !== false,
-          stageLayout: data.stageLayout || 'standard'
+          stageLayout: data.stageLayout || 'standard',
+          voicePeerIds: data.voicePeerIds || {},
+          giftRank: data.giftRank || {}
         });
       } else {
         // Room deleted
         navigate('/');
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, `rooms/${id}`);
+      console.warn("Firestore Room snapshot warning (non-fatal):", error.message || error);
     });
 
-    // Listen for messages
+    // Listen for messages using client-side sorting for zero-latency instant updates
     const messagesQuery = query(
       collection(db, 'rooms', id, 'messages'),
-      orderBy('timestamp', 'asc'),
-      limit(50)
+      orderBy('clientCreatedAt', 'desc'),
+      limit(100)
     );
 
     const unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
-      const msgs = snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as Message))
-        // Filter messages to only show those sent after the user joined the room
-        .filter(msg => {
-          if (!msg.timestamp) return true; // Show pending messages
-          const msgTime = msg.timestamp.toDate ? msg.timestamp.toDate() : new Date(msg.timestamp);
-          return msgTime >= joinTime;
-        });
-      setMessages(msgs);
+      const msgs = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return { id: doc.id, ...data } as Message;
+      });
+
+      // Sort client-side so they appear chronologically (oldest to newest)
+      msgs.sort((a, b) => {
+        const valA = a.clientCreatedAt || 0;
+        const valB = b.clientCreatedAt || 0;
+        return valA - valB;
+      });
+      
+      // Filter out messages that were there BEFORE the user clicked to enter this current room session
+      // This guarantees each room session is separate and older chats do not clutter the fresh feed.
+      const currentSessionMsgs = msgs.filter(m => {
+        const msgTime = m.clientCreatedAt || 0;
+        return msgTime >= sessionStartTimeRef.current - 60000;
+      });
+
+      setMessages(currentSessionMsgs);
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, `rooms/${id}/messages`);
+      console.warn("Firestore Messages snapshot warning (non-fatal):", error.message || error);
     });
 
     // Listen for reactions
@@ -312,12 +320,12 @@ export default function Room() {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reaction));
       setReactions(data);
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, `rooms/${id}/reactions`);
+      console.warn("Firestore Reactions snapshot warning (non-fatal):", error.message || error);
     });
 
     // Heartbeat logic to prevent ghost rooms
     const heartbeat = setInterval(() => {
-      if (id && user && room && room.ownerId === user.uid) {
+      if (id && user && roomRefData.current && roomRefData.current.ownerId === user.uid) {
         updateDoc(roomRef, { lastActive: serverTimestamp() }).catch(() => {});
       }
     }, 60000); // 1 minute
@@ -334,7 +342,8 @@ export default function Room() {
         try {
           const updateData: any = {
             members: arrayRemove(user.uid),
-            activeSpeakers: arrayRemove(user.uid)
+            activeSpeakers: arrayRemove(user.uid),
+            [`voicePeerIds.${user.uid}`]: deleteField()
           };
 
           // Find if user is in a slot and remove them
@@ -346,11 +355,22 @@ export default function Room() {
           }
 
           await updateDoc(roomRef, updateData).catch(() => {});
+
+          // Clear messages if owner is leaving or if it was the last person in the room
+          const isOwner = roomRefData.current?.ownerId === user.uid;
+          const membersList = roomRefData.current?.members || [];
+          const isLastPerson = membersList.length <= 1 || (membersList.length === 2 && membersList.includes(user.uid));
+          if (isOwner || isLastPerson) {
+            const messagesQuery = query(collection(db, 'rooms', id, 'messages'));
+            const snapshot = await getDocs(messagesQuery);
+            const deletePromises = snapshot.docs.map(docSnap => deleteDoc(doc(db, 'rooms', id, 'messages', docSnap.id)));
+            await Promise.all(deletePromises);
+          }
         } catch (e) {}
       };
       exitRoom();
     };
-  }, [id, user, room?.ownerId]);
+  }, [id, user]);
 
   const sendReaction = async (emoji: string) => {
     if (!id || !user) return;
@@ -363,21 +383,37 @@ export default function Room() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!text.trim() || !id || !profile) return;
+    const messageText = text.trim();
+    if (!messageText || !id) return;
+    if (!user) {
+      alert("Você precisa estar logado para enviar mensagens.");
+      return;
+    }
+
+    // Clear input instantly for zero-latency user feedback
+    setText('');
+
+    // Award XP optimistically
+    gainXp(5).catch((e) => console.warn("Erro ao acumular XP:", e));
 
     try {
-      await addDoc(collection(db, 'rooms', id, 'messages'), {
-        authorId: profile.uid,
-        authorName: profile.displayName,
-        text: text.trim(),
+      const authorId = user.uid;
+      const authorName = profile?.displayName || user.displayName || user.email?.split('@')[0] || 'Usuário';
+      
+      // Fire-and-forget the document addition so that Firestore's offline local cache 
+      // renders the message instantly on screen. This prevents any loading freezes.
+      addDoc(collection(db, 'rooms', id, 'messages'), {
+        authorId,
+        authorName,
+        text: messageText,
         type: 'text',
-        timestamp: serverTimestamp()
+        timestamp: serverTimestamp(),
+        clientCreatedAt: Date.now()
+      }).catch((err: any) => {
+        console.error("Erro assíncrono ao enviar mensagem:", err);
       });
-      setText('');
-      // Gain 5 XP per message
-      await gainXp(5);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error("Erro ao estruturar mensagem:", err);
     }
   };
 
@@ -418,18 +454,25 @@ export default function Room() {
     const currentSlotEntry = Object.entries(room.slots || {}).find(([_, uid]) => uid === user.uid);
     const roomRef = doc(db, 'rooms', id);
 
+    const updateData: any = {};
+
     if (currentSlotEntry) {
-      if (Number(currentSlotEntry[0]) === slotId) {
-        // Clicking same slot? Maybe they want to leave?
-        // But VoiceSeat calls onUserClick if userId exists, so this won't happen.
+      const oldSlotId = Number(currentSlotEntry[0]);
+      if (oldSlotId === slotId) {
         return;
       }
-      // Remove from old slot
-      await updateDoc(roomRef, { [`slots.${currentSlotEntry[0]}`]: null });
+      // Free old slot in the same operation
+      updateData[`slots.${oldSlotId}`] = null;
     }
 
     // Occupy new slot
-    await updateDoc(roomRef, { [`slots.${slotId}`]: user.uid });
+    updateData[`slots.${slotId}`] = user.uid;
+
+    try {
+      await updateDoc(roomRef, updateData);
+    } catch (err) {
+      console.error("Error setting slot:", err);
+    }
   };
 
   const leaveSlot = async () => {
@@ -454,33 +497,46 @@ export default function Room() {
     }
   };
 
-  const handleLeaveRoom = async () => {
-    if (!id || !user || !room) {
-      navigate('/');
-      return;
+  const handleLeaveRoom = () => {
+    // 1. Immediately toggle local microfone and states off
+    setIsMicOn(false);
+    
+    // 2. Perform the Firestore removals asynchronously in the background so they do not block instant navigation
+    if (id && user && room) {
+      const roomRef = doc(db, 'rooms', id);
+      const updateData: any = {
+        members: arrayRemove(user.uid),
+        activeSpeakers: arrayRemove(user.uid),
+        [`voicePeerIds.${user.uid}`]: deleteField()
+      };
+
+      const currentSlotEntry = Object.entries(room.slots || {}).find(([_, uid]) => uid === user.uid);
+      if (currentSlotEntry) {
+        updateData[`slots.${currentSlotEntry[0]}`] = null;
+      }
+
+      // Fire-and-forget the document updating to keep exit instant
+      updateDoc(roomRef, updateData).catch((err) => {
+        console.warn("Backend error during silent exit update:", err);
+      });
+
+      // Clear messages asynchronously if user is owner or if it was the last person in the room
+      const isOwner = room.ownerId === user.uid;
+      const membersList = room.members || [];
+      const isLastPerson = membersList.length <= 1 || (membersList.length === 2 && membersList.includes(user.uid));
+      if (isOwner || isLastPerson) {
+        const messagesQuery = query(collection(db, 'rooms', id, 'messages'));
+        getDocs(messagesQuery).then((snapshot) => {
+          const deletePromises = snapshot.docs.map(docSnap => deleteDoc(doc(db, 'rooms', id, 'messages', docSnap.id)));
+          return Promise.all(deletePromises);
+        }).catch((err) => {
+          console.warn("Silent messages cleanup error or permission warning:", err);
+        });
+      }
     }
 
-    const roomRef = doc(db, 'rooms', id);
-    const updateData: any = {
-      members: arrayRemove(user.uid),
-      activeSpeakers: arrayRemove(user.uid)
-    };
-
-    // Find if user is in a slot and remove them
-    const currentSlotEntry = Object.entries(room.slots || {}).find(([_, uid]) => uid === user.uid);
-    if (currentSlotEntry) {
-      updateData[`slots.${currentSlotEntry[0]}`] = null;
-    }
-
-    try {
-      // Fire and forget or navigate after
-      setIsMicOn(false);
-      await updateDoc(roomRef, updateData);
-    } catch (e) {
-      console.error("Error leaving room:", e);
-    } finally {
-      navigate('/');
-    }
+    // 3. Drive transition immediately with zero delay
+    navigate('/');
   };
 
   const handleSaveSettings = async () => {
@@ -560,7 +616,7 @@ export default function Room() {
 
   const sendGift = async (gift: { label: string; cost: number }) => {
     if (!id || !profile || !profile.coins || profile.coins < gift.cost) {
-      alert("Moedas insuficientes!");
+      alert("Saldo EGO insuficiente!");
       return;
     }
     
@@ -571,19 +627,36 @@ export default function Room() {
     });
 
     try {
+      const uid = user?.uid || profile?.uid || '';
+      const dName = profile?.displayName || user?.displayName || user?.email?.split('@')[0] || 'Usuário';
+      const uPhoto = profile?.photoURL || user?.photoURL || '';
+      
       await updateCoins(gift.cost, 'subtract');
 
+      // Track generosity ranking inside the room document in Firestore
+      const roomRef = doc(db, 'rooms', id);
+      const userRankKey = `giftRank.${uid}`;
+      await updateDoc(roomRef, {
+        [userRankKey]: {
+          displayName: dName,
+          photoURL: uPhoto,
+          totalSpent: increment(gift.cost)
+        }
+      }).catch((e) => console.warn("Erro ao atualizar ranking de presentes:", e));
+
       await addDoc(collection(db, 'rooms', id, 'messages'), {
-        authorId: profile.uid,
-        authorName: profile.displayName,
+        authorId: uid,
+        authorName: dName,
         text: `enviou um presente: ${gift.label}!`,
         type: 'gift',
         giftType: gift.label,
-        timestamp: serverTimestamp()
+        timestamp: serverTimestamp(),
+        clientCreatedAt: Date.now()
       });
 
-      // Gain 20 XP for sending a gift
-      await gainXp(20);
+      // Gain XP proportional to the gift's value (1 XP per EGO, min 20 XP)
+      const xpEarned = Math.max(20, gift.cost);
+      await gainXp(xpEarned);
 
       setShowGifts(false);
     } catch (err: any) {
@@ -844,47 +917,56 @@ export default function Room() {
         <div className="fixed bottom-24 sm:bottom-32 left-4 right-4 sm:left-6 sm:right-6 z-30 pointer-events-none h-48 sm:h-64 flex flex-col justify-end overflow-hidden">
           <div className="space-y-2 pb-4">
             <AnimatePresence mode="popLayout">
-              {messages.slice(-15).map((msg, idx) => (
-                <motion.div 
-                  key={msg.id || idx}
-                  initial={{ opacity: 0, x: -20, scale: 0.95 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  layout
-                  className="flex items-start gap-2 pointer-events-auto max-w-[85%]"
-                >
-                  {msg.type === 'system' ? (
-                    <div className="px-3 py-1 rounded-full bg-white/5 border border-white/5 mx-auto">
-                       <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest">{msg.text}</span>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex-none w-8 h-8 rounded-xl bg-white/5 border border-white/10 overflow-hidden shadow-lg">
-                        <UserAvatar uid={msg.authorId} className="w-full h-full object-cover" />
+              {messages.slice(-15).map((msg, idx) => {
+                const isHost = room && msg.authorId === room.ownerId;
+                return (
+                  <motion.div 
+                    key={msg.id || idx}
+                    initial={{ opacity: 0, y: 15, x: -15, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.85, y: -10 }}
+                    transition={{ type: "spring", stiffness: 380, damping: 24 }}
+                    layout
+                    className="flex items-start gap-2.5 pointer-events-auto max-w-[85%]"
+                  >
+                    {msg.type === 'system' ? (
+                      <div className="px-4 py-1.5 rounded-full bg-white/5 border border-white/5 mx-auto backdrop-blur-md shadow-lg">
+                         <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest">{msg.text}</span>
                       </div>
-                      <div className="flex flex-col gap-1">
-                        <div 
-                          className={`px-3 py-2 rounded-2xl backdrop-blur-xl border shadow-xl relative ${
-                            msg.type === 'gift' 
-                              ? 'bg-yellow-500/10 border-yellow-500/20' 
-                              : 'bg-black/60 border-white/[0.05]'
-                          }`}
-                        >
-                           <div className="flex items-center gap-2 mb-0.5">
-                             <span className="text-[9px] font-black uppercase tracking-tighter" style={{ color: msg.authorId === room.ownerId ? '#fbbf24' : currentTheme.primary }}>
-                               {msg.authorName}
-                               {msg.authorId === room.ownerId && <Crown size={8} className="inline ml-1 mb-0.5" />}
-                             </span>
-                           </div>
-                           <span className={`text-[11px] leading-relaxed ${msg.type === 'gift' ? 'text-yellow-200' : 'text-white/90'}`}>
-                             {msg.text}
-                           </span>
+                    ) : (
+                      <>
+                        <div className="flex-none w-8 h-8 rounded-xl bg-white/5 border border-white/10 overflow-hidden shadow-lg relative shrink-0">
+                          <UserAvatar uid={msg.authorId} className="w-full h-full object-cover" />
                         </div>
-                      </div>
-                    </>
-                  )}
-                </motion.div>
-              ))}
+                        <div className="flex flex-col gap-1">
+                          <div 
+                            className={`px-3.5 py-2 rounded-2xl backdrop-blur-xl border relative shadow-2xl transition-all ${
+                              msg.type === 'gift' 
+                                ? 'bg-gradient-to-r from-yellow-500/15 to-amber-500/10 border-yellow-500/40 shadow-[0_0_15px_rgba(234,179,8,0.15)]' 
+                                : isHost
+                                  ? 'bg-gradient-to-r from-purple-500/15 via-black/60 to-black/60 border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.1)]'
+                                  : 'bg-black/70 border-white/[0.06]'
+                            }`}
+                          >
+                             <div className="flex items-center gap-1.5 mb-0.5">
+                               <span 
+                                 className="text-[9.5px] font-black uppercase tracking-wider flex items-center gap-1" 
+                                 style={{ color: isHost ? '#fbbf24' : currentTheme.primary }}
+                               >
+                                 {msg.authorName}
+                                 {isHost && <Crown size={9} className="text-yellow-500 fill-yellow-500/30" />}
+                               </span>
+                             </div>
+                             <span className={`text-[11.5px] font-medium leading-relaxed ${msg.type === 'gift' ? 'text-yellow-100 font-bold tracking-wide animate-pulse' : 'text-white/95'}`}>
+                               {msg.text}
+                             </span>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </motion.div>
+                );
+              })}
             </AnimatePresence>
           </div>
           <div ref={chatEndRef} />
@@ -892,8 +974,8 @@ export default function Room() {
       </main>
 
       {/* Modern Bottom Bar - Ultra Premium Floating Pill */}
-      <div className="fixed bottom-3 sm:bottom-10 left-3 right-3 sm:left-6 sm:right-6 z-40 pointer-events-none pb-[env(safe-area-inset-bottom,0px)]">
-        <div className="max-w-md mx-auto bg-[#0c0c0c] border border-white/[0.08] rounded-[28px] sm:rounded-[48px] p-2 sm:p-3 flex items-center gap-1.5 sm:gap-3 pointer-events-auto shadow-[0_40px_100px_rgba(0,0,0,0.8)] relative card-shine overflow-hidden">
+      <div className="fixed bottom-3 sm:bottom-10 left-1/2 -translate-x-1/2 w-[calc(100%-24px)] max-w-md z-40 pb-[env(safe-area-inset-bottom,0px)] pointer-events-auto">
+        <div className="w-full bg-[#0c0c0c] border border-white/[0.08] rounded-[28px] sm:rounded-[48px] p-2 sm:p-3 flex items-center gap-1.5 sm:gap-3 shadow-[0_40px_100px_rgba(0,0,0,0.8)] relative card-shine overflow-hidden">
           <button 
              onClick={() => setIsSpeakerOn(!isSpeakerOn)}
              className={`w-11 h-11 sm:w-14 sm:h-14 rounded-2xl sm:rounded-[28px] flex items-center justify-center transition-all active:scale-90 border flex-shrink-0 ${
@@ -1064,36 +1146,96 @@ export default function Room() {
               <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mb-8" />
               
               <div className="flex justify-between items-center mb-8">
-                <h3 className="text-xl font-bold text-white tracking-tight">Mimos Premium</h3>
-                <div className="bg-white/5 px-4 py-2 rounded-2xl border border-white/10 flex items-center gap-2 transition-transform active:scale-95 cursor-pointer">
-                  <span className="text-yellow-500 font-bold tabular-nums">{(profile as any)?.coins || 0}</span>
-                  <Flame size={14} className="text-orange-500 fill-orange-500/20" />
-                  <Plus size={12} className="text-white/20 ml-1" />
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => setGiftActiveTab('gifts')}
+                    className={`text-lg font-black tracking-tight uppercase ${giftActiveTab === 'gifts' ? 'text-white border-b-2 border-pink-500 pb-1' : 'text-white/40'}`}
+                  >
+                    Mimos
+                  </button>
+                  <button 
+                    onClick={() => setGiftActiveTab('ranking')}
+                    className={`text-lg font-black tracking-tight uppercase flex items-center gap-2 ${giftActiveTab === 'ranking' ? 'text-white border-b-2 border-purple-500 pb-1' : 'text-white/40'}`}
+                  >
+                    <Crown size={14} className="text-purple-400" /> Rank Doadores
+                  </button>
+                </div>
+                
+                <div className="bg-pink-500/10 px-4 py-2 rounded-2xl border border-pink-500/20 flex items-center gap-2 transition-transform active:scale-95 cursor-pointer">
+                  <span className="text-pink-400 font-bold tabular-nums">{(profile as any)?.coins || 0} EGO</span>
+                  <Sparkles size={14} className="text-pink-500 fill-pink-500/20 animate-pulse" />
                 </div>
               </div>
               
-              <div className="grid grid-cols-4 gap-4">
-                {[
-                  { icon: Heart, label: 'Amor', color: 'text-red-500', cost: 10, bg: 'bg-red-500/10' },
-                  { icon: Star, label: 'Estrela', color: 'text-yellow-500', cost: 25, bg: 'bg-yellow-500/10' },
-                  { icon: Flame, label: 'Fogo', color: 'text-orange-500', cost: 50, bg: 'bg-orange-500/10' },
-                  { icon: Trophy, label: 'Troféu', color: 'text-blue-500', cost: 100, bg: 'bg-blue-500/10' },
-                ].map((g) => (
-                  <button
-                    key={g.label}
-                    onClick={() => { sendGift(g); }}
-                    className="flex flex-col items-center gap-3 p-4 bg-white/5 rounded-3xl border border-white/5 hover:border-white/10 active:scale-90 transition-all group"
-                  >
-                    <div className={`p-3 rounded-2xl transition-transform group-hover:scale-110 ${g.bg} ${g.color}`}>
-                      <g.icon size={22} className="fill-current/20" />
+              {giftActiveTab === 'gifts' ? (
+                <div className="grid grid-cols-4 gap-4 max-h-[320px] overflow-y-auto pr-1">
+                  {[
+                    { icon: Heart, label: 'Amor', color: 'text-rose-500', cost: 10, bg: 'bg-rose-500/10 shadow-[0_0_15px_rgba(244,63,94,0.15)]' },
+                    { icon: Star, label: 'Estrela', color: 'text-amber-400', cost: 50, bg: 'bg-amber-400/10 shadow-[0_0_15px_rgba(251,191,36,0.15)]' },
+                    { icon: Flame, label: 'Fogo', color: 'text-orange-500', cost: 100, bg: 'bg-orange-500/10 shadow-[0_0_15px_rgba(249,115,22,0.15)]' },
+                    { icon: Trophy, label: 'Troféu', color: 'text-cyan-400', cost: 500, bg: 'bg-cyan-400/10 shadow-[0_0_15px_rgba(34,211,238,0.15)]' },
+                    { icon: Crown, label: 'Crown VIP', color: 'text-indigo-400', cost: 1000, bg: 'bg-indigo-400/10 shadow-[0_0_20px_rgba(129,140,248,0.25)] border border-indigo-400/20 animate-pulse' },
+                    { icon: Sparkles, label: 'Aura Divina', color: 'text-purple-400', cost: 5000, bg: 'bg-purple-400/10 shadow-[0_0_25px_rgba(192,132,252,0.3)] border border-purple-400/30' },
+                    { icon: Rocket, label: 'Foguete', color: 'text-fuchsia-500', cost: 10000, bg: 'bg-fuchsia-400/10 shadow-[0_0_30px_rgba(217,70,239,0.35)] border border-fuchsia-500/30' },
+                    { icon: Gem, label: 'Nirvana', color: 'text-emerald-400', cost: 50000, bg: 'bg-emerald-400/10 shadow-[0_0_40px_rgba(52,211,153,0.4)] border border-emerald-400/40 animate-bounce' },
+                  ].map((g) => (
+                    <button
+                      key={g.label}
+                      onClick={() => { sendGift(g); }}
+                      className="flex flex-col items-center gap-3 p-4 bg-white/5 rounded-3xl border border-white/5 hover:border-white/10 active:scale-90 transition-all group"
+                    >
+                      <div className={`p-3 rounded-2xl transition-transform group-hover:scale-110 ${g.bg} ${g.color}`}>
+                        <g.icon size={22} className="fill-current/20" />
+                      </div>
+                      <div className="text-center">
+                        <span className="block text-[9px] font-bold text-white/40 uppercase tracking-widest">{g.label}</span>
+                        <span className="block text-xs text-pink-500 font-black mt-0.5">{g.cost}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
+                  {sortedContributors.length === 0 ? (
+                    <div className="text-center py-12 text-white/20 text-sm font-medium italic">
+                      Nenhum presente enviado ainda nesta sala.<br/>Seja o primeiro a enviar!
                     </div>
-                    <div className="text-center">
-                      <span className="block text-[9px] font-bold text-white/30 uppercase tracking-widest">{g.label}</span>
-                      <span className="block text-xs text-yellow-500 font-black mt-0.5">{g.cost}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
+                  ) : (
+                    sortedContributors.slice(0, 20).map((c, idx) => {
+                      let medalColor = "text-white/40";
+                      let borderGlow = "border-white/5";
+                      if (idx === 0) {
+                        medalColor = "text-yellow-400 drop-shadow-[0_0_8px_#f59e0b]";
+                        borderGlow = "border-yellow-400/30 bg-yellow-500/5";
+                      } else if (idx === 1) {
+                        medalColor = "text-slate-300 drop-shadow-[0_0_8px_#cbd5e1]";
+                        borderGlow = "border-slate-300/20 bg-slate-400/5";
+                      } else if (idx === 2) {
+                        medalColor = "text-amber-600 drop-shadow-[0_0_8px_#b45309]";
+                        borderGlow = "border-amber-600/20 bg-amber-700/5";
+                      }
+                      return (
+                        <div key={c.uid} className={`flex items-center justify-between p-3 rounded-2xl border ${borderGlow} transition-all`}>
+                          <div className="flex items-center gap-3">
+                            <span className={`font-black text-sm w-5 text-center ${medalColor}`}>{idx + 1}º</span>
+                            <div className="w-10 h-10 rounded-full overflow-hidden border border-white/10">
+                              <UserAvatar uid={c.uid} className="w-full h-full object-cover" showFrame={false} />
+                            </div>
+                            <div>
+                              <span className="block text-sm font-bold text-white leading-tight">{c.displayName}</span>
+                              <span className="text-[10px] uppercase font-black tracking-widest text-[#a855f7] italic">DOADOR ROYAL</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 bg-pink-500/5 px-3 py-1.5 rounded-xl border border-pink-500/10">
+                            <span className="text-xs font-black text-pink-400 tabular-nums">{c.totalSpent}</span>
+                            <span className="text-[9px] uppercase font-black text-pink-400/40">EGO</span>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}

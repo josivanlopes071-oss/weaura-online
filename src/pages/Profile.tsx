@@ -6,6 +6,7 @@ import { Settings, Shield, Trophy, MapPin, Calendar, LogOut, Edit2, X, Check, Ca
 import { db } from '../lib/firebase';
 import { doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import AdminMenu from '../components/AdminMenu';
+import UserAvatar from '../components/UserAvatar';
 
 export default function Profile() {
   const { id } = useParams();
@@ -259,16 +260,8 @@ export default function Profile() {
       <div className="px-6 -mt-28 relative z-20">
         <div className="flex flex-col items-center">
           <div className="relative mb-8">
-            {/* Ultra Premium Avatar Ring */}
-            <div className="p-1 rounded-full bg-gradient-to-tr from-purple-600 to-blue-500 shadow-[0_0_40px_rgba(168,85,247,0.4)]">
-               <div className="bg-[#0c0c0c] rounded-full p-2 flex items-center justify-center overflow-hidden border-[6px] border-[#0c0c0c]">
-                  <img
-                    src={displayProfile.photoURL}
-                    className="w-40 h-40 rounded-full object-cover"
-                    alt=""
-                  />
-               </div>
-            </div>
+            {/* Ultra Premium Avatar Ring with Premium Frame Support */}
+            <UserAvatar uid={displayProfile.uid} className="w-40 h-40" />
             
             <div className="absolute top-2 right-2 bg-yellow-500 text-black text-[10px] font-black px-3 py-1 rounded-full shadow-[0_0_15px_rgba(234,179,8,0.5)] border-4 border-[#0c0c0c] z-30">
               LV.{displayProfile.level || 1}

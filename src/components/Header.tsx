@@ -4,6 +4,7 @@ import { useNotifications } from '../contexts/NotificationContext';
 import { Bell, Search, Coins, X, MessageCircle, UserPlus, AtSign, Gift } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
+import UserAvatar from './UserAvatar';
 
 export default function Header() {
   const { profile } = useAuth();
@@ -39,16 +40,8 @@ export default function Header() {
           onClick={() => navigate('/profile')}
           className="relative cursor-pointer"
         >
-          <div className="p-[1.5px] rounded-[22px] bg-gradient-to-tr from-purple-500/30 to-pink-500/30">
-            <div className="bg-zinc-900 rounded-[20px] p-[1.5px] overflow-hidden">
-               <img
-                src={profile?.photoURL}
-                alt={profile?.displayName}
-                className="w-12 h-12 rounded-[18px] object-cover bg-zinc-800"
-              />
-            </div>
-          </div>
-          <div className="absolute -bottom-1 -right-1 bg-yellow-500 text-[9px] px-2 py-0.5 rounded-lg font-black border-2 border-[#020202] shadow-[0_4px_10px_rgba(0,0,0,0.5)]">
+          <UserAvatar uid={profile?.uid} className="w-12 h-12" />
+          <div className="absolute -bottom-1 -right-1 bg-yellow-500 text-[9px] px-2 py-0.5 rounded-lg font-black border-2 border-[#020202] shadow-[0_4px_10px_rgba(0,0,0,0.5)] z-20">
             {profile?.level || 1}
           </div>
         </motion.div>

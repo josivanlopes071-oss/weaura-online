@@ -19,6 +19,8 @@ interface UserProfile {
   bannedUntil?: any; // Timestamp
   status: 'online' | 'offline' | 'away';
   email?: string;
+  equippedFrame?: string;
+  purchasedFrames?: string[];
 }
 
 const SUPER_ADMINS = ['josivanlopes071@gmail.com', 'manoeldasilva631kejr@gmail.com'];
@@ -217,7 +219,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             setProfile({
+              uid: authenticatedUser.uid,
               ...data,
+              level: data.level || 1,
+              xp: data.xp || 0,
               following: data.following || [],
               followers: data.followers || []
             });
@@ -337,7 +342,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (type === 'add') {
           newCoins += amount;
         } else {
-          if (currentCoins < amount) throw new Error("Moedas insuficientes!");
+          if (currentCoins < amount) throw new Error("Saldo EGO insuficiente!");
           newCoins -= amount;
         }
         
@@ -354,13 +359,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user || !profile) return;
     
     // Level logic: each level needs (level * 100) XP
-    const xpNeeded = profile.level * 100;
     let newXp = (profile.xp || 0) + amount;
-    let newLevel = profile.level;
+    let newLevel = profile.level || 1;
     
-    if (newXp >= xpNeeded) {
-      newXp -= xpNeeded;
-      newLevel += 1;
+    while (true) {
+      const xpNeeded = newLevel * 100;
+      if (newXp >= xpNeeded) {
+        newXp -= xpNeeded;
+        newLevel += 1;
+      } else {
+        break;
+      }
     }
     
     await updateProfile({ xp: newXp, level: newLevel });

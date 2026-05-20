@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { handleFirestoreError, OperationType } from '../lib/firebase';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useNavigate } from 'react-router-dom';
+import UserAvatar from '../components/UserAvatar';
 
 interface Chat {
   id: string;
@@ -267,9 +268,7 @@ export default function Social() {
                          <div className={`w-6 text-sm font-black italic ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-blue-400' : i === 2 ? 'text-pink-400' : 'text-white/10'}`}>
                            {i + 1}
                          </div>
-                         <div className="w-14 h-14 rounded-full p-[2px] bg-gradient-to-tr from-zinc-800 to-zinc-700">
-                            <img src={rank.photoURL} className="w-full h-full rounded-full bg-[#0c0c0c] object-cover" />
-                         </div>
+                         <UserAvatar uid={rank.id} className="w-14 h-14" />
                          <div className="flex flex-col">
                             <h4 className="text-base font-black text-white italic leading-tight">{rank.displayName}</h4>
                             <span className="text-[9px] font-black text-purple-400/50 uppercase tracking-widest mt-1">LV.{rank.level || 1} • {rank.displayId}</span>
@@ -294,9 +293,7 @@ export default function Social() {
               {recommended.slice(0, 8).map(u => (
                 <div key={u.id} className="bg-[#0c0c0c] p-4 rounded-[40px] border border-white/[0.08] flex items-center gap-5 hover:border-purple-500/20 transition-all group">
                   <div className="relative shrink-0" onClick={() => navigate(`/profile/${u.id}`)}>
-                     <div className="w-16 h-16 rounded-[30px] p-[2px] bg-gradient-to-br from-zinc-800 to-zinc-800 group-hover:from-purple-600 group-hover:to-blue-500 transition-all duration-500">
-                        <img src={u.photoURL} className="w-full h-full rounded-[28px] bg-[#0c0c0c] object-cover" />
-                     </div>
+                    <UserAvatar uid={u.id} className="w-16 h-16" />
                   </div>
                   <div className="flex-1 min-w-0">
                      <h4 className="font-black text-white truncate text-base italic leading-tight">{u.displayName}</h4>
@@ -326,7 +323,7 @@ export default function Social() {
                 {followingList.map(u => (
                   <div key={u.id} className="bg-[#0c0c0c] p-4 rounded-[32px] border border-white/[0.05] flex items-center justify-between group">
                     <div className="flex items-center gap-4 cursor-pointer" onClick={() => navigate(`/profile/${u.id}`)}>
-                      <img src={u.photoURL} className="w-12 h-12 rounded-[20px] object-cover" />
+                      <UserAvatar uid={u.id} className="w-12 h-12" />
                       <div>
                         <h4 className="text-sm font-black text-white italic">{u.displayName}</h4>
                         <p className="text-[9px] font-bold text-white/20 uppercase">LV.{u.level || 1} • {u.displayId}</p>
@@ -355,7 +352,7 @@ export default function Social() {
                 {followersList.map(u => (
                   <div key={u.id} className="bg-[#0c0c0c] p-4 rounded-[32px] border border-white/[0.05] flex items-center justify-between group">
                     <div className="flex items-center gap-4 cursor-pointer" onClick={() => navigate(`/profile/${u.id}`)}>
-                      <img src={u.photoURL} className="w-12 h-12 rounded-[20px] object-cover" />
+                      <UserAvatar uid={u.id} className="w-12 h-12" />
                       <div>
                         <h4 className="text-sm font-black text-white italic">{u.displayName}</h4>
                         <p className="text-[9px] font-bold text-white/20 uppercase">LV.{u.level || 1} • {u.displayId}</p>
@@ -394,10 +391,8 @@ export default function Social() {
                 className="glass-dark p-5 rounded-[38px] border border-white/[0.08] flex items-center gap-5 group cursor-pointer active:scale-[0.97] transition-all duration-500 hover:bg-white/[0.04] card-shine"
               >
                 <div className="relative shrink-0">
-                  <div className="p-0.5 rounded-[25px] bg-white/10 group-hover:bg-purple-500 transition-colors duration-500">
-                    <img src={chat.targetUser?.photoURL} className="w-16 h-16 rounded-[23px] bg-zinc-950 object-cover border-4 border-zinc-900 shadow-2xl" />
-                  </div>
-                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-4 border-zinc-900 shadow-lg"></div>
+                  <UserAvatar uid={chat.targetUser?.uid} className="w-16 h-16" />
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-4 border-zinc-900 shadow-lg z-25"></div>
                 </div>
                 <div className="flex-1 min-w-0 flex flex-col justify-center">
                    <div className="flex justify-between items-start mb-1">

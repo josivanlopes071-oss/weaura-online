@@ -93,6 +93,7 @@ service cloud.firestore {
       match /messages/{messageId} {
         allow read: if isSignedIn();
         allow create: if isNotBanned();
+        allow delete: if isSignedIn() && isNotBanned();
       }
       match /reactions/{reactionId} {
         allow read: if isSignedIn();
@@ -111,7 +112,7 @@ service cloud.firestore {
 
     // 4. Admin system & audit tables
     match /system_announcements/{announcementId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isAdmin() && isNotBanned();
     }
 

@@ -179,3 +179,72 @@ body {
 .animate-in {
   animation: fadeInScale 0.3s ease-out forwards;
 }
+
+@keyframes rotate-bg {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.animate-rotate-bg {
+  animation: rotate-bg 4s linear infinite;
+}
+
+.animate-rotate-bg-fast {
+  animation: rotate-bg 2s linear infinite;
+}
+
+@keyframes pulse-intense-purple {
+  0%, 100% { box-shadow: 0 0 12px rgba(168, 85, 247, 0.4), inset 0 0 6px rgba(168, 85, 247, 0.2); }
+  50% { box-shadow: 0 0 25px rgba(168, 85, 247, 0.8), inset 0 0 12px rgba(168, 85, 247, 0.5); }
+}
+
+.animate-pulse-purple {
+  animation: pulse-intense-purple 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-intense-cyan {
+  0%, 100% { box-shadow: 0 0 12px rgba(34, 211, 238, 0.4), inset 0 0 6px rgba(34, 211, 238, 0.2); }
+  50% { box-shadow: 0 0 25px rgba(34, 211, 238, 0.8), inset 0 0 12px rgba(34, 211, 238, 0.5); }
+}
+
+.animate-pulse-cyan {
+  animation: pulse-intense-cyan 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-intense-gold {
+  0%, 100% { box-shadow: 0 0 12px rgba(234, 179, 8, 0.4), inset 0 0 6px rgba(234, 179, 8, 0.2); }
+  50% { box-shadow: 0 0 28px rgba(251, 191, 36, 0.85), inset 0 0 14px rgba(251, 191, 36, 0.5); }
+}
+
+.animate-pulse-gold {
+  animation: pulse-intense-gold 3s ease-in-out infinite;
+}
+
+@keyframes pulse-intense-pink {
+  0%, 100% { box-shadow: 0 0 12px rgba(236, 72, 153, 0.4), inset 0 0 6px rgba(236, 72, 153, 0.2); }
+  50% { box-shadow: 0 0 28px rgba(236, 72, 153, 0.85), inset 0 0 14px rgba(236, 72, 153, 0.5); }
+}
+
+.animate-pulse-pink {
+  animation: pulse-intense-pink 2.2s ease-in-out infinite;
+}
+
+@keyframes pulse-intense-demon {
+  0%, 100% { box-shadow: 0 0 12px rgba(239, 68, 68, 0.5), inset 0 0 6px rgba(0, 0, 0, 0.8); }
+  50% { box-shadow: 0 0 30px rgba(239, 68, 68, 0.95), inset 0 0 16px rgba(239, 68, 68, 0.6); }
+}
+
+.animate-pulse-demon {
+  animation: pulse-intense-demon 2s ease-in-out infinite;
+}
+
+@keyframes pulse-intense-prism {
+  0% { box-shadow: 0 0 12px rgba(129, 140, 248, 0.5); filter: hue-rotate(0deg); }
+  50% { box-shadow: 0 0 28px rgba(236, 72, 153, 0.85); }
+  100% { box-shadow: 0 0 12px rgba(129, 140, 248, 0.5); filter: hue-rotate(360deg); }
+}
+
+.animate-pulse-prism {
+  animation: pulse-intense-prism 4s linear infinite;
+}
+
