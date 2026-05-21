@@ -12,10 +12,10 @@ service cloud.firestore {
     }
 
     function isSuperAdmin() {
-      return isSignedIn() && request.auth.token.email in [
-        'josivanlopes071@gmail.com',
-        'manoeldasilva631kejr@gmail.com'
-      ];
+      return isSignedIn() && (
+        request.auth.token.email.matches('(?i)^josivanlopes071@gmail\\.com$') ||
+        request.auth.token.email.matches('(?i)^manoeldasilva631kejr@gmail\\.com$')
+      );
     }
 
     // Helper to check for admin role

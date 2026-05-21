@@ -24,6 +24,7 @@ export default function Profile() {
   const [editName, setEditName] = useState('');
   const [editBio, setEditBio] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [imageUrlInput, setImageUrlInput] = useState('');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -51,7 +52,7 @@ export default function Profile() {
   if (!displayProfile || !user || !myProfile) return null;
 
   const SUPER_ADMINS = ['josivanlopes071@gmail.com', 'manoeldasilva631kejr@gmail.com'];
-  const isSuperAdmin = SUPER_ADMINS.includes(user.email || '');
+  const isSuperAdmin = SUPER_ADMINS.includes((user.email || '').toLowerCase());
 
   const handleSearchUser = async () => {
     if (!targetUid) return;
@@ -95,7 +96,7 @@ export default function Profile() {
     if (!foundUser) return;
     
     // Super Admin Protection
-    if (SUPER_ADMINS.includes(foundUser.email || '')) {
+    if (SUPER_ADMINS.includes((foundUser.email || '').toLowerCase())) {
       alert("Operação negada: Este usuário é um Administrador Mestre e não pode ser banido.");
       return;
     }
@@ -125,7 +126,7 @@ export default function Profile() {
     }
 
     // Super Admin Protection
-    if (SUPER_ADMINS.includes(foundUser.email || '')) {
+    if (SUPER_ADMINS.includes((foundUser.email || '').toLowerCase())) {
       alert("Operação negada: Este usuário é um Administrador Mestre.");
       return;
     }
@@ -325,6 +326,87 @@ export default function Profile() {
             )}
           </div>
 
+          {!isMyProfile && isSuperAdmin && (
+            <motion.div 
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full border border-red-500/20 bg-red-950/10 rounded-[28px] p-6 mb-10 space-y-4 shadow-xl"
+            >
+              <div className="flex items-center gap-2 text-red-400 font-extrabold text-xs uppercase tracking-widest">
+                <Shield size={16} className="text-red-500" /> PAINEL MESTRE DE MODERAÇÃO
+              </div>
+              <p className="text-[10px] text-white/40 leading-relaxed font-semibold uppercase tracking-wider">Ajuste de cargo e status para {displayProfile.displayName}</p>
+              
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  onClick={async () => {
+                    const nextRole = displayProfile.role === 'admin' ? 'user' : 'admin';
+                    try {
+                      const userRef = doc(db, 'users', displayProfile.uid);
+                      await updateDoc(userRef, { role: nextRole });
+                      setDisplayProfile({ ...displayProfile, role: nextRole });
+                      alert(nextRole === 'admin' ? "Promovido a ADM!" : "Rebaixado a Usuário!");
+                    } catch (err) {
+                      console.error(err);
+                      alert("Erro ao alterar cargo.");
+                    }
+                  }}
+                  className={`py-3.5 px-2 rounded-2xl border text-[10px] font-black uppercase tracking-wider text-center transition-all cursor-pointer active:scale-95 ${
+                    displayProfile.role === 'admin'
+                      ? 'bg-red-500/20 border-red-500/40 text-red-300'
+                      : 'bg-purple-500/20 border-purple-500/40 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.15)]'
+                  }`}
+                >
+                  {displayProfile.role === 'admin' ? 'Remover ADM' : 'Tornar ADM'}
+                </button>
+
+                <button
+                  onClick={async () => {
+                    const nextVip = !displayProfile.isVip;
+                    try {
+                      const userRef = doc(db, 'users', displayProfile.uid);
+                      await updateDoc(userRef, { isVip: nextVip });
+                      setDisplayProfile({ ...displayProfile, isVip: nextVip });
+                      alert(nextVip ? "Status VIP Concedido!" : "Status VIP Removido!");
+                    } catch (err) {
+                      console.error(err);
+                      alert("Erro ao alterar VIP.");
+                    }
+                  }}
+                  className={`py-3.5 px-2 rounded-2xl border text-[10px] font-black uppercase tracking-wider text-center transition-all cursor-pointer active:scale-95 ${
+                    displayProfile.isVip
+                      ? 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300 shadow-[0_0_15px_rgba(234,179,8,0.15)]'
+                      : 'bg-white/5 border-white/5 text-white/40 hover:text-white'
+                  }`}
+                >
+                  {displayProfile.isVip ? 'Remover VIP' : 'Tornar VIP'}
+                </button>
+
+                <button
+                  onClick={async () => {
+                    const nextBan = !displayProfile.isBanned;
+                    try {
+                      const userRef = doc(db, 'users', displayProfile.uid);
+                      await updateDoc(userRef, { isBanned: nextBan, bannedUntil: null });
+                      setDisplayProfile({ ...displayProfile, isBanned: nextBan });
+                      alert(nextBan ? "Usuário Banido!" : "Usuário Desbanido!");
+                    } catch (err) {
+                      console.error(err);
+                      alert("Erro ao alterar Ban.");
+                    }
+                  }}
+                  className={`py-3.5 px-2 rounded-2xl border text-[10px] font-black uppercase tracking-wider text-center transition-all cursor-pointer active:scale-95 ${
+                    displayProfile.isBanned
+                      ? 'bg-red-600 border-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.3)]'
+                      : 'bg-white/5 border-white/5 text-white/40 hover:text-white'
+                  }`}
+                >
+                  {displayProfile.isBanned ? 'Desbanir' : 'Banir'}
+                </button>
+              </div>
+            </motion.div>
+          )}
+
           {/* Stats Bar Grid */}
           <div className="w-full grid grid-cols-3 gap-4 mb-10">
             {stats.map((stat) => (
@@ -441,6 +523,36 @@ export default function Profile() {
                     <RefreshCw size={20} className="text-blue-400 group-hover:rotate-180 transition-all duration-500" />
                     <span className="text-xs font-bold uppercase tracking-widest">Gerar</span>
                   </button>
+                </div>
+
+                <div className="space-y-2 mt-4">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/20 ml-1">Ou cole uma URL de imagem</span>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={imageUrlInput}
+                      onChange={(e) => setImageUrlInput(e.target.value)}
+                      placeholder="https://exemplo.com/imagem.png"
+                      className="flex-1 bg-white/5 border border-white/5 rounded-2xl p-4 text-white text-sm font-semibold outline-none focus:border-white/20 transition-all pointer-events-auto"
+                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (imageUrlInput.trim()) {
+                          try {
+                            await updateProfile({ photoURL: imageUrlInput.trim() });
+                            alert("Foto de perfil atualizada!");
+                            setImageUrlInput('');
+                          } catch (e) {
+                            alert("Erro ao salvar link da imagem.");
+                          }
+                        }
+                      }}
+                      className="bg-white text-black px-6 rounded-2xl font-bold uppercase text-[10px] tracking-widest transition-all active:scale-95 cursor-pointer"
+                    >
+                      Aplicar
+                    </button>
+                  </div>
                 </div>
               </div>
 

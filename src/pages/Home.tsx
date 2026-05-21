@@ -43,13 +43,25 @@ export default function Home() {
   const [newRoomName, setNewRoomName] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Chat');
   const [activeFilter, setActiveFilter] = useState('Tudo');
+  const [roomPasswordInput, setRoomPasswordInput] = useState('');
+  const [roomLimitInput, setRoomLimitInput] = useState(12);
   const { user, profile } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const q = query(collection(db, 'rooms'), orderBy('createdAt', 'desc'), limit(50));
+    // 1. We remove orderBy from snapshot to prevent rooms from temporarily disappearing 
+    // when created inside the local cache during the serverTimestamp() resolved phase.
+    const q = query(collection(db, 'rooms'), limit(100));
     return onSnapshot(q, (snapshot) => {
       const roomList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Room));
+      
+      // 2. We sort them in memory on the client side smoothly
+      roomList.sort((a, b) => {
+        const timeA = (a as any).createdAt?.toDate ? (a as any).createdAt.toDate().getTime() : (a as any).createdAt || Date.now();
+        const timeB = (b as any).createdAt?.toDate ? (b as any).createdAt.toDate().getTime() : (b as any).createdAt || Date.now();
+        return timeB - timeA;
+      });
+      
       setRooms(roomList);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'rooms');
@@ -61,15 +73,18 @@ export default function Home() {
     if (!newRoomName.trim() || !user || !profile) return;
 
     try {
-      const { query: fsQuery, where, getDocs } = await import('firebase/firestore');
-      const q = fsQuery(collection(db, 'rooms'), where('ownerId', '==', user.uid), limit(1));
+      const { query: fsQuery, where, getDocs, deleteDoc, doc } = await import('firebase/firestore');
+      
+      // Clear any prior owned rooms to avoid ghost locks and ensure instant fresh creation
+      const q = fsQuery(collection(db, 'rooms'), where('ownerId', '==', user.uid));
       const existingRooms = await getDocs(q);
       
       if (!existingRooms.empty) {
-        navigate(`/room/${existingRooms.docs[0].id}`);
-        setShowCreate(false);
-        return;
+        const deletePromises = existingRooms.docs.map(docSnap => deleteDoc(doc(db, 'rooms', docSnap.id)));
+        await Promise.all(deletePromises);
       }
+
+      const hasPass = roomPasswordInput.trim().length > 0;
 
       const roomPayload = {
         name: newRoomName.trim(),
@@ -84,9 +99,9 @@ export default function Home() {
         slots: { 0: user.uid },
         type: 'public',
         category: selectedCategory,
-        participantLimit: 12,
-        isLocked: false,
-        password: '',
+        participantLimit: roomLimitInput,
+        isLocked: hasPass,
+        password: hasPass ? roomPasswordInput.trim() : '',
         theme: 'default',
         neonColor: '#a855f7',
         stageLayout: 'standard',
@@ -102,6 +117,8 @@ export default function Home() {
       const docRef = await addDoc(collection(db, 'rooms'), roomPayload);
       setShowCreate(false);
       setNewRoomName('');
+      setRoomPasswordInput('');
+      setRoomLimitInput(12);
       navigate(`/room/${docRef.id}`);
     } catch (err) {
       console.error("Erro ao criar sala:", err);
@@ -253,6 +270,20 @@ export default function Home() {
               <span className="text-[11px] font-bold text-yellow-500">{(profile as any)?.coins || 0}</span>
               <Gamepad2 size={12} className="text-yellow-500" />
            </div>
+           
+           <button 
+             onClick={() => {
+               setNewRoomName('');
+               setRoomPasswordInput('');
+               setRoomLimitInput(12);
+               setShowCreate(true);
+             }}
+             className="p-2.5 bg-purple-500/10 rounded-2xl text-purple-400 hover:text-purple-300 hover:bg-purple-500/20 transition-all active:scale-90 border border-purple-500/20 flex items-center justify-center cursor-pointer"
+             title="Criar Sala"
+           >
+             <Plus size={20} />
+           </button>
+
            <button onClick={() => navigate('/social')} className="p-2.5 bg-white/5 rounded-2xl text-white/30 hover:text-white transition-all active:scale-90 border border-white/5">
              <MessageSquare size={20} />
            </button>
@@ -435,6 +466,145 @@ export default function Home() {
           )}
         </div>
       </div>
+
+      {/* Floating Action Button */}
+      <motion.button
+        whileHover={{ scale: 1.05, shadow: "0 0 25px rgba(168,85,247,0.5)" }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => {
+          setNewRoomName('');
+          setRoomPasswordInput('');
+          setRoomLimitInput(12);
+          setShowCreate(true);
+        }}
+        className="fixed bottom-24 right-6 sm:right-10 z-50 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center shadow-[0_8px_32px_rgba(168,85,247,0.4)] border border-purple-400/20 cursor-pointer"
+        title="Criar Sala"
+      >
+        <Plus size={28} className="animate-pulse" />
+      </motion.button>
+
+      {/* Create Room Modal */}
+      <AnimatePresence>
+        {showCreate && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCreate(false)}
+              className="absolute inset-0 bg-black/85 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 30 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 30 }}
+              className="relative w-full max-w-md bg-zinc-950 border border-white/[0.08] rounded-[42px] p-8 shadow-2xl overflow-hidden"
+            >
+              {/* Background Glow */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-purple-500/10 blur-[80px] rounded-full pointer-events-none" />
+
+              <div className="flex items-center justify-between pb-6 border-b border-white/5 relative z-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center border border-purple-500/20">
+                    <Mic className="text-purple-400" size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-white italic uppercase tracking-tight">Criar Nova Sala</h3>
+                    <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Defina seu ambiente premium</p>
+                  </div>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setShowCreate(false)}
+                  className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/40 hover:text-white transition-all hover:bg-white/10"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateRoom} className="space-y-6 pt-6 relative z-10">
+                {/* Room Name */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Nome do Templo</label>
+                  <input 
+                    type="text"
+                    required
+                    maxLength={32}
+                    value={newRoomName}
+                    onChange={(e) => setNewRoomName(e.target.value)}
+                    placeholder="Ex: Mansão dos Deuses 🔮"
+                    className="w-full bg-black/50 border border-white/5 rounded-2xl py-4 px-5 text-white text-sm font-bold placeholder:text-white/10 outline-none focus:border-purple-500/30 focus:bg-black/70 transition-all font-sans"
+                  />
+                </div>
+
+                {/* Categories Wrapper */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Sintonia / Estilo</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {CATEGORIES.filter(c => c.id !== 'Tudo').map((cat) => {
+                      const isSel = selectedCategory === cat.id;
+                      return (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => setSelectedCategory(cat.id)}
+                          className={`py-3.5 px-2 rounded-xl border text-[10px] font-black uppercase tracking-wider text-center transition-all ${
+                            isSel 
+                              ? 'bg-purple-500/20 border-purple-500/40 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.15)]' 
+                              : 'bg-black/30 border-white/5 text-white/30 hover:border-white/10'
+                          }`}
+                        >
+                          {cat.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Row: Participant Limit & Password */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Capacidade</label>
+                    <select
+                      value={roomLimitInput}
+                      onChange={(e) => setRoomLimitInput(Number(e.target.value))}
+                      className="w-full bg-black/50 border border-white/5 rounded-2xl py-4 px-4 text-white text-sm font-bold outline-none focus:border-purple-500/30 transition-all cursor-pointer"
+                    >
+                      <option value={4} className="bg-zinc-950">4 Assentos</option>
+                      <option value={8} className="bg-zinc-950">8 Assentos</option>
+                      <option value={12} className="bg-zinc-950">12 Assentos</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Senha (Opcional)</label>
+                    <div className="relative">
+                      <input 
+                        type="password"
+                        maxLength={12}
+                        value={roomPasswordInput}
+                        onChange={(e) => setRoomPasswordInput(e.target.value)}
+                        placeholder="Trancar sala..."
+                        className="w-full bg-black/50 border border-white/5 rounded-2xl py-4 pl-10 pr-4 text-white text-sm font-bold placeholder:text-white/10 outline-none focus:border-purple-500/30 transition-all font-sans"
+                      />
+                      <Lock size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Create Trigger */}
+                <button 
+                  type="submit"
+                  disabled={!newRoomName.trim()}
+                  className="w-full py-4.5 bg-gradient-to-r from-purple-600 to-indigo-600 disabled:from-zinc-800 disabled:to-zinc-800 disabled:text-white/20 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-purple-950/20 active:scale-95 transition-all text-center mt-2 cursor-pointer"
+                >
+                  Sintonizar Frequência
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

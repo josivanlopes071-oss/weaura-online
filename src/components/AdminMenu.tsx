@@ -355,7 +355,7 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
     playCyberSound('success');
     
     const nextRole = targetUser.role === 'admin' ? 'user' : 'admin';
-    const isSuperAdmin = ['josivanlopes071@gmail.com', 'manoeldasilva631kejr@gmail.com'].includes(targetUser.email || '');
+    const isSuperAdmin = ['josivanlopes071@gmail.com', 'manoeldasilva631kejr@gmail.com'].includes((targetUser.email || '').toLowerCase());
     if (isSuperAdmin && nextRole === 'user') {
       addAdminLog(`Operação Recusada: Mestre ${targetUser.displayName} é super admin e não pode ser rebaixado.`, 'critical');
       return;

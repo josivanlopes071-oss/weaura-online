@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { Crown, Sparkles, Star, Flame, Zap, Gem, Award, Shield } from 'lucide-react';
+import { Crown, Sparkles, Star, Flame, Zap, Gem, Award, Shield, Cpu, Play } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+// @ts-ignore
+import moldura67 from '../assets/images/moldura_67_1779407125172.png';
 
 const avatarPhotoCache: { [uid: string]: string } = {};
 const avatarFrameCache: { [uid: string]: string } = {};
@@ -31,16 +34,15 @@ export default function UserAvatar({ uid, className = "w-12 h-12", alt = "", sho
     // Force frame id for preview if specified
     if (forceFrameId !== undefined) {
       setUserFrame(forceFrameId);
-      // For photo, use logged in user's photo if applicable, else default
       if (user && uid === user.uid && profile?.photoURL) {
         setPhoto(profile.photoURL);
       }
       return;
     }
 
-    // Direct live sync for current user
+    // For current user, our direct context renders live, but we also update state for fallback
     if (user && uid === user.uid) {
-      if (profile?.photoURL) setPhoto(profile.photoURL);
+      setPhoto(profile?.photoURL || null);
       setUserFrame(profile?.equippedFrame || null);
       return;
     }
@@ -76,10 +78,10 @@ export default function UserAvatar({ uid, className = "w-12 h-12", alt = "", sho
     });
   }, [uid, user?.uid, profile?.photoURL, profile?.equippedFrame, forceFrameId]);
 
-  const src = photo || `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid || 'default'}`;
-
-  // If we should not show the frame, or user doesn't have one active, render standard clean avatar
-  const activeFrame = showFrame ? userFrame : null;
+  const isMe = user && uid === user.uid;
+  const activePhoto = isMe ? (profile?.photoURL || null) : photo;
+  const activeFrame = showFrame ? (isMe ? (profile?.equippedFrame || null) : (forceFrameId !== undefined ? forceFrameId : userFrame)) : null;
+  const src = activePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid || 'default'}`;
 
   if (!activeFrame) {
     return (
@@ -92,43 +94,725 @@ export default function UserAvatar({ uid, className = "w-12 h-12", alt = "", sho
     );
   }
 
+function FrameParticles({ frameId }: { frameId: string }) {
+  if (frameId === 'guardiao_67') {
+    return (
+      <div className="absolute inset-0 pointer-events-none overflow-visible z-20">
+        {[...Array(6)].map((_, i) => (
+          <motion.div
+            key={`g67-p-${i}`}
+            className="absolute rounded-full bg-fuchsia-400"
+            style={{
+              width: i % 2 === 0 ? 3 : 5,
+              height: i % 2 === 0 ? 3 : 5,
+              left: `${15 + (i * 16) % 70}%`,
+              bottom: `${10 + (i * 11) % 25}%`,
+              boxShadow: '0 0 10px #d946ef, 0 0 20px #a855f7',
+            }}
+            animate={{
+              y: [-12, -45],
+              x: [0, (Math.sin(i) * 12)],
+              scale: [0.8, 1.4, 0.2],
+              opacity: [0, 0.9, 0.4, 0]
+            }}
+            transition={{
+              duration: 2.2 + Math.random() * 0.8,
+              repeat: Infinity,
+              delay: i * 0.2,
+              ease: "easeOut"
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (frameId === 'cyber') {
+    return (
+      <div className="absolute inset-0 pointer-events-none overflow-visible z-20">
+        {[...Array(5)].map((_, i) => (
+          <motion.div
+            key={`cyber-p-${i}`}
+            className="absolute rounded-full bg-cyan-400"
+            style={{
+              width: i % 2 === 0 ? 3 : 5,
+              height: i % 2 === 0 ? 3 : 5,
+              left: `${15 + (i * 17) % 70}%`,
+              top: `${15 + (i * 23) % 70}%`,
+              boxShadow: '0 0 8px #22d3ee, 0 0 16px #22d3ee',
+            }}
+            animate={{
+              y: [-10, -28, -10],
+              x: [0, (i % 2 === 0 ? 8 : -8), 0],
+              opacity: [0, 0.8, 0],
+              scale: [0.6, 1.2, 0.6]
+            }}
+            transition={{
+              duration: 2.5 + (i * 0.4) % 1.5,
+              repeat: Infinity,
+              delay: i * 0.3,
+              ease: "easeInOut"
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (frameId === 'vip' || frameId === 'golden') {
+    return (
+      <div className="absolute inset-0 pointer-events-none overflow-visible z-20">
+        {[...Array(5)].map((_, i) => (
+          <motion.div
+            key={`vip-p-${i}`}
+            className="absolute bg-amber-305"
+            style={{
+              width: i % 2 === 0 ? 4 : 6,
+              height: i % 2 === 0 ? 4 : 6,
+              left: `${12 + (i * 19) % 76}%`,
+              top: `${12 + (i * 29) % 76}%`,
+              borderRadius: '2px',
+              boxShadow: '0 0 8px #f59e0b, 0 0 16px #fbbf24',
+            }}
+            animate={{
+              y: [-8, -32],
+              opacity: [0, 0.9, 0],
+              scale: [0.4, 1.3, 0.4],
+              rotate: [0, 360]
+            }}
+            transition={{
+              duration: 3 + (i * 0.5) % 1.8,
+              repeat: Infinity,
+              delay: i * 0.25,
+              ease: "easeOut"
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (frameId === 'legendary') {
+    return (
+      <div className="absolute inset-0 pointer-events-none overflow-visible z-20">
+        {[...Array(6)].map((_, i) => (
+          <motion.div
+            key={`legend-p-${i}`}
+            className="absolute rounded bg-amber-400"
+            style={{
+              width: 4,
+              height: 4,
+              left: `${10 + (i * 17) % 80}%`,
+              top: `${10 + (i * 21) % 80}%`,
+              boxShadow: '0 0 10px #fbbf24, 0 0 20px #f59e0b',
+            }}
+            animate={{
+              y: [-12, -34],
+              rotate: [0, 360],
+              opacity: [0, 1, 0],
+              scale: [0.4, 1.4, 0.4]
+            }}
+            transition={{
+              duration: 2.2 + i * 0.3,
+              repeat: Infinity,
+              delay: i * 0.2,
+              ease: "easeOut"
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (frameId === 'supreme') {
+    return (
+      <div className="absolute inset-0 pointer-events-none overflow-visible z-20">
+        {[...Array(6)].map((_, i) => (
+          <motion.div
+            key={`supreme-p-${i}`}
+            className="absolute rounded-full bg-rose-500"
+            style={{
+              width: i % 2 === 0 ? 4 : 6,
+              height: i % 2 === 0 ? 4 : 6,
+              left: `${12 + (i * 18) % 76}%`,
+              top: `${12 + (i * 24) % 76}%`,
+              boxShadow: '0 0 12px #f43f5e, 0 0 24px #be123c',
+            }}
+            animate={{
+              y: [-8, -28, -8],
+              opacity: [0.1, 1, 0.1],
+              scale: [0.8, 1.3, 0.8]
+            }}
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              delay: i * 0.4,
+              ease: "easeInOut"
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (frameId === 'galaxy' || frameId === 'celestial') {
+    return (
+      <div className="absolute inset-0 pointer-events-none overflow-visible z-20">
+        {[...Array(6)].map((_, i) => (
+          <motion.div
+            key={`galaxy-p-${i}`}
+            className="absolute rounded-full bg-indigo-200"
+            style={{
+              width: i % 2 === 0 ? 3 : 5,
+              height: i % 2 === 0 ? 3 : 5,
+              left: `${8 + (i * 21) % 84}%`,
+              top: `${8 + (i * 17) % 84}%`,
+              boxShadow: '0 0 10px #818cf8, 0 0 15px #c084fc',
+            }}
+            animate={{
+              scale: [0.3, 1.3, 0.3],
+              opacity: [0.2, 0.9, 0.2],
+              y: [-5, -20, -5]
+            }}
+            transition={{
+              duration: 2 + (i * 0.3) % 1.5,
+              repeat: Infinity,
+              delay: i * 0.2,
+              ease: "easeInOut"
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (frameId === 'blue_fire') {
+    return (
+      <div className="absolute inset-0 pointer-events-none overflow-visible z-20">
+        {[...Array(6)].map((_, i) => (
+          <motion.div
+            key={`bluefire-p-${i}`}
+            className="absolute rounded-full bg-cyan-400"
+            style={{
+              width: i % 2 === 0 ? 4 : 6,
+              height: i % 2 === 0 ? 4 : 6,
+              left: `${15 + (i * 15) % 70}%`,
+              bottom: `${10 + (i * 11) % 25}%`,
+              boxShadow: '0 0 10px #22d3ee, 0 0 20px #3b82f6',
+            }}
+            animate={{
+              y: [-5, -38],
+              x: [0, (Math.sin(i) * 10)],
+              scale: [1, 0.2],
+              opacity: [0, 1, 0.6, 0]
+            }}
+            transition={{
+              duration: 1.8 + Math.random() * 0.8,
+              repeat: Infinity,
+              delay: i * 0.15,
+              ease: "easeOut"
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (frameId === 'purple_aura') {
+    return (
+      <div className="absolute inset-0 pointer-events-none overflow-visible z-20">
+        {[...Array(5)].map((_, i) => (
+          <motion.div
+            key={`purpleaura-p-${i}`}
+            className="absolute rounded-full bg-fuchsia-400"
+            style={{
+              width: 5,
+              height: 5,
+              left: `${15 + (i * 19) % 70}%`,
+              top: `${15 + (i * 21) % 70}%`,
+              boxShadow: '0 0 12px #e879f9, 0 0 24px #a21caf',
+            }}
+            animate={{
+              scale: [0.5, 1.5, 0.5],
+              opacity: [0.2, 0.9, 0.2],
+            }}
+            transition={{
+              duration: 2 + i * 0.3,
+              repeat: Infinity,
+              delay: i * 0.2,
+              ease: "easeInOut"
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (frameId === 'diamond') {
+    return (
+      <div className="absolute inset-0 pointer-events-none overflow-visible z-20">
+        {[...Array(5)].map((_, i) => (
+          <motion.div
+            key={`diamond-p-${i}`}
+            className="absolute bg-white"
+            style={{
+              width: 4,
+              height: 4,
+              borderRadius: '1px',
+              left: `${15 + (i * 18) % 70}%`,
+              top: `${15 + (i * 22) % 70}%`,
+              boxShadow: '0 0 8px #fff, 0 0 16px #93c5fd',
+            }}
+            animate={{
+              rotate: [0, 180, 360],
+              scale: [0.5, 1.3, 0.5],
+              opacity: [0.1, 1, 0.1]
+            }}
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              delay: i * 0.3,
+              ease: "easeInOut"
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (frameId === 'special_event') {
+    return (
+      <div className="absolute inset-0 pointer-events-none overflow-visible z-20">
+        {[...Array(6)].map((_, i) => (
+          <motion.div
+            key={`event-p-${i}`}
+            className="absolute rounded-sm"
+            style={{
+              width: 5,
+              height: 5,
+              background: i % 3 === 0 ? '#34d399' : (i % 3 === 1 ? '#f43f5e' : '#fbbf24'),
+              left: `${12 + (i * 16) % 76}%`,
+              top: `${12 + (i * 22) % 76}%`,
+              boxShadow: '0 0 8px rgba(251,191,36,0.6)',
+            }}
+            animate={{
+              y: [0, 25],
+              rotate: [0, 180],
+              opacity: [0, 0.9, 0]
+            }}
+            transition={{
+              duration: 2.5,
+              repeat: Infinity,
+              delay: i * 0.3,
+              ease: "linear"
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (frameId === 'ranking_special') {
+    return (
+      <div className="absolute inset-0 pointer-events-none overflow-visible z-20">
+        {[...Array(5)].map((_, i) => (
+          <motion.div
+            key={`ranking-p-${i}`}
+            className="absolute rounded-full bg-yellow-300"
+            style={{
+              width: i % 2 === 0 ? 3 : 5,
+              height: i % 2 === 0 ? 3 : 5,
+              left: `${15 + (i * 18) % 70}%`,
+              top: `${15 + (i * 21) % 70}%`,
+              boxShadow: '0 0 10px #fde047, 0 0 20px #eab308',
+            }}
+            animate={{
+              y: [-10, -28, -10],
+              opacity: [0, 1, 0],
+              scale: [0.6, 1.2, 0.6]
+            }}
+            transition={{
+              duration: 2.6,
+              repeat: Infinity,
+              delay: i * 0.4,
+              ease: "easeInOut"
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (frameId === 'royal') {
+    return (
+      <div className="absolute inset-0 pointer-events-none overflow-visible z-20">
+        {[...Array(5)].map((_, i) => (
+          <motion.div
+            key={`royal-p-${i}`}
+            className="absolute bg-pink-400"
+            style={{
+              width: 4,
+              height: 4,
+              borderRadius: '2px',
+              left: `${15 + (i * 22) % 70}%`,
+              top: `${15 + (i * 13) % 70}%`,
+              boxShadow: '0 0 8px #f472b6, 0 0 16px #db2777',
+            }}
+            animate={{
+              y: [-12, -26],
+              x: [-4, 4, -4],
+              rotate: [0, 180],
+              opacity: [0, 0.8, 0]
+            }}
+            transition={{
+              duration: 2.8,
+              repeat: Infinity,
+              delay: i * 0.4,
+              ease: "easeInOut"
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (frameId === 'demon') {
+    return (
+      <div className="absolute inset-0 pointer-events-none overflow-visible z-20">
+        {[...Array(6)].map((_, i) => (
+          <motion.div
+            key={`demon-p-${i}`}
+            className="absolute rounded-full"
+            style={{
+              width: i % 2 === 0 ? 4 : 6,
+              height: i % 2 === 0 ? 4 : 6,
+              background: 'linear-gradient(to top, #ef4444, #f59e0b)',
+              left: `${10 + (i * 14) % 80}%`,
+              bottom: `${10 + (i * 9) % 25}%`,
+              boxShadow: '0 0 10px #ef4444, 0 0 20px #f97316',
+            }}
+            animate={{
+              y: [-5, -40],
+              x: [0, (Math.sin(i) * 12)],
+              scale: [1, 0.2],
+              opacity: [0, 1, 0.7, 0]
+            }}
+            transition={{
+              duration: 1.8 + Math.random() * 1.2,
+              repeat: Infinity,
+              delay: i * 0.2,
+              ease: "easeOut"
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (frameId === 'prism') {
+    return (
+      <div className="absolute inset-0 pointer-events-none overflow-visible z-20">
+        {[...Array(5)].map((_, i) => (
+          <motion.div
+            key={`prism-p-${i}`}
+            className="absolute"
+            style={{
+              width: 5,
+              height: 5,
+              background: 'linear-gradient(135deg, #10b981, #06b6d4, #f43f5e)',
+              borderRadius: '1px',
+              left: `${20 + (i * 15) % 60}%`,
+              top: `${20 + (i * 21) % 60}%`,
+              boxShadow: '0 0 10px #34d399, 0 0 18px #67e8f9',
+            }}
+            animate={{
+              scale: [0.6, 1.4, 0.6],
+              rotate: [0, 360],
+              opacity: [0.2, 0.8, 0.2],
+              y: [-5, -20, -5]
+            }}
+            transition={{
+              duration: 3 + i * 0.3,
+              repeat: Infinity,
+              delay: i * 0.3,
+              ease: "easeInOut"
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (frameId === 'sakura') {
+    return (
+      <div className="absolute inset-0 pointer-events-none overflow-visible z-20">
+        {[...Array(5)].map((_, i) => (
+          <motion.div
+            key={`sakura-p-${i}`}
+            className="absolute rounded-br-full rounded-tl-full"
+            style={{
+              width: 6,
+              height: 7,
+              background: '#f472b6',
+              border: '0.5px solid #fbcfe8',
+              left: `${15 + (i * 16) % 70}%`,
+              top: `${10 + (i * 14) % 60}%`,
+              boxShadow: '0 0 8px rgba(244,114,182,0.5)',
+            }}
+            animate={{
+              y: [0, 35],
+              x: [0, -10, 10, 0],
+              rotate: [0, 180, 360],
+              opacity: [0, 0.85, 0.5, 0]
+            }}
+            transition={{
+              duration: 3.5 + Math.random() * 1.5,
+              repeat: Infinity,
+              delay: i * 0.4,
+              ease: "linear"
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (frameId === 'matrix') {
+    return (
+      <div className="absolute inset-0 pointer-events-none overflow-visible z-20">
+        {[...Array(5)].map((_, i) => (
+          <motion.div
+            key={`matrix-p-${i}`}
+            className="absolute font-mono text-[7px] leading-none text-green-450 font-black"
+            style={{
+              left: `${12 + i * 15}%`,
+              top: `${10 + i * 8}%`,
+              textShadow: '0 0 6px #22c55e, 0 0 12px #10b981'
+            }}
+            animate={{
+              y: [-10, 30],
+              opacity: [0, 1, 0.7, 0]
+            }}
+            transition={{
+              duration: 1.8 + Math.random() * 1.2,
+              repeat: Infinity,
+              delay: i * 0.25,
+              ease: "linear"
+            }}
+          >
+            {i % 2 === 0 ? '1' : '0'}
+          </motion.div>
+        ))}
+      </div>
+    );
+  }
+
+  if (frameId === 'phoenix') {
+    return (
+      <div className="absolute inset-0 pointer-events-none overflow-visible z-20">
+        {[...Array(5)].map((_, i) => {
+          const angle = (i * 2 * Math.PI) / 5;
+          const targetX = Math.cos(angle) * 32;
+          const targetY = Math.sin(angle) * 32;
+          return (
+            <motion.div
+              key={`phoenix-p-${i}`}
+              className="absolute rounded-full bg-orange-450"
+              style={{
+                width: 4,
+                height: 4,
+                left: '50%',
+                top: '50%',
+                marginLeft: -2,
+                marginTop: -2,
+                boxShadow: '0 0 10px #f97316, 0 0 18px #ef4444'
+              }}
+              animate={{
+                x: [0, targetX],
+                y: [0, targetY],
+                scale: [0.4, 1.3, 0.2],
+                opacity: [0.2, 0.9, 0]
+              }}
+              transition={{
+                duration: 2.2,
+                repeat: Infinity,
+                delay: i * 0.3,
+                ease: "easeOut"
+              }}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (frameId === 'quantum') {
+    return (
+      <div className="absolute inset-0 pointer-events-none overflow-visible z-20">
+        {[...Array(3)].map((_, i) => {
+          const startAngle = (i * 120) * (Math.PI / 180);
+          return (
+            <motion.div
+              key={`quantum-p-${i}`}
+              className="absolute rounded-full bg-cyan-300"
+              style={{
+                width: 4,
+                height: 4,
+                left: '46%',
+                top: '46%',
+                boxShadow: '0 0 10px #22d3ee, 0 0 20px #3b82f6',
+              }}
+              animate={{
+                x: [
+                  28 * Math.cos(startAngle), 
+                  28 * Math.cos(startAngle + Math.PI/2), 
+                  28 * Math.cos(startAngle + Math.PI), 
+                  28 * Math.cos(startAngle + 3*Math.PI/2), 
+                  28 * Math.cos(startAngle)
+                ],
+                y: [
+                  16 * Math.sin(startAngle), 
+                  16 * Math.sin(startAngle + Math.PI/2), 
+                  16 * Math.sin(startAngle + Math.PI), 
+                  16 * Math.sin(startAngle + 3*Math.PI/2), 
+                  16 * Math.sin(startAngle)
+                ],
+                scale: [0.8, 1.2, 0.8, 1.2, 0.8],
+                opacity: [0.4, 1, 0.4, 1, 0.4]
+              }}
+              transition={{
+                duration: 3.5,
+                repeat: Infinity,
+                ease: "linear"
+              }}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+
+  return null;
+}
+
   // Animated Molduras style WePlay Configuration
   let decor = null;
   // classes container around image
-  let containerClasses = "relative rounded-full aspect-square overflow-hidden flex items-center justify-center p-[4px] ";
+  let containerClasses = "relative rounded-full aspect-square flex items-center justify-center p-[4px] ";
   let bgGradient = "";
 
-  if (activeFrame === 'cyber') {
+  if (activeFrame === 'guardiao_67') {
+    // Guardião 67: Premium obsidian & gold frame with purple fire elements and embedded blend asset
+    containerClasses += "border border-purple-500/30 shadow-[0_0_24px_rgba(168,85,247,0.5)] bg-black/60";
+    bgGradient = "bg-gradient-to-tr from-purple-900/50 via-fuchsia-950/20 to-zinc-950/40 animate-rotate-bg";
+    decor = (
+      <div className="absolute -inset-3.5 z-30 pointer-events-none overflow-visible flex items-center justify-center scale-125">
+        <img 
+          src={moldura67} 
+          className="w-full h-full object-contain mix-blend-screen" 
+          style={{
+            maskImage: 'radial-gradient(circle, transparent 37%, black 39%)',
+            WebkitMaskImage: 'radial-gradient(circle, transparent 37%, black 39%)'
+          }}
+          alt="Moldura Guardião Elite 67"
+          referrerPolicy="no-referrer"
+        />
+      </div>
+    );
+  } else if (activeFrame === 'cyber') {
     // Cyber Neon Frame: Animated Cyan-magenta rotation and cyber pulsing shadow
-    containerClasses += "animate-pulse-cyan";
+    containerClasses += "animate-pulse-cyan border border-cyan-400/30";
     bgGradient = "bg-gradient-to-tr from-cyan-400 via-fuchsia-500 to-cyan-500 animate-rotate-bg-fast";
     decor = (
       <div className="absolute -top-1.5 -right-1.5 z-20 flex items-center justify-center bg-cyan-400 rounded-full p-0.5 shadow-[0_0_12px_#22d3ee] animate-pulse">
-        <Sparkles size={8} className="text-[#020202] stroke-[3]" />
+        <Sparkles size={10} className="text-[#020202] stroke-[3]" />
       </div>
     );
-  } else if (activeFrame === 'golden') {
-    // Imperial Golden: Deep gold rich aura with majestic crowns spinning
-    containerClasses += "animate-pulse-gold";
-    bgGradient = "bg-gradient-to-tr from-amber-500 via-yellow-250 to-amber-300 animate-rotate-bg";
+  } else if (activeFrame === 'vip' || activeFrame === 'golden') {
+    // VIP Frame: Deep velvet purple and gold rotating gradient
+    containerClasses += "animate-pulse-gold border border-amber-400/30 shadow-[0_0_15px_rgba(251,191,36,0.5)]";
+    bgGradient = "bg-gradient-to-tr from-amber-500 via-yellow-200 to-amber-305 animate-rotate-bg";
     decor = (
       <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20 transition-all filter drop-shadow-[0_4px_8px_rgba(251,191,36,0.6)]">
-        <Crown size={15} className="text-amber-300 fill-amber-300 stroke-[1.5]" />
+        <Crown size={16} className="text-amber-300 fill-amber-300 stroke-[1.5]" />
       </div>
     );
-  } else if (activeFrame === 'celestial') {
-    // Cosmic Portal: Celestial stars blinking, violet-indigo spinning portal
-    containerClasses += "animate-pulse-purple";
+  } else if (activeFrame === 'legendary') {
+    // Legendary: Gold and hot orange explosion
+    containerClasses += "border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.5)]";
+    bgGradient = "bg-gradient-to-tr from-yellow-500 via-orange-500 to-amber-400 animate-rotate-bg-fast";
+    decor = (
+      <div className="absolute -top-2 -right-1 z-20 flex items-center justify-center bg-amber-500 rounded-full p-1 shadow-[0_0_12px_#f59e0b] animate-bounce">
+        <Award size={10} className="text-[#020202] stroke-[3]" />
+      </div>
+    );
+  } else if (activeFrame === 'supreme') {
+    // Suprema: Royal crimson red
+    containerClasses += "border border-red-500/30 shadow-[0_0_18px_rgba(239,68,68,0.5)]";
+    bgGradient = "bg-gradient-to-tr from-red-600 via-rose-600 to-amber-600 animate-rotate-bg-fast";
+    decor = (
+      <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20 flex items-center drop-shadow-[0_0_10px_#ef4444]">
+        <Crown size={15} className="text-red-500 fill-red-500 animate-pulse" />
+      </div>
+    );
+  } else if (activeFrame === 'galaxy' || activeFrame === 'celestial') {
+    // Galaxy Frame
+    containerClasses += "animate-pulse-purple border border-indigo-400/30 shadow-[0_0_15px_rgba(129,140,248,0.4)]";
     bgGradient = "bg-gradient-to-tr from-indigo-500 via-purple-600 to-pink-500 animate-rotate-bg";
     decor = (
       <>
-        <Star size={9} className="absolute -top-2.5 -left-1 text-indigo-300 drop-shadow-[0_0_6px_#818cf8] fill-indigo-300 animate-ping z-20" />
-        <Sparkles size={9} className="absolute -bottom-1 -right-1 text-purple-400 drop-shadow-[0_0_6px_#c084fc] animate-pulse z-20" />
+        <Star size={10} className="absolute -top-2.5 -left-1 text-indigo-300 drop-shadow-[0_0_6px_#818cf8] fill-indigo-300 animate-ping z-20" />
+        <Sparkles size={10} className="absolute -bottom-1 -right-1 text-purple-400 drop-shadow-[0_0_6px_#c084fc] animate-pulse z-20" />
       </>
+    );
+  } else if (activeFrame === 'blue_fire') {
+    // Blue Fire: Neon cyan back hot fires
+    containerClasses += "border border-cyan-500/30 shadow-[0_0_18px_rgba(34,211,238,0.5)]";
+    bgGradient = "bg-gradient-to-tr from-blue-650 via-cyan-400 to-indigo-650 animate-rotate-bg-fast";
+    decor = (
+      <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]">
+        <Flame size={15} className="text-cyan-400 fill-blue-500" />
+      </div>
+    );
+  } else if (activeFrame === 'purple_aura') {
+    // Purple Aura: Bright magenta purple portal
+    containerClasses += "border border-fuchsia-500/30 shadow-[0_0_18px_rgba(217,70,239,0.5)]";
+    bgGradient = "bg-gradient-to-tr from-purple-700 via-fuchsia-500 to-indigo-750 animate-rotate-bg";
+    decor = (
+      <div className="absolute -top-1.5 -right-1.5 z-20 flex items-center justify-center bg-fuchsia-500 rounded-full p-1 shadow-[0_0_12px_#d946ef] animate-pulse">
+        <Zap size={9} className="text-white fill-white" />
+      </div>
+    );
+  } else if (activeFrame === 'diamond') {
+    // Diamond: white silver diamond layout
+    containerClasses += "border border-sky-300/30 shadow-[0_0_18px_rgba(147,197,253,0.5)]";
+    bgGradient = "bg-gradient-to-tr from-sky-200 via-slate-100 to-sky-350 animate-rotate-bg";
+    decor = (
+      <div className="absolute -top-2 right-1/2 translate-x-1/2 z-20 filter drop-shadow-[0_0_8px_rgba(56,189,248,0.8)]">
+         <Gem size={13} className="text-sky-300 fill-white" />
+      </div>
+    );
+  } else if (activeFrame === 'special_event') {
+    // Special Event: Festivities gold rose sparks
+    containerClasses += "border border-rose-400/30 shadow-[0_0_15px_rgba(244,63,94,0.4)]";
+    bgGradient = "bg-gradient-to-tr from-rose-500 via-amber-400 to-emerald-400 animate-rotate-bg";
+    decor = (
+      <div className="absolute -top-2 -right-1 z-20 bg-rose-500 rounded-full p-1 shadow-[0_0_10px_rgba(244,63,94,0.6)] animate-bounce">
+        <Sparkles size={9} className="text-white fill-white" />
+      </div>
+    );
+  } else if (activeFrame === 'ranking_special') {
+    // Ranking Special: Gold medal with rank banner
+    containerClasses += "border border-yellow-500/30 shadow-[0_0_20px_rgba(234,179,8,0.5)]";
+    bgGradient = "bg-gradient-to-tr from-yellow-600 via-amber-400 to-yellow-850 animate-rotate-bg";
+    decor = (
+      <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 z-20 bg-yellow-500 border border-yellow-300 px-2 py-0.5 rounded-full flex items-center justify-center shadow-[0_0_12px_#eab308]">
+        <span className="text-[6px] font-bold text-black uppercase leading-none font-mono">RANK #1</span>
+      </div>
     );
   } else if (activeFrame === 'royal') {
     // Royal Pink/Ruby We Aura Frame
-    containerClasses += "animate-pulse-pink";
+    containerClasses += "animate-pulse-pink border border-pink-400/30";
     bgGradient = "bg-gradient-to-tr from-pink-500 via-rose-600 to-pink-500 animate-rotate-bg";
     decor = (
       <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 z-20 bg-pink-500 px-1.5 py-0.5 rounded-full border border-pink-300 flex items-center justify-center shadow-[0_0_12px_#ec4899] scale-90">
@@ -137,28 +821,65 @@ export default function UserAvatar({ uid, className = "w-12 h-12", alt = "", sho
     );
   } else if (activeFrame === 'demon') {
     // Dark Demon: Onyx spark & fiery scarlet flames rotating
-    containerClasses += "animate-pulse-demon";
+    containerClasses += "animate-pulse-demon border border-red-500/30";
     bgGradient = "bg-gradient-to-tr from-red-600 via-zinc-950 to-red-500 animate-rotate-bg";
     decor = (
       <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]">
-        <Flame size={14} className="text-red-500 fill-red-500" />
+        <Flame size={15} className="text-red-500 fill-red-500" />
       </div>
     );
   } else if (activeFrame === 'prism') {
     // Mystic Prism Frame
-    containerClasses += "animate-pulse-prism";
+    containerClasses += "animate-pulse-prism border border-emerald-500/30";
     bgGradient = "bg-gradient-to-tr from-rose-500 via-emerald-500 to-cyan-500 animate-rotate-bg";
     decor = (
       <div className="absolute -top-2 right-1/2 translate-x-1/2 z-20 filter drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]">
-         <Gem size={12} className="text-teal-300 fill-teal-100" />
+         <Gem size={13} className="text-teal-300 fill-teal-100" />
+      </div>
+    );
+  } else if (activeFrame === 'sakura') {
+    // Sakura Astral Frame: gentle glow rosy neon pink
+    containerClasses += "border border-pink-400/30 shadow-[0_0_15px_rgba(244,114,182,0.35)]";
+    bgGradient = "bg-gradient-to-tr from-pink-400 via-rose-300 to-indigo-400 animate-rotate-bg";
+    decor = (
+      <div className="absolute -top-2 -right-1 z-20 flex items-center justify-center bg-rose-500 rounded-full p-1 shadow-[0_0_12px_rgba(244,63,94,0.6)] animate-pulse">
+        <Sparkles size={8} className="text-white fill-white" />
+      </div>
+    );
+  } else if (activeFrame === 'matrix') {
+    // Glitch Matrix: Cyber hacker code neon green glow
+    containerClasses += "border border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.35)]";
+    bgGradient = "bg-gradient-to-tr from-green-600 via-[#011601] to-emerald-400 animate-rotate-bg-fast";
+    decor = (
+      <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 z-20 bg-green-500/20 border border-green-500/40 px-2 py-0.5 rounded-full flex items-center justify-center shadow-[0_0_12px_rgba(34,197,94,0.5)] animate-pulse">
+         <span className="text-[7px] font-mono font-black text-green-400 select-none">CODE</span>
+      </div>
+    );
+  } else if (activeFrame === 'phoenix') {
+    // Phoenix Radiante: Solar flare hot fire gold and crimson purple
+    containerClasses += "border border-orange-500/30 shadow-[0_0_20px_rgba(249,115,22,0.45)]";
+    bgGradient = "bg-gradient-to-tr from-red-650 via-amber-400 to-purple-650 animate-rotate-bg-fast";
+    decor = (
+      <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20 flex items-center drop-shadow-[0_0_10px_rgba(249,115,22,0.8)]">
+        <Flame size={16} className="text-orange-400 fill-orange-500" />
+      </div>
+    );
+  } else if (activeFrame === 'quantum') {
+    // Aura Quântica: Subatomic fusion reactor, cobalt blue glow
+    containerClasses += "border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.45)]";
+    bgGradient = "bg-gradient-to-tr from-blue-700 via-cyan-400 to-[#4f46e5] animate-rotate-bg";
+    decor = (
+      <div className="absolute -top-1.5 -left-1.5 z-20 flex items-center justify-center bg-blue-500 rounded-full p-1 shadow-[0_0_12px_#3b82f6] animate-pulse">
+        <Zap size={9} className="text-cyan-200 fill-cyan-400" />
       </div>
     );
   }
 
   return (
-    <div className={`relative flex-shrink-0 ${className} p-0.5`}>
+    <div className={`relative flex-shrink-0 ${className} p-[3px] overflow-visible`}>
       {decor}
-      <div className={`${containerClasses} w-full h-full`}>
+      <FrameParticles frameId={activeFrame || ''} />
+      <div className={`${containerClasses} w-full h-full rounded-full overflow-hidden`}>
         {/* Background Rotating element */}
         <div className={`absolute w-[180%] h-[180%] rounded-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ${bgGradient} z-0`} />
         

@@ -26,7 +26,7 @@ interface UserProfile {
 const SUPER_ADMINS = ['josivanlopes071@gmail.com', 'manoeldasilva631kejr@gmail.com'];
 
 export function isSuperAdmin(email?: string | null) {
-  return SUPER_ADMINS.includes(email || '');
+  return SUPER_ADMINS.includes((email || '').toLowerCase());
 }
 
 interface AuthContextType {
@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const docSnap = await getDoc(userRef);
           
           if (!docSnap.exists()) {
-            const isAdminEmail = SUPER_ADMINS.includes(authenticatedUser.email || '');
+            const isAdminEmail = SUPER_ADMINS.includes((authenticatedUser.email || '').toLowerCase());
             
             // Transaction to get sequential ID
             let numericalId: number;
@@ -150,7 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setProfile(newProfile);
           } else {
             const data = docSnap.data() as UserProfile;
-            const isAdminEmail = SUPER_ADMINS.includes(authenticatedUser.email || '');
+            const isAdminEmail = SUPER_ADMINS.includes((authenticatedUser.email || '').toLowerCase());
             
             let needsUpdate = false;
             const updates: any = {};
