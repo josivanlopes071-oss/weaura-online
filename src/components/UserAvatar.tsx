@@ -709,11 +709,7 @@ function FrameParticles({ frameId }: { frameId: string }) {
       <div className="absolute -inset-3.5 z-30 pointer-events-none overflow-visible flex items-center justify-center scale-125">
         <img 
           src={moldura67} 
-          className="w-full h-full object-contain mix-blend-screen" 
-          style={{
-            maskImage: 'radial-gradient(circle, transparent 37%, black 39%)',
-            WebkitMaskImage: 'radial-gradient(circle, transparent 37%, black 39%)'
-          }}
+          className="w-full h-full object-contain" 
           alt="Moldura Guardião Elite 67"
           referrerPolicy="no-referrer"
         />
