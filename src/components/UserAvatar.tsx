@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Crown, Sparkles, Star, Flame, Zap, Gem, Award, Shield, Cpu, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-const moldura67 = '/moldura_67_1779407125172.png';
+const moldura67 = './moldura_67_1779407125172.png';
 
 const avatarPhotoCache: { [uid: string]: string } = {};
 const avatarFrameCache: { [uid: string]: string } = {};
