@@ -4,12 +4,25 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { Crown, Sparkles, Star, Flame, Zap, Gem, Award, Shield, Cpu, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-
-const moldura67 = './moldura_67_1779407125172.png';
+const moldura67 = '/moldura_guardiao.png';
 
 const avatarPhotoCache: { [uid: string]: string } = {};
 const avatarFrameCache: { [uid: string]: string } = {};
 const avatarNameCache: { [uid: string]: string } = {};
+
+function sanitizeClassName(className: string) {
+  const words = className.split(/\s+/);
+  const allowed = words.filter(word => {
+    const w = word.trim().toLowerCase();
+    if (!w) return false;
+    if (w.startsWith('border') || w.includes('/10') || w.includes('[0.08]') || w.includes('border-white')) return false;
+    if (w.startsWith('bg-') && !w.includes('clip') && !w.includes('opacity')) return false;
+    if (w.startsWith('rounded')) return false;
+    if (w.startsWith('object-')) return false;
+    return true;
+  });
+  return allowed.join(' ');
+}
 
 interface UserAvatarProps {
   uid?: string | null;
@@ -706,7 +719,7 @@ function FrameParticles({ frameId }: { frameId: string }) {
     containerClasses += "border border-purple-500/30 shadow-[0_0_24px_rgba(168,85,247,0.5)] bg-black/60";
     bgGradient = "bg-gradient-to-tr from-purple-900/50 via-fuchsia-950/20 to-zinc-950/40 animate-rotate-bg";
     decor = (
-      <div className="absolute -inset-3.5 z-30 pointer-events-none overflow-visible flex items-center justify-center scale-125">
+      <div className="absolute -inset-3 z-30 pointer-events-none overflow-visible flex items-center justify-center scale-[1.18]">
         <img 
           src={moldura67} 
           className="w-full h-full object-contain" 
@@ -715,164 +728,12 @@ function FrameParticles({ frameId }: { frameId: string }) {
         />
       </div>
     );
-  } else if (activeFrame === 'cyber') {
-    // Cyber Neon Frame: Animated Cyan-magenta rotation and cyber pulsing shadow
-    containerClasses += "animate-pulse-cyan border border-cyan-400/30";
-    bgGradient = "bg-gradient-to-tr from-cyan-400 via-fuchsia-500 to-cyan-500 animate-rotate-bg-fast";
-    decor = (
-      <div className="absolute -top-1.5 -right-1.5 z-20 flex items-center justify-center bg-cyan-400 rounded-full p-0.5 shadow-[0_0_12px_#22d3ee] animate-pulse">
-        <Sparkles size={10} className="text-[#020202] stroke-[3]" />
-      </div>
-    );
-  } else if (activeFrame === 'vip' || activeFrame === 'golden') {
-    // VIP Frame: Deep velvet purple and gold rotating gradient
-    containerClasses += "animate-pulse-gold border border-amber-400/30 shadow-[0_0_15px_rgba(251,191,36,0.5)]";
-    bgGradient = "bg-gradient-to-tr from-amber-500 via-yellow-200 to-amber-305 animate-rotate-bg";
-    decor = (
-      <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20 transition-all filter drop-shadow-[0_4px_8px_rgba(251,191,36,0.6)]">
-        <Crown size={16} className="text-amber-300 fill-amber-300 stroke-[1.5]" />
-      </div>
-    );
-  } else if (activeFrame === 'legendary') {
-    // Legendary: Gold and hot orange explosion
-    containerClasses += "border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.5)]";
-    bgGradient = "bg-gradient-to-tr from-yellow-500 via-orange-500 to-amber-400 animate-rotate-bg-fast";
-    decor = (
-      <div className="absolute -top-2 -right-1 z-20 flex items-center justify-center bg-amber-500 rounded-full p-1 shadow-[0_0_12px_#f59e0b] animate-bounce">
-        <Award size={10} className="text-[#020202] stroke-[3]" />
-      </div>
-    );
-  } else if (activeFrame === 'supreme') {
-    // Suprema: Royal crimson red
-    containerClasses += "border border-red-500/30 shadow-[0_0_18px_rgba(239,68,68,0.5)]";
-    bgGradient = "bg-gradient-to-tr from-red-600 via-rose-600 to-amber-600 animate-rotate-bg-fast";
-    decor = (
-      <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20 flex items-center drop-shadow-[0_0_10px_#ef4444]">
-        <Crown size={15} className="text-red-500 fill-red-500 animate-pulse" />
-      </div>
-    );
-  } else if (activeFrame === 'galaxy' || activeFrame === 'celestial') {
-    // Galaxy Frame
-    containerClasses += "animate-pulse-purple border border-indigo-400/30 shadow-[0_0_15px_rgba(129,140,248,0.4)]";
-    bgGradient = "bg-gradient-to-tr from-indigo-500 via-purple-600 to-pink-500 animate-rotate-bg";
-    decor = (
-      <>
-        <Star size={10} className="absolute -top-2.5 -left-1 text-indigo-300 drop-shadow-[0_0_6px_#818cf8] fill-indigo-300 animate-ping z-20" />
-        <Sparkles size={10} className="absolute -bottom-1 -right-1 text-purple-400 drop-shadow-[0_0_6px_#c084fc] animate-pulse z-20" />
-      </>
-    );
-  } else if (activeFrame === 'blue_fire') {
-    // Blue Fire: Neon cyan back hot fires
-    containerClasses += "border border-cyan-500/30 shadow-[0_0_18px_rgba(34,211,238,0.5)]";
-    bgGradient = "bg-gradient-to-tr from-blue-650 via-cyan-400 to-indigo-650 animate-rotate-bg-fast";
-    decor = (
-      <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]">
-        <Flame size={15} className="text-cyan-400 fill-blue-500" />
-      </div>
-    );
-  } else if (activeFrame === 'purple_aura') {
-    // Purple Aura: Bright magenta purple portal
-    containerClasses += "border border-fuchsia-500/30 shadow-[0_0_18px_rgba(217,70,239,0.5)]";
-    bgGradient = "bg-gradient-to-tr from-purple-700 via-fuchsia-500 to-indigo-750 animate-rotate-bg";
-    decor = (
-      <div className="absolute -top-1.5 -right-1.5 z-20 flex items-center justify-center bg-fuchsia-500 rounded-full p-1 shadow-[0_0_12px_#d946ef] animate-pulse">
-        <Zap size={9} className="text-white fill-white" />
-      </div>
-    );
-  } else if (activeFrame === 'diamond') {
-    // Diamond: white silver diamond layout
-    containerClasses += "border border-sky-300/30 shadow-[0_0_18px_rgba(147,197,253,0.5)]";
-    bgGradient = "bg-gradient-to-tr from-sky-200 via-slate-100 to-sky-350 animate-rotate-bg";
-    decor = (
-      <div className="absolute -top-2 right-1/2 translate-x-1/2 z-20 filter drop-shadow-[0_0_8px_rgba(56,189,248,0.8)]">
-         <Gem size={13} className="text-sky-300 fill-white" />
-      </div>
-    );
-  } else if (activeFrame === 'special_event') {
-    // Special Event: Festivities gold rose sparks
-    containerClasses += "border border-rose-400/30 shadow-[0_0_15px_rgba(244,63,94,0.4)]";
-    bgGradient = "bg-gradient-to-tr from-rose-500 via-amber-400 to-emerald-400 animate-rotate-bg";
-    decor = (
-      <div className="absolute -top-2 -right-1 z-20 bg-rose-500 rounded-full p-1 shadow-[0_0_10px_rgba(244,63,94,0.6)] animate-bounce">
-        <Sparkles size={9} className="text-white fill-white" />
-      </div>
-    );
-  } else if (activeFrame === 'ranking_special') {
-    // Ranking Special: Gold medal with rank banner
-    containerClasses += "border border-yellow-500/30 shadow-[0_0_20px_rgba(234,179,8,0.5)]";
-    bgGradient = "bg-gradient-to-tr from-yellow-600 via-amber-400 to-yellow-850 animate-rotate-bg";
-    decor = (
-      <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 z-20 bg-yellow-500 border border-yellow-300 px-2 py-0.5 rounded-full flex items-center justify-center shadow-[0_0_12px_#eab308]">
-        <span className="text-[6px] font-bold text-black uppercase leading-none font-mono">RANK #1</span>
-      </div>
-    );
-  } else if (activeFrame === 'royal') {
-    // Royal Pink/Ruby We Aura Frame
-    containerClasses += "animate-pulse-pink border border-pink-400/30";
-    bgGradient = "bg-gradient-to-tr from-pink-500 via-rose-600 to-pink-500 animate-rotate-bg";
-    decor = (
-      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 z-20 bg-pink-500 px-1.5 py-0.5 rounded-full border border-pink-300 flex items-center justify-center shadow-[0_0_12px_#ec4899] scale-90">
-        <span className="text-[7px] font-black uppercase text-white tracking-widest leading-none">VIP</span>
-      </div>
-    );
-  } else if (activeFrame === 'demon') {
-    // Dark Demon: Onyx spark & fiery scarlet flames rotating
-    containerClasses += "animate-pulse-demon border border-red-500/30";
-    bgGradient = "bg-gradient-to-tr from-red-600 via-zinc-950 to-red-500 animate-rotate-bg";
-    decor = (
-      <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]">
-        <Flame size={15} className="text-red-500 fill-red-500" />
-      </div>
-    );
-  } else if (activeFrame === 'prism') {
-    // Mystic Prism Frame
-    containerClasses += "animate-pulse-prism border border-emerald-500/30";
-    bgGradient = "bg-gradient-to-tr from-rose-500 via-emerald-500 to-cyan-500 animate-rotate-bg";
-    decor = (
-      <div className="absolute -top-2 right-1/2 translate-x-1/2 z-20 filter drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]">
-         <Gem size={13} className="text-teal-300 fill-teal-100" />
-      </div>
-    );
-  } else if (activeFrame === 'sakura') {
-    // Sakura Astral Frame: gentle glow rosy neon pink
-    containerClasses += "border border-pink-400/30 shadow-[0_0_15px_rgba(244,114,182,0.35)]";
-    bgGradient = "bg-gradient-to-tr from-pink-400 via-rose-300 to-indigo-400 animate-rotate-bg";
-    decor = (
-      <div className="absolute -top-2 -right-1 z-20 flex items-center justify-center bg-rose-500 rounded-full p-1 shadow-[0_0_12px_rgba(244,63,94,0.6)] animate-pulse">
-        <Sparkles size={8} className="text-white fill-white" />
-      </div>
-    );
-  } else if (activeFrame === 'matrix') {
-    // Glitch Matrix: Cyber hacker code neon green glow
-    containerClasses += "border border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.35)]";
-    bgGradient = "bg-gradient-to-tr from-green-600 via-[#011601] to-emerald-400 animate-rotate-bg-fast";
-    decor = (
-      <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 z-20 bg-green-500/20 border border-green-500/40 px-2 py-0.5 rounded-full flex items-center justify-center shadow-[0_0_12px_rgba(34,197,94,0.5)] animate-pulse">
-         <span className="text-[7px] font-mono font-black text-green-400 select-none">CODE</span>
-      </div>
-    );
-  } else if (activeFrame === 'phoenix') {
-    // Phoenix Radiante: Solar flare hot fire gold and crimson purple
-    containerClasses += "border border-orange-500/30 shadow-[0_0_20px_rgba(249,115,22,0.45)]";
-    bgGradient = "bg-gradient-to-tr from-red-650 via-amber-400 to-purple-650 animate-rotate-bg-fast";
-    decor = (
-      <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20 flex items-center drop-shadow-[0_0_10px_rgba(249,115,22,0.8)]">
-        <Flame size={16} className="text-orange-400 fill-orange-500" />
-      </div>
-    );
-  } else if (activeFrame === 'quantum') {
-    // Aura Quântica: Subatomic fusion reactor, cobalt blue glow
-    containerClasses += "border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.45)]";
-    bgGradient = "bg-gradient-to-tr from-blue-700 via-cyan-400 to-[#4f46e5] animate-rotate-bg";
-    decor = (
-      <div className="absolute -top-1.5 -left-1.5 z-20 flex items-center justify-center bg-blue-500 rounded-full p-1 shadow-[0_0_12px_#3b82f6] animate-pulse">
-        <Zap size={9} className="text-cyan-200 fill-cyan-400" />
-      </div>
-    );
   }
 
+  const sanitizedClass = activeFrame ? sanitizeClassName(className) : className;
+
   return (
-    <div className={`relative flex-shrink-0 ${className} p-[3px] overflow-visible`}>
+    <div className={`relative flex-shrink-0 ${sanitizedClass} p-[3px] overflow-visible`}>
       {decor}
       <FrameParticles frameId={activeFrame || ''} />
       <div className={`${containerClasses} w-full h-full rounded-full overflow-hidden`}>

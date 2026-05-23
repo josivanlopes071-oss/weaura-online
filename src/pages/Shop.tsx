@@ -16,17 +16,7 @@ export default function Shop() {
   ];
 
   const items = [
-    { id: 'guardiao_67', name: 'Moldura Guardião Elite 67', cost: 67000, icon: Shield, color: 'text-fuchsia-400', glow: 'shadow-[0_0_20px_rgba(168,85,247,0.6)]', desc: 'Edição mitológica. Chifres obsidian, detalhes em ouro e ametistas resplandecentes com brasão 67!' },
-    { id: 'vip', name: 'Moldura VIP', cost: 3500, icon: Crown, color: 'text-amber-300', glow: 'shadow-[0_0_15px_rgba(251,191,36,0.5)]', desc: 'Brilho ouro imperial digno de verdadeiras lendas e reis' },
-    { id: 'legendary', name: 'Moldura Lendária', cost: 8500, icon: Award, color: 'text-amber-500', glow: 'shadow-[0_0_15px_rgba(245,158,11,0.5)]', desc: 'Aura solar dourada cintilante de um verdadeiro guerreiro' },
-    { id: 'supreme', name: 'Moldura Suprema', cost: 15020, icon: Crown, color: 'text-red-500', glow: 'shadow-[0_0_15px_rgba(239,68,68,0.5)]', desc: 'Pulsar escarlate rubi que impõe respeito supremo por onde passa' },
-    { id: 'galaxy', name: 'Moldura Galaxy', cost: 25000, icon: Star, color: 'text-indigo-400', glow: 'shadow-[0_0_15px_rgba(129,140,248,0.5)]', desc: 'Espiral cósmica e poeira intergaláctica orbitando o seu avatar' },
-    { id: 'cyber', name: 'Moldura Cyber Neon', cost: 1500, icon: Sparkles, color: 'text-cyan-400', glow: 'shadow-[0_0_15px_rgba(34,211,238,0.4)]', desc: 'Efeito neon cintilante em ciano cyberpunk com partículas de dados' },
-    { id: 'blue_fire', name: 'Moldura Fogo Azul', cost: 12000, icon: Flame, color: 'text-cyan-300', glow: 'shadow-[0_0_15px_rgba(34,211,238,0.5)]', desc: 'Labaredas de chama fria azul e partículas termais flutuando' },
-    { id: 'purple_aura', name: 'Moldura Aura Roxa', cost: 18500, icon: Zap, color: 'text-purple-400', glow: 'shadow-[0_0_15px_rgba(192,132,252,0.5)]', desc: 'Tempestade de plasma e relâmpagos em tom ametista intenso' },
-    { id: 'diamond', name: 'Moldura Diamante', cost: 30000, icon: Gem, color: 'text-sky-300', glow: 'shadow-[0_0_15px_rgba(147,197,253,0.5)]', desc: 'Brilho e refração cristalina de diamantes lapidados suspensos' },
-    { id: 'special_event', name: 'Moldura Evento Especial', cost: 45000, icon: Sparkles, color: 'text-rose-400', glow: 'shadow-[0_0_15px_rgba(244,63,94,0.5)]', desc: 'Aura festiva lendária de eventos sazonais com confetes mágicos' },
-    { id: 'ranking_special', name: 'Moldura Exclusiva de Ranking', cost: 85000, icon: Shield, color: 'text-yellow-450', glow: 'shadow-[0_0_20px_rgba(234,179,8,0.6)]', desc: 'Para campeões absolutos do ranking de elite. Brilho platina e coroa' }
+    { id: 'guardiao_67', name: 'Moldura Guardião Elite 67', cost: 67000, icon: Shield, color: 'text-fuchsia-400', glow: 'shadow-[0_0_20px_rgba(168,85,247,0.6)]', desc: 'Edição mitológica. Chifres obsidian, detalhes em ouro e ametistas resplandecentes com brasão 67!' }
   ];
 
   const handleBuyCoins = async (pack: typeof coinPacks[0]) => {

@@ -1568,9 +1568,9 @@ function VoiceSeat({
         style={{ borderColor: userId && isActive ? activeColor : 'rgba(255,255,255,0.08)' }}
       >
         {userId ? (
-          <div className="w-full h-full rounded-full overflow-hidden relative group shadow-inner">
+          <div className="w-full h-full rounded-full overflow-visible relative group shadow-inner">
              {/* Hardware Shine Effect */}
-             <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent pointer-events-none z-20" />
+             <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent pointer-events-none z-20 rounded-full overflow-hidden" />
             
             <UserAvatar 
               uid={userId!} 
@@ -1581,7 +1581,7 @@ function VoiceSeat({
             <AnimatePresence>
               {isActive && (
                 <div 
-                  className="absolute inset-0 flex flex-col items-center justify-end pb-2 z-30"
+                  className="absolute inset-0 flex flex-col items-center justify-end pb-2 z-30 rounded-full overflow-hidden"
                   style={{ background: `linear-gradient(to top, ${activeColor}99, transparent 60%)` }}
                 >
                   <div className="flex gap-1 mb-2 items-end h-6">
