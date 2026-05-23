@@ -4,11 +4,14 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { Crown, Sparkles, Star, Flame, Zap, Gem, Award, Shield, Cpu, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-const moldura67 = '/moldura_guardiao.png';
+import moldura67 from '../assets/images/moldura_guardiao.png';
 
 const avatarPhotoCache: { [uid: string]: string } = {};
 const avatarFrameCache: { [uid: string]: string } = {};
 const avatarNameCache: { [uid: string]: string } = {};
+
+const globalLoadedFrames = new Set<string>();
+const globalFailedFrames = new Set<string>();
 
 function sanitizeClassName(className: string) {
   const words = className.split(/\s+/);
@@ -95,6 +98,76 @@ export default function UserAvatar({ uid, className = "w-12 h-12", alt = "", sho
   const activePhoto = isMe ? (profile?.photoURL || null) : photo;
   const activeFrame = showFrame ? (isMe ? (profile?.equippedFrame || null) : (forceFrameId !== undefined ? forceFrameId : userFrame)) : null;
   const src = activePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid || 'default'}`;
+
+  const [frameLoadState, setFrameLoadState] = useState<'loading' | 'loaded' | 'error'>(() => {
+    if (!activeFrame) return 'loaded';
+    const firstUrl = activeFrame === 'guardiao_67' ? moldura67 : '';
+    if (!firstUrl) return 'error';
+    if (globalLoadedFrames.has(firstUrl)) return 'loaded';
+    if (globalFailedFrames.has(firstUrl)) return 'error';
+    return 'loading';
+  });
+
+  const [currentFrameUrl, setCurrentFrameUrl] = useState<string>(() => {
+    return activeFrame === 'guardiao_67' ? moldura67 : '';
+  });
+
+  useEffect(() => {
+    if (!activeFrame) {
+      setFrameLoadState('loaded');
+      return;
+    }
+    const targetUrl = activeFrame === 'guardiao_67' ? moldura67 : '';
+    if (!targetUrl) {
+      setFrameLoadState('error');
+      return;
+    }
+
+    if (globalLoadedFrames.has(targetUrl)) {
+      setFrameLoadState('loaded');
+      setCurrentFrameUrl(targetUrl);
+      return;
+    }
+    if (globalFailedFrames.has(targetUrl)) {
+      setFrameLoadState('error');
+      return;
+    }
+
+    setFrameLoadState('loading');
+    setCurrentFrameUrl(targetUrl);
+
+    const candidates = [
+      targetUrl,
+      '/moldura_guardiao.png',
+      'moldura_guardiao.png'
+    ];
+
+    let currentIndex = 0;
+
+    const tryLoad = (url: string) => {
+      const img = new Image();
+      img.src = url;
+      img.onload = () => {
+        globalLoadedFrames.add(targetUrl);
+        if (url !== targetUrl) {
+          globalLoadedFrames.add(url);
+        }
+        setFrameLoadState('loaded');
+        setCurrentFrameUrl(url);
+      };
+      img.onerror = () => {
+        currentIndex++;
+        if (currentIndex < candidates.length) {
+          tryLoad(candidates[currentIndex]);
+        } else {
+          globalFailedFrames.add(targetUrl);
+          setFrameLoadState('error');
+        }
+      };
+    };
+
+    tryLoad(targetUrl);
+  }, [activeFrame]);
 
   if (!activeFrame) {
     return (
@@ -715,19 +788,46 @@ function FrameParticles({ frameId }: { frameId: string }) {
   let bgGradient = "";
 
   if (activeFrame === 'guardiao_67') {
-    // Guardião 67: Premium obsidian & gold frame with purple fire elements and embedded blend asset
-    containerClasses += "border border-purple-500/30 shadow-[0_0_24px_rgba(168,85,247,0.5)] bg-black/60";
-    bgGradient = "bg-gradient-to-tr from-purple-900/50 via-fuchsia-950/20 to-zinc-950/40 animate-rotate-bg";
-    decor = (
-      <div className="absolute -inset-3 z-30 pointer-events-none overflow-visible flex items-center justify-center scale-[1.18]">
-        <img 
-          src={moldura67} 
-          className="w-full h-full object-contain" 
-          alt="Moldura Guardião Elite 67"
-          referrerPolicy="no-referrer"
-        />
-      </div>
-    );
+    if (frameLoadState === 'loading') {
+      // Elegant pulsing glow while load sequence completes
+      containerClasses += "border-2 border-purple-500/40 shadow-[0_0_18px_rgba(168,85,247,0.4)] bg-black/60 animate-pulse";
+      bgGradient = "bg-gradient-to-tr from-purple-950/30 via-zinc-950/20 to-transparent";
+      decor = (
+        <div className="absolute -inset-2.5 z-30 pointer-events-none overflow-visible flex items-center justify-center scale-[1.12]">
+          <div className="w-full h-full rounded-full border border-fuchsia-500/30 shadow-[0_0_15px_rgba(217,70,239,0.3)] animate-ping duration-1000" />
+        </div>
+      );
+    } else if (frameLoadState === 'loaded') {
+      // Guardião 67 premium style fully loaded
+      containerClasses += "border border-purple-500/30 shadow-[0_0_24px_rgba(168,85,247,0.5)] bg-black/60";
+      bgGradient = "bg-gradient-to-tr from-purple-900/50 via-fuchsia-950/20 to-zinc-950/40 animate-rotate-bg";
+      decor = (
+        <div className="absolute -inset-3 z-30 pointer-events-none overflow-visible flex items-center justify-center scale-[1.18] transition-opacity duration-300 opacity-100">
+          <img 
+            src={currentFrameUrl} 
+            className="w-full h-full object-contain" 
+            alt="Moldura Guardião Elite 67"
+            referrerPolicy="no-referrer"
+          />
+        </div>
+      );
+    } else {
+      // frameLoadState === 'error': Premium Dual-spinning CSS fallback vector rings style WePlay
+      containerClasses += "border border-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.3)] bg-black/80";
+      bgGradient = "bg-gradient-to-tr from-purple-950/60 to-zinc-950/50";
+      decor = (
+        <div className="absolute -inset-2.5 z-30 pointer-events-none overflow-visible flex items-center justify-center scale-[1.12]">
+          {/* Inner ring spinning anticlockwise */}
+          <div className="absolute inset-0 rounded-full border border-dashed border-amber-400/45 animate-[spin_20s_linear_infinite_reverse]" />
+          {/* Outer ring pulsing and spinning clockwise */}
+          <div className="absolute inset-[-4px] rounded-full border-2 border-dashed border-purple-500/60 animate-[spin_12s_linear_infinite] shadow-[0_0_12px_rgba(168,85,247,0.6)]" />
+          {/* Center crown badge representing Elite Guardian status */}
+          <div className="absolute -top-3 scale-75 bg-amber-400 p-0.5 rounded-full border border-[#0c0c0c]">
+            <Crown size={12} className="text-black fill-black" />
+          </div>
+        </div>
+      );
+    }
   }
 
   const sanitizedClass = activeFrame ? sanitizeClassName(className) : className;
