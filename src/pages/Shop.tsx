@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { ShoppingCart, Star, Zap, Shield, Sparkles, Check, Loader2, Crown, Gem, Gift, Flame, Award } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Sparkles, Zap, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import UserAvatar from '../components/UserAvatar';
 
 export default function Shop() {
-  const { profile, updateCoins, updateProfile } = useAuth();
+  const { profile, updateCoins } = useAuth();
   const [loading, setLoading] = useState<string | null>(null);
 
   const coinPacks = [
@@ -13,10 +12,6 @@ export default function Shop() {
     { id: 'p2', coins: 500, price: 'R$ 19,90', bonus: '+60', color: 'from-purple-500/20 to-purple-600/20' },
     { id: 'p3', coins: 1200, price: 'R$ 39,90', bonus: '+200', popular: true, color: 'from-pink-500/20 to-pink-600/20' },
     { id: 'p4', coins: 3000, price: 'R$ 89,90', bonus: '+650', color: 'from-indigo-500/20 to-indigo-600/20' },
-  ];
-
-  const items = [
-    { id: 'guardiao_67', name: 'Moldura Guardião Elite 67', cost: 67000, icon: Shield, color: 'text-fuchsia-400', glow: 'shadow-[0_0_20px_rgba(168,85,247,0.6)]', desc: 'Edição mitológica. Chifres obsidian, detalhes em ouro e ametistas resplandecentes com brasão 67!' }
   ];
 
   const handleBuyCoins = async (pack: typeof coinPacks[0]) => {
@@ -35,57 +30,6 @@ export default function Shop() {
     }, 1500);
   };
 
-  const handleBuyItem = async (item: typeof items[0]) => {
-    if (!profile) return;
-    
-    const userCoins = profile.coins || 0;
-    if (userCoins < item.cost) {
-      alert("Saldo de EGO insuficiente! Realize uma recarga.");
-      return;
-    }
-
-    try {
-      setLoading(item.id);
-      await updateCoins(item.cost, 'subtract');
-      
-      const currentPurchased = profile.purchasedFrames || [];
-      await updateProfile({
-        purchasedFrames: [...currentPurchased, item.id],
-        equippedFrame: item.id // Auto-equip on buy
-      });
-      
-      alert(`Item adquirido e equipado com sucesso: ${item.name}!`);
-    } catch (err: any) { 
-      alert(err.message || "Erro na compra"); 
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const handleEquipItem = async (itemId: string) => {
-    if (!profile) return;
-    try {
-      await updateProfile({
-        equippedFrame: itemId
-      });
-      alert("Moldura equipada com sucesso!");
-    } catch (err: any) {
-      alert("Erro ao equipar moldura");
-    }
-  };
-
-  const handleUnequipItem = async () => {
-    if (!profile) return;
-    try {
-      await updateProfile({
-        equippedFrame: ''
-      });
-      alert("Moldura desequipada!");
-    } catch (err: any) {
-      alert("Erro ao desequipar");
-    }
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -97,7 +41,7 @@ export default function Shop() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-3xl font-black text-white tracking-tight italic">Loja EGO</h2>
-            <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.35em] leading-none mt-2 italic">Coleção de Elite • Cosméticos • Status</p>
+            <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.35em] leading-none mt-2 italic">Ativação • Cosméticos • Status</p>
           </div>
           <div className="glass-dark px-6 py-4 rounded-[30px] border border-white/[0.08] flex items-center gap-4 shadow-premium group">
              <div className="w-12 h-12 bg-pink-500 rounded-[20px] flex items-center justify-center border-4 border-[#020202] shadow-[0_5px_15px_rgba(236,72,153,0.4)] group-hover:scale-110 transition-transform duration-500">
@@ -119,7 +63,7 @@ export default function Shop() {
             </div>
             <div className="space-y-2">
                <h3 className="text-3xl font-black text-white leading-tight uppercase tracking-tight italic">Domine o <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-yellow-400">Cosmos</span></h3>
-               <p className="text-sm text-white/40 max-w-[240px] leading-relaxed font-medium italic">Molduras lendárias neon, multiplicador de 5x XP e o selo de autenticidade VIP We Aura.</p>
+               <p className="text-sm text-white/40 max-w-[240px] leading-relaxed font-medium italic">Multiplicador de 5x XP, destaque exclusivo e o selo de autenticidade VIP We Aura.</p>
             </div>
             <button className="bg-white text-black px-10 py-5 rounded-[22px] font-black uppercase text-[12px] tracking-[0.2em] shadow-2xl hover:scale-105 active:scale-95 transition-all w-full md:w-auto italic">
               Assinar Agora
@@ -189,72 +133,6 @@ export default function Shop() {
               )}
             </motion.button>
           ))}
-        </div>
-      </section>
-
-      {/* Cosmetics & Aura Mods */}
-      <section className="space-y-8 pb-32">
-        <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/20 ml-6 flex items-center gap-3">
-          <span className="w-1.5 h-1.5 bg-purple-500 rounded-full shadow-[0_0_10px_rgba(168,85,247,0.5)]"></span>
-          Molduras e cosméticos
-        </h3>
-        
-        <div className="grid grid-cols-1 gap-4">
-          {items.map((item) => {
-            const purchasedFrames = profile?.purchasedFrames || [];
-            const isPurchased = purchasedFrames.includes(item.id);
-            const isEquipped = profile?.equippedFrame === item.id;
-            const canAfford = (profile?.coins || 0) >= item.cost;
-
-            return (
-              <div key={item.id} className="glass-dark p-5 pr-6 rounded-[35px] border border-white/[0.08] flex items-center justify-between group hover:bg-white/[0.04] transition-all duration-500 active:scale-[0.98] card-shine">
-                <div className="flex items-center gap-5">
-                   <div className="w-16 h-16 flex-shrink-0">
-                     <UserAvatar uid={profile?.uid} forceFrameId={item.id} className="w-16 h-16" />
-                   </div>
-                   <div className="min-w-0">
-                     <h4 className="font-black text-lg text-white tracking-tight italic leading-tight">{item.name}</h4>
-                     <p className="text-[11px] text-white/20 font-bold uppercase tracking-tight mt-1 truncate max-w-[200px] italic">{item.desc}</p>
-                   </div>
-                </div>
-                
-                {loading === item.id ? (
-                  <Loader2 className="animate-spin text-white/40" size={20} />
-                ) : isPurchased ? (
-                  <div className="flex gap-2">
-                    {isEquipped ? (
-                      <button 
-                        onClick={() => handleUnequipItem()}
-                        className="h-10 px-6 rounded-xl bg-purple-500/20 border border-purple-500/30 text-purple-400 text-xs font-black uppercase tracking-wider hover:opacity-85 active:scale-95 transition-all"
-                      >
-                        Equipado
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => handleEquipItem(item.id)}
-                        className="h-10 px-6 rounded-xl bg-white text-black text-xs font-black uppercase tracking-wider hover:scale-105 active:scale-95 transition-all"
-                      >
-                        Equipar
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <button 
-                    onClick={() => handleBuyItem(item)}
-                    disabled={!canAfford}
-                    className={`h-12 px-6 rounded-2xl border transition-all duration-500 active:scale-95 flex items-center gap-2.5 shadow-premium ${
-                      canAfford
-                        ? 'bg-gradient-to-r from-pink-500 to-purple-600 border-pink-500 text-white hover:scale-105'
-                        : 'bg-black/40 border-white/[0.05] text-white/20'
-                    }`}
-                  >
-                    <Sparkles size={14} className={canAfford ? 'text-white animate-pulse' : 'text-white/20'} />
-                    <span className="text-xs font-black tabular-nums italic tracking-wider">{item.cost} EGO</span>
-                  </button>
-                )}
-              </div>
-            );
-          })}
         </div>
       </section>
     </motion.div>
