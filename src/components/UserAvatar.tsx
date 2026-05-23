@@ -126,18 +126,12 @@ export default function UserAvatar({
   const activeLevel = forceLevel !== undefined ? forceLevel : (isMe ? (profile?.level || 1) : userLevel);
 
   const [frameLoadState, setFrameLoadState] = useState<'loading' | 'loaded' | 'error'>(() => {
-    if (!activeFrame) return 'loaded';
-    if (activeFrame === 'guardiao_67') {
-      if (globalFailedFrames.has('guardiao_67')) return 'error';
-      if (globalLoadedFrames.has('guardiao_67')) return 'loaded';
-      return 'loading';
-    }
-    return 'error';
+    return activeFrame ? 'loading' : 'loaded';
   });
 
   const [currentFrameUrl, setCurrentFrameUrl] = useState<string>(() => {
     if (activeFrame === 'guardiao_67') {
-      return globalWorkingFrameUrl || moldura67 || '/moldura_guardiao.png';
+      return '/moldura_guardiao.png';
     }
     return '';
   });
@@ -149,53 +143,8 @@ export default function UserAvatar({
     }
 
     if (activeFrame === 'guardiao_67') {
-      if (globalLoadedFrames.has('guardiao_67')) {
-        setFrameLoadState('loaded');
-        if (globalWorkingFrameUrl) {
-          setCurrentFrameUrl(globalWorkingFrameUrl);
-        }
-        return;
-      }
-      if (globalFailedFrames.has('guardiao_67')) {
-        setFrameLoadState('error');
-        return;
-      }
-
       setFrameLoadState('loading');
-      
-      const candidates = [
-        moldura67,
-        '/moldura_guardiao.png',
-        'moldura_guardiao.png',
-        '/moldura_67_1779407125172.png',
-        'moldura_67_1779407125172.png'
-      ].filter(Boolean) as string[];
-
-      let index = 0;
-
-      const tryLoad = () => {
-        if (index >= candidates.length) {
-          globalFailedFrames.add('guardiao_67');
-          setFrameLoadState('error');
-          return;
-        }
-
-        const url = candidates[index];
-        const img = new Image();
-        img.onload = () => {
-          globalLoadedFrames.add('guardiao_67');
-          globalWorkingFrameUrl = url;
-          setCurrentFrameUrl(url);
-          setFrameLoadState('loaded');
-        };
-        img.onerror = () => {
-          index++;
-          tryLoad();
-        };
-        img.src = url;
-      };
-
-      tryLoad();
+      setCurrentFrameUrl('/moldura_guardiao.png');
     } else {
       setFrameLoadState('error');
     }
@@ -853,9 +802,19 @@ function FrameParticles({ frameId }: { frameId: string }) {
           }`}
         >
           <img 
-            src={currentFrameUrl || moldura67 || '/moldura_guardiao.png'} 
-            className="w-full h-full object-contain" 
+            src={currentFrameUrl || '/moldura_guardiao.png'} 
+            className="w-full h-full object-contain mix-blend-screen" 
             alt="Moldura Guardião Elite 67"
+            onLoad={() => setFrameLoadState('loaded')}
+            onError={() => {
+              if (currentFrameUrl === '/moldura_guardiao.png') {
+                setCurrentFrameUrl(moldura67);
+              } else if (currentFrameUrl === moldura67) {
+                setCurrentFrameUrl('moldura_guardiao.png');
+              } else {
+                setFrameLoadState('error');
+              }
+            }}
           />
         </div>
       </>

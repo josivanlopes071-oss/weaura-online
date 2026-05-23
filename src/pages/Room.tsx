@@ -935,7 +935,7 @@ export default function Room() {
                       </div>
                     ) : (
                       <>
-                        <div className="flex-none w-8 h-8 rounded-xl bg-white/5 border border-white/10 overflow-hidden shadow-lg relative shrink-0">
+                        <div className="flex-none w-8 h-8 rounded-full bg-white/5 border border-white/10 overflow-visible shadow-lg relative shrink-0">
                           <UserAvatar uid={msg.authorId} className="w-full h-full object-cover" />
                         </div>
                         <div className="flex flex-col gap-1">
