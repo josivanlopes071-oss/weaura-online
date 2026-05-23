@@ -9,6 +9,7 @@ import moldura67 from '../assets/images/moldura_guardiao.png';
 const avatarPhotoCache: { [uid: string]: string } = {};
 const avatarFrameCache: { [uid: string]: string } = {};
 const avatarNameCache: { [uid: string]: string } = {};
+const avatarLevelCache: { [uid: string]: number } = {};
 
 const globalLoadedFrames = new Set<string>();
 const globalFailedFrames = new Set<string>();
@@ -33,23 +34,40 @@ interface UserAvatarProps {
   alt?: string;
   showFrame?: boolean;
   forceFrameId?: string; // used to override/preview specific frame
+  showLevel?: boolean;
+  forceLevel?: number;
 }
 
-export default function UserAvatar({ uid, className = "w-12 h-12", alt = "", showFrame = true, forceFrameId }: UserAvatarProps) {
+export default function UserAvatar({ 
+  uid, 
+  className = "w-12 h-12", 
+  alt = "", 
+  showFrame = true, 
+  forceFrameId,
+  showLevel = true,
+  forceLevel
+}: UserAvatarProps) {
   const { profile, user } = useAuth();
   const [photo, setPhoto] = useState<string | null>(null);
   const [userFrame, setUserFrame] = useState<string | null>(null);
+  const [userLevel, setUserLevel] = useState<number>(1);
 
   useEffect(() => {
     if (!uid) {
       setUserFrame(null);
       setPhoto(null);
+      setUserLevel(1);
       return;
     }
 
-    // Force frame id for preview if specified
+    // Force variables for preview/overrides if specified
     if (forceFrameId !== undefined) {
       setUserFrame(forceFrameId);
+      if (forceLevel !== undefined) {
+        setUserLevel(forceLevel);
+      } else if (user && uid === user.uid) {
+        setUserLevel(profile?.level || 1);
+      }
       if (user && uid === user.uid && profile?.photoURL) {
         setPhoto(profile.photoURL);
       }
@@ -60,6 +78,7 @@ export default function UserAvatar({ uid, className = "w-12 h-12", alt = "", sho
     if (user && uid === user.uid) {
       setPhoto(profile?.photoURL || null);
       setUserFrame(profile?.equippedFrame || null);
+      setUserLevel(profile?.level || 1);
       return;
     }
 
@@ -67,6 +86,7 @@ export default function UserAvatar({ uid, className = "w-12 h-12", alt = "", sho
     if (avatarPhotoCache[uid]) {
       setPhoto(avatarPhotoCache[uid]);
       setUserFrame(avatarFrameCache[uid] || null);
+      setUserLevel(avatarLevelCache[uid] || 1);
       return;
     }
 
@@ -78,6 +98,7 @@ export default function UserAvatar({ uid, className = "w-12 h-12", alt = "", sho
         const photoURL = data.photoURL;
         const displayName = data.displayName;
         const equipped = data.equippedFrame || null;
+        const level = data.level || 1;
 
         if (photoURL) {
           avatarPhotoCache[uid] = photoURL;
@@ -87,29 +108,40 @@ export default function UserAvatar({ uid, className = "w-12 h-12", alt = "", sho
           avatarNameCache[uid] = displayName;
         }
         avatarFrameCache[uid] = equipped;
+        avatarLevelCache[uid] = level;
         setUserFrame(equipped);
+        setUserLevel(level);
       }
     }).catch(err => {
       console.warn("[UserAvatar] Error fetching user metadata:", err);
     });
-  }, [uid, user?.uid, profile?.photoURL, profile?.equippedFrame, forceFrameId]);
+  }, [uid, user?.uid, profile?.photoURL, profile?.equippedFrame, forceFrameId, forceLevel]);
 
   const isMe = user && uid === user.uid;
   const activePhoto = isMe ? (profile?.photoURL || null) : photo;
   const activeFrame = showFrame ? (isMe ? (profile?.equippedFrame || null) : (forceFrameId !== undefined ? forceFrameId : userFrame)) : null;
   const src = activePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid || 'default'}`;
+  const activeLevel = forceLevel !== undefined ? forceLevel : (isMe ? (profile?.level || 1) : userLevel);
 
   const [frameLoadState, setFrameLoadState] = useState<'loading' | 'loaded' | 'error'>(() => {
     if (!activeFrame) return 'loaded';
-    const firstUrl = activeFrame === 'guardiao_67' ? moldura67 : '';
-    if (!firstUrl) return 'error';
-    if (globalLoadedFrames.has(firstUrl)) return 'loaded';
-    if (globalFailedFrames.has(firstUrl)) return 'error';
+    if (activeFrame === 'guardiao_67') {
+      if (globalLoadedFrames.has(moldura67)) return 'loaded';
+      if (globalLoadedFrames.has('/moldura_guardiao.png')) return 'loaded';
+      if (globalLoadedFrames.has('moldura_guardiao.png')) return 'loaded';
+      if (globalFailedFrames.has('guardiao_67')) return 'error';
+    }
     return 'loading';
   });
 
   const [currentFrameUrl, setCurrentFrameUrl] = useState<string>(() => {
-    return activeFrame === 'guardiao_67' ? moldura67 : '';
+    if (activeFrame === 'guardiao_67') {
+      if (globalLoadedFrames.has(moldura67)) return moldura67;
+      if (globalLoadedFrames.has('/moldura_guardiao.png')) return '/moldura_guardiao.png';
+      if (globalLoadedFrames.has('moldura_guardiao.png')) return 'moldura_guardiao.png';
+      return moldura67;
+    }
+    return '';
   });
 
   useEffect(() => {
@@ -117,66 +149,72 @@ export default function UserAvatar({ uid, className = "w-12 h-12", alt = "", sho
       setFrameLoadState('loaded');
       return;
     }
-    const targetUrl = activeFrame === 'guardiao_67' ? moldura67 : '';
-    if (!targetUrl) {
-      setFrameLoadState('error');
-      return;
-    }
 
-    if (globalLoadedFrames.has(targetUrl)) {
-      setFrameLoadState('loaded');
-      setCurrentFrameUrl(targetUrl);
-      return;
-    }
-    if (globalFailedFrames.has(targetUrl)) {
-      setFrameLoadState('error');
-      return;
-    }
-
-    setFrameLoadState('loading');
-    setCurrentFrameUrl(targetUrl);
-
-    const candidates = [
-      targetUrl,
-      '/moldura_guardiao.png',
-      'moldura_guardiao.png'
-    ];
-
-    let currentIndex = 0;
-
-    const tryLoad = (url: string) => {
-      const img = new Image();
-      img.src = url;
-      img.onload = () => {
-        globalLoadedFrames.add(targetUrl);
-        if (url !== targetUrl) {
-          globalLoadedFrames.add(url);
-        }
+    if (activeFrame === 'guardiao_67') {
+      if (globalLoadedFrames.has(moldura67)) {
+        setCurrentFrameUrl(moldura67);
         setFrameLoadState('loaded');
-        setCurrentFrameUrl(url);
-      };
-      img.onerror = () => {
-        currentIndex++;
-        if (currentIndex < candidates.length) {
-          tryLoad(candidates[currentIndex]);
-        } else {
-          globalFailedFrames.add(targetUrl);
-          setFrameLoadState('error');
-        }
-      };
-    };
+        return;
+      }
+      if (globalLoadedFrames.has('/moldura_guardiao.png')) {
+        setCurrentFrameUrl('/moldura_guardiao.png');
+        setFrameLoadState('loaded');
+        return;
+      }
+      if (globalLoadedFrames.has('moldura_guardiao.png')) {
+        setCurrentFrameUrl('moldura_guardiao.png');
+        setFrameLoadState('loaded');
+        return;
+      }
+      if (globalFailedFrames.has('guardiao_67')) {
+        setFrameLoadState('error');
+        return;
+      }
 
-    tryLoad(targetUrl);
+      setFrameLoadState('loading');
+      const candidates = [moldura67, '/moldura_guardiao.png', 'moldura_guardiao.png'];
+      let currentIndex = 0;
+
+      const tryLoadCandidate = (urlStr: string) => {
+        const img = new Image();
+        img.onload = () => {
+          globalLoadedFrames.add(urlStr);
+          setCurrentFrameUrl(urlStr);
+          setFrameLoadState('loaded');
+        };
+        img.onerror = () => {
+          currentIndex++;
+          if (currentIndex < candidates.length) {
+            tryLoadCandidate(candidates[currentIndex]);
+          } else {
+            globalFailedFrames.add('guardiao_67');
+            setFrameLoadState('error');
+          }
+        };
+        img.src = urlStr;
+      };
+
+      tryLoadCandidate(candidates[currentIndex]);
+    } else {
+      setFrameLoadState('error');
+    }
   }, [activeFrame]);
 
   if (!activeFrame) {
     return (
-      <img
-        src={src}
-        className={`${className} rounded-full object-cover border border-white/10 bg-zinc-800`}
-        alt={alt}
-        referrerPolicy="no-referrer"
-      />
+      <div className={`relative flex-shrink-0 ${className} overflow-visible`}>
+        <img
+          src={src}
+          className="w-full h-full rounded-full object-cover border border-white/10 bg-zinc-800"
+          alt={alt}
+          referrerPolicy="no-referrer"
+        />
+        {showLevel && (
+          <div className="absolute bottom-[-1.5px] left-1/2 -translate-x-1/2 translate-y-1/4 z-10 flex items-center justify-center font-black rounded-lg border border-yellow-500/30 bg-zinc-950 text-yellow-400 text-[8px] px-1 py-0.5 uppercase tracking-wider scale-[0.85] leading-none font-mono">
+            LV.{activeLevel}
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -781,28 +819,27 @@ function FrameParticles({ frameId }: { frameId: string }) {
   return null;
 }
 
-  // Animated Molduras style WePlay Configuration
+  // Absolute overlay details depending on loading/loaded state
   let decor = null;
-  // classes container around image
-  let containerClasses = "relative rounded-full aspect-square flex items-center justify-center p-[4px] ";
   let bgGradient = "";
+  let containerGlow = "";
 
   if (activeFrame === 'guardiao_67') {
     if (frameLoadState === 'loading') {
-      // Elegant pulsing glow while load sequence completes
-      containerClasses += "border-2 border-purple-500/40 shadow-[0_0_18px_rgba(168,85,247,0.4)] bg-black/60 animate-pulse";
-      bgGradient = "bg-gradient-to-tr from-purple-950/30 via-zinc-950/20 to-transparent";
+      // Elegant futuristic pulsing glow
+      containerGlow = "shadow-[0_0_20px_rgba(168,85,247,0.5)] bg-purple-950/20";
+      bgGradient = "bg-gradient-to-tr from-purple-900/40 via-purple-950/20 to-zinc-950/20 animate-pulse";
       decor = (
-        <div className="absolute -inset-2.5 z-30 pointer-events-none overflow-visible flex items-center justify-center scale-[1.12]">
-          <div className="w-full h-full rounded-full border border-fuchsia-500/30 shadow-[0_0_15px_rgba(217,70,239,0.3)] animate-ping duration-1000" />
+        <div className="absolute inset-0 z-30 pointer-events-none overflow-visible flex items-center justify-center scale-[1.12]">
+          <div className="w-full h-full rounded-full border border-fuchsia-500/20 shadow-[0_0_15px_rgba(217,70,239,0.2)] animate-ping duration-1000" />
         </div>
       );
     } else if (frameLoadState === 'loaded') {
-      // Guardião 67 premium style fully loaded
-      containerClasses += "border border-purple-500/30 shadow-[0_0_24px_rgba(168,85,247,0.5)] bg-black/60";
-      bgGradient = "bg-gradient-to-tr from-purple-900/50 via-fuchsia-950/20 to-zinc-950/40 animate-rotate-bg";
+      // Guardião 67 premium style successfully verified and loaded
+      containerGlow = "shadow-[0_0_30px_rgba(168,85,247,0.6)] border border-purple-500/25";
+      bgGradient = "bg-gradient-to-tr from-purple-900/60 via-fuchsia-950/20 to-zinc-950/50 animate-rotate-bg";
       decor = (
-        <div className="absolute -inset-3 z-30 pointer-events-none overflow-visible flex items-center justify-center scale-[1.18] transition-opacity duration-300 opacity-100">
+        <div className="absolute -inset-3.5 z-35 pointer-events-none overflow-visible flex items-center justify-center scale-[1.20] transition-opacity duration-300">
           <img 
             src={currentFrameUrl} 
             className="w-full h-full object-contain" 
@@ -813,17 +850,17 @@ function FrameParticles({ frameId }: { frameId: string }) {
       );
     } else {
       // frameLoadState === 'error': Premium Dual-spinning CSS fallback vector rings style WePlay
-      containerClasses += "border border-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.3)] bg-black/80";
-      bgGradient = "bg-gradient-to-tr from-purple-950/60 to-zinc-950/50";
+      containerGlow = "shadow-[0_0_22px_rgba(168,85,247,0.4)] border border-purple-500/30";
+      bgGradient = "bg-gradient-to-tr from-purple-950/70 to-zinc-950/60";
       decor = (
-        <div className="absolute -inset-2.5 z-30 pointer-events-none overflow-visible flex items-center justify-center scale-[1.12]">
+        <div className="absolute -inset-2.5 z-35 pointer-events-none overflow-visible flex items-center justify-center scale-[1.12]">
           {/* Inner ring spinning anticlockwise */}
           <div className="absolute inset-0 rounded-full border border-dashed border-amber-400/45 animate-[spin_20s_linear_infinite_reverse]" />
           {/* Outer ring pulsing and spinning clockwise */}
           <div className="absolute inset-[-4px] rounded-full border-2 border-dashed border-purple-500/60 animate-[spin_12s_linear_infinite] shadow-[0_0_12px_rgba(168,85,247,0.6)]" />
           {/* Center crown badge representing Elite Guardian status */}
-          <div className="absolute -top-3 scale-75 bg-amber-400 p-0.5 rounded-full border border-[#0c0c0c]">
-            <Crown size={12} className="text-black fill-black" />
+          <div className="absolute -top-3.5 scale-75 bg-gradient-to-b from-amber-300 to-amber-500 p-0.5 rounded-full border border-[#0c0c0c] shadow-[0_2px_6px_rgba(0,0,0,0.6)] flex items-center justify-center">
+            <Crown size={11} className="text-black fill-black animate-pulse" />
           </div>
         </div>
       );
@@ -833,23 +870,36 @@ function FrameParticles({ frameId }: { frameId: string }) {
   const sanitizedClass = activeFrame ? sanitizeClassName(className) : className;
 
   return (
-    <div className={`relative flex-shrink-0 ${sanitizedClass} p-[3px] overflow-visible`}>
-      {decor}
-      <FrameParticles frameId={activeFrame || ''} />
-      <div className={`${containerClasses} w-full h-full rounded-full overflow-hidden`}>
-        {/* Background Rotating element */}
-        <div className={`absolute w-[180%] h-[180%] rounded-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ${bgGradient} z-0`} />
-        
-        {/* Inner Circle container mask keeping photo clear */}
-        <div className="w-full h-full rounded-full bg-[#0c0c0c] z-10 flex items-center justify-center overflow-hidden relative">
-          <img
-            src={src}
-            className="w-full h-full rounded-full object-cover bg-zinc-900"
-            alt={alt}
-            referrerPolicy="no-referrer"
-          />
-        </div>
+    <div className={`relative flex-shrink-0 ${sanitizedClass} overflow-visible flex items-center justify-center p-[2px]`}>
+      
+      {/* Background Rotating element aura inside the main area */}
+      <div className={`absolute w-[80%] h-[80%] rounded-full overflow-hidden ${containerGlow} z-0 flex items-center justify-center`}>
+         <div className={`absolute w-[185%] h-[185%] rounded-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ${bgGradient} z-0`} />
       </div>
+
+      {/* Frame Particles (fires, sparkles) */}
+      <FrameParticles frameId={activeFrame || ''} />
+
+      {/* The User Avatar Photo: centered and scales inside the frame's transparent center perfectly */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[74%] h-[74%] rounded-full overflow-hidden z-20 flex items-center justify-center bg-[#0c0c0c] border border-purple-500/20">
+        <img
+          src={src}
+          className="w-full h-full rounded-full object-cover bg-zinc-950"
+          alt={alt}
+          referrerPolicy="no-referrer"
+        />
+      </div>
+
+      {/* Guardian Frame overlay layer */}
+      {decor}
+
+      {/* WePlay inspired level badge centered perfectly on bottom overlaying the frame */}
+      {showLevel && (
+        <div className="absolute bottom-[-1.5px] left-1/2 -translate-x-1/2 z-40 bg-zinc-950 font-black rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.9)] border-2 border-amber-400 text-amber-400 text-[8px] px-2 py-0.5 uppercase tracking-wider scale-[0.88] md:scale-95 font-mono font-extrabold flex items-center gap-0.5 whitespace-nowrap">
+          <span className="text-yellow-400/95 pr-0.5 select-none animate-pulse">★</span>{isMe && profile?.isVip ? `VIP ` : `LV.`}{activeLevel}
+        </div>
+      )}
+
     </div>
   );
 }
