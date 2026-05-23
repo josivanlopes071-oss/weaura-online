@@ -23,6 +23,7 @@ function sanitizeClassName(className: string) {
     if (w.startsWith('bg-') && !w.includes('clip') && !w.includes('opacity')) return false;
     if (w.startsWith('rounded')) return false;
     if (w.startsWith('object-')) return false;
+    if (w.startsWith('overflow')) return false;
     return true;
   });
   return allowed.join(' ');
@@ -126,20 +127,16 @@ export default function UserAvatar({
   const [frameLoadState, setFrameLoadState] = useState<'loading' | 'loaded' | 'error'>(() => {
     if (!activeFrame) return 'loaded';
     if (activeFrame === 'guardiao_67') {
-      if (globalLoadedFrames.has(moldura67)) return 'loaded';
-      if (globalLoadedFrames.has('/moldura_guardiao.png')) return 'loaded';
-      if (globalLoadedFrames.has('moldura_guardiao.png')) return 'loaded';
       if (globalFailedFrames.has('guardiao_67')) return 'error';
+      if (globalLoadedFrames.has('guardiao_67')) return 'loaded';
+      return 'loading';
     }
-    return 'loading';
+    return 'error';
   });
 
   const [currentFrameUrl, setCurrentFrameUrl] = useState<string>(() => {
     if (activeFrame === 'guardiao_67') {
-      if (globalLoadedFrames.has(moldura67)) return moldura67;
-      if (globalLoadedFrames.has('/moldura_guardiao.png')) return '/moldura_guardiao.png';
-      if (globalLoadedFrames.has('moldura_guardiao.png')) return 'moldura_guardiao.png';
-      return moldura67;
+      return moldura67 || '/moldura_guardiao.png';
     }
     return '';
   });
@@ -149,52 +146,15 @@ export default function UserAvatar({
       setFrameLoadState('loaded');
       return;
     }
-
     if (activeFrame === 'guardiao_67') {
-      if (globalLoadedFrames.has(moldura67)) {
-        setCurrentFrameUrl(moldura67);
+      if (globalLoadedFrames.has('guardiao_67')) {
         setFrameLoadState('loaded');
-        return;
-      }
-      if (globalLoadedFrames.has('/moldura_guardiao.png')) {
-        setCurrentFrameUrl('/moldura_guardiao.png');
-        setFrameLoadState('loaded');
-        return;
-      }
-      if (globalLoadedFrames.has('moldura_guardiao.png')) {
-        setCurrentFrameUrl('moldura_guardiao.png');
-        setFrameLoadState('loaded');
-        return;
-      }
-      if (globalFailedFrames.has('guardiao_67')) {
+      } else if (globalFailedFrames.has('guardiao_67')) {
         setFrameLoadState('error');
-        return;
+      } else {
+        setFrameLoadState('loading');
       }
-
-      setFrameLoadState('loading');
-      const candidates = [moldura67, '/moldura_guardiao.png', 'moldura_guardiao.png'];
-      let currentIndex = 0;
-
-      const tryLoadCandidate = (urlStr: string) => {
-        const img = new Image();
-        img.onload = () => {
-          globalLoadedFrames.add(urlStr);
-          setCurrentFrameUrl(urlStr);
-          setFrameLoadState('loaded');
-        };
-        img.onerror = () => {
-          currentIndex++;
-          if (currentIndex < candidates.length) {
-            tryLoadCandidate(candidates[currentIndex]);
-          } else {
-            globalFailedFrames.add('guardiao_67');
-            setFrameLoadState('error');
-          }
-        };
-        img.src = urlStr;
-      };
-
-      tryLoadCandidate(candidates[currentIndex]);
+      setCurrentFrameUrl(moldura67 || '/moldura_guardiao.png');
     } else {
       setFrameLoadState('error');
     }
@@ -825,46 +785,58 @@ function FrameParticles({ frameId }: { frameId: string }) {
   let containerGlow = "";
 
   if (activeFrame === 'guardiao_67') {
-    if (frameLoadState === 'loading') {
-      // Elegant futuristic pulsing glow
-      containerGlow = "shadow-[0_0_20px_rgba(168,85,247,0.5)] bg-purple-950/20";
-      bgGradient = "bg-gradient-to-tr from-purple-900/40 via-purple-950/20 to-zinc-950/20 animate-pulse";
-      decor = (
-        <div className="absolute inset-0 z-30 pointer-events-none overflow-visible flex items-center justify-center scale-[1.12]">
-          <div className="w-full h-full rounded-full border border-fuchsia-500/20 shadow-[0_0_15px_rgba(217,70,239,0.2)] animate-ping duration-1000" />
-        </div>
-      );
-    } else if (frameLoadState === 'loaded') {
-      // Guardião 67 premium style successfully verified and loaded
-      containerGlow = "shadow-[0_0_30px_rgba(168,85,247,0.6)] border border-purple-500/25";
-      bgGradient = "bg-gradient-to-tr from-purple-900/60 via-fuchsia-950/20 to-zinc-950/50 animate-rotate-bg";
-      decor = (
-        <div className="absolute -inset-3.5 z-35 pointer-events-none overflow-visible flex items-center justify-center scale-[1.20] transition-opacity duration-300">
+    // Elegant futuristic pulsing glow and rotating aura bg gradient
+    containerGlow = "shadow-[0_0_24px_rgba(168,85,247,0.55)] border border-purple-500/20 bg-purple-950/10";
+    bgGradient = "bg-gradient-to-tr from-purple-900/50 via-fuchsia-950/20 to-zinc-950/40 animate-rotate-bg";
+    
+    decor = (
+      <>
+        {/* Layer 1: Elegant Fallback Background Vectors (spinning dashed lines and golden crown - always here as a graceful fallback / background element) */}
+        {frameLoadState !== 'loaded' && (
+          <div className="absolute inset-[-4px] z-30 pointer-events-none overflow-visible flex items-center justify-center scale-[1.12] transition-opacity duration-300">
+            {/* Inner ring spinning anticlockwise */}
+            <div className="absolute inset-1 rounded-full border border-dashed border-amber-400/35 animate-[spin_24s_linear_infinite_reverse]" />
+            {/* Outer ring pulsing and spinning clockwise */}
+            <div className="absolute inset-[-2px] rounded-full border border-dashed border-purple-500/50 animate-[spin_15s_linear_infinite]" />
+            {/* Center crown badge representing Elite Guardian status */}
+            <div className="absolute -top-3.5 scale-75 bg-gradient-to-b from-amber-300 to-amber-500 p-0.5 rounded-full border border-[#0c0c0c] shadow-[0_2px_5px_rgba(0,0,0,0.5)] flex items-center justify-center">
+              <Crown size={10} className="text-black fill-black animate-pulse" />
+            </div>
+          </div>
+        )}
+
+        {/* Layer 2: Main PNG Moldura Image (loaded asynchronously with inline fail-safe path chaining without blocking ref headers) */}
+        <div 
+          className={`absolute -inset-3.5 z-35 pointer-events-none overflow-visible flex items-center justify-center scale-[1.20] transition-all duration-300 ${
+            frameLoadState === 'loaded' ? 'opacity-100' : 'opacity-80'
+          }`}
+        >
           <img 
-            src={currentFrameUrl} 
+            src={currentFrameUrl || moldura67 || '/moldura_guardiao.png'} 
             className="w-full h-full object-contain" 
             alt="Moldura Guardião Elite 67"
-            referrerPolicy="no-referrer"
+            onLoad={() => {
+              globalLoadedFrames.add('guardiao_67');
+              setFrameLoadState('loaded');
+            }}
+            onError={(e) => {
+              const imgEl = e.currentTarget;
+              // Chaining loading paths locally to maximize chance of match
+              if (currentFrameUrl === moldura67) {
+                setCurrentFrameUrl('/moldura_guardiao.png');
+              } else if (currentFrameUrl === '/moldura_guardiao.png') {
+                setCurrentFrameUrl('moldura_guardiao.png');
+              } else if (currentFrameUrl === 'moldura_guardiao.png') {
+                setCurrentFrameUrl('/moldura_67_1779407125172.png');
+              } else {
+                globalFailedFrames.add('guardiao_67');
+                setFrameLoadState('error');
+              }
+            }}
           />
         </div>
-      );
-    } else {
-      // frameLoadState === 'error': Premium Dual-spinning CSS fallback vector rings style WePlay
-      containerGlow = "shadow-[0_0_22px_rgba(168,85,247,0.4)] border border-purple-500/30";
-      bgGradient = "bg-gradient-to-tr from-purple-950/70 to-zinc-950/60";
-      decor = (
-        <div className="absolute -inset-2.5 z-35 pointer-events-none overflow-visible flex items-center justify-center scale-[1.12]">
-          {/* Inner ring spinning anticlockwise */}
-          <div className="absolute inset-0 rounded-full border border-dashed border-amber-400/45 animate-[spin_20s_linear_infinite_reverse]" />
-          {/* Outer ring pulsing and spinning clockwise */}
-          <div className="absolute inset-[-4px] rounded-full border-2 border-dashed border-purple-500/60 animate-[spin_12s_linear_infinite] shadow-[0_0_12px_rgba(168,85,247,0.6)]" />
-          {/* Center crown badge representing Elite Guardian status */}
-          <div className="absolute -top-3.5 scale-75 bg-gradient-to-b from-amber-300 to-amber-500 p-0.5 rounded-full border border-[#0c0c0c] shadow-[0_2px_6px_rgba(0,0,0,0.6)] flex items-center justify-center">
-            <Crown size={11} className="text-black fill-black animate-pulse" />
-          </div>
-        </div>
-      );
-    }
+      </>
+    );
   }
 
   const sanitizedClass = activeFrame ? sanitizeClassName(className) : className;
