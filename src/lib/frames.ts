@@ -24,49 +24,23 @@ export interface FrameItem {
   glowColor: string;
   glowClass: string;
   isVip: boolean;
-  category: 'WePlay' | 'Hologram' | 'Futuristic';
+  category: 'Aura' | 'Elite' | 'Special';
   badge: string;
 }
 
 export const PREMIUM_FRAMES: FrameItem[] = [
   {
     id: 'weplay_aura_guardiao',
-    name: 'Aura Guardião (WePlay)',
-    description: 'Moldura Elite Oficial do We Aura. Glow sagrado e efeitos de aura pulsante.',
+    name: 'Aura Guardião',
+    description: 'Moldura Elite Oficial do Aura Room. Glow sagrado e efeitos de aura pulsante.',
     price: 350,
     driveUrl: 'https://drive.google.com/file/d/1up3OJYPGNi9pXxdUsukkMTgK-DVjLuwv/view?usp=drivesdk',
     imageUrl: getDirectDriveUrl('https://drive.google.com/file/d/1up3OJYPGNi9pXxdUsukkMTgK-DVjLuwv/view?usp=drivesdk'),
     glowColor: '#a855f7', // Purple-magenta glow
     glowClass: 'shadow-purple-500/50',
     isVip: true,
-    category: 'WePlay',
+    category: 'Elite',
     badge: 'Elite VIP'
-  },
-  {
-    id: 'cyberpunk_glow',
-    name: 'Cyberpunk Neon',
-    description: 'Neon cyan e azul futurista estilo Gamer Pro. Estética de alta voltagem.',
-    price: 150,
-    driveUrl: 'https://drive.google.com/file/d/1qVv7uH-7j6T8Yk-b9eN3zD1mYmK-eFp3/view',
-    imageUrl: getDirectDriveUrl('https://drive.google.com/file/d/1qVv7uH-7j6T8Yk-b9eN3zD1mYmK-eFp3/view'),
-    glowColor: '#06b6d4', // Cyan
-    glowClass: 'shadow-cyan-500/50',
-    isVip: false,
-    category: 'Futuristic',
-    badge: 'Limitado'
-  },
-  {
-    id: 'cosmos_hologram',
-    name: 'Cosmos Holográfico',
-    description: 'Cintilante, com mudança de cor gradiente cromática em tempo real.',
-    price: 250,
-    driveUrl: '',
-    imageUrl: '', // Pure CSS animated frame if loading fails or for dynamic fallback
-    glowColor: '#ec4899', // Pink-hologram
-    glowClass: 'shadow-pink-500/50',
-    isVip: false,
-    category: 'Hologram',
-    badge: 'Especial'
   }
 ];
 

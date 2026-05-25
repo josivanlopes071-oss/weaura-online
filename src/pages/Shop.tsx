@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Zap, Loader2, Check, ShieldCheck, Flame, ShoppingBag, Eye, User, Trophy } from 'lucide-react';
+import { Sparkles, Loader2, Check, Flame, Eye, Zap, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { PREMIUM_FRAMES, FrameItem, getDirectDriveUrl } from '../lib/frames';
+import { PREMIUM_FRAMES, FrameItem } from '../lib/frames';
 import UserAvatar from '../components/UserAvatar';
 
 export default function Shop() {
   const { profile, updateCoins, updateProfile } = useAuth();
-  const [loading, setLoading] = useState<string | null>(null);
   const [transactionLoading, setTransactionLoading] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'coins' | 'frames'>('frames');
+  const [loadingCoins, setLoadingCoins] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'frames' | 'coins'>('frames');
 
   // Preview frame state: defaults to current equipped frame, or first premium frame
   const [previewFrameId, setPreviewFrameId] = useState<string>(() => {
-    return profile?.equippedFrame || PREMIUM_FRAMES[0].id;
+    return profile?.equippedFrame || PREMIUM_FRAMES[0]?.id || '';
   });
 
   const coinPacks = [
@@ -25,16 +25,17 @@ export default function Shop() {
 
   const handleBuyCoins = async (pack: typeof coinPacks[0]) => {
     if (!profile) return;
-    setLoading(pack.id);
+    setLoadingCoins(pack.id);
     setTimeout(async () => {
       try {
-        const totalCoins = pack.coins + parseInt(pack.bonus);
+        const bonusValue = parseInt(pack.bonus.replace('+', ''), 10) || 0;
+        const totalCoins = pack.coins + bonusValue;
         await updateCoins(totalCoins, 'add');
         alert(`Recarga realizada! +${totalCoins} EGO adicionados ao seu perfil.`);
       } catch (err) { 
         alert("Erro na transação"); 
       } finally { 
-        setLoading(null); 
+        setLoadingCoins(null); 
       }
     }, 1200);
   };
@@ -119,8 +120,8 @@ export default function Shop() {
       {/* Dynamic Header */}
       <div className="flex flex-col gap-6 pt-4 md:pt-8 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-3xl font-black text-white tracking-tight italic">MERCADO WE AURA</h2>
-          <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.35em] leading-none mt-2 italic">Aura Vip • Cosméticos Avançados • WePlay Frames</p>
+          <h2 className="text-3xl font-black text-white tracking-tight italic">MERCADO AURA</h2>
+          <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.35em] leading-none mt-2 italic">Aura Vip • Cosméticos Avançados • Molduras Premium</p>
         </div>
 
         {/* EGO Coin Wallet Balance Display */}
@@ -135,7 +136,7 @@ export default function Shop() {
         </div>
       </div>
 
-      {/* Tabs Selector: WePlay Premium Frames vs Refill Coins */}
+      {/* Tabs Selector: Premium Frames vs Refill Coins */}
       <div className="flex bg-[#0a0a0a] p-1.5 rounded-2xl border border-white/5 w-full max-w-md mx-auto">
         <button
           onClick={() => setActiveTab('frames')}
@@ -146,7 +147,7 @@ export default function Shop() {
           }`}
         >
           <ShieldCheck size={14} />
-          Molduras WePlay
+          Molduras
         </button>
         <button
           onClick={() => setActiveTab('coins')}
@@ -204,12 +205,14 @@ export default function Shop() {
                 </div>
 
                 {/* Simulated Container rendering UserAvatar with previewFrameId */}
-                <UserAvatar 
-                  uid={profile?.uid} 
-                  className="w-24 h-24" 
-                  forceFrameId={previewFrameId}
-                  showLevel={true}
-                />
+                {previewFrameId && (
+                  <UserAvatar 
+                    uid={profile?.uid} 
+                    className="w-24 h-24" 
+                    forceFrameId={previewFrameId}
+                    showLevel={true}
+                  />
+                )}
 
                 <div className="text-center mt-2">
                   <span className="text-white font-black text-sm block">
@@ -225,7 +228,7 @@ export default function Shop() {
                   <button 
                     onClick={handleUnequipFrame}
                     disabled={transactionLoading !== null}
-                    className="w-full bg-zinc-900 border border-white/10 hover:bg-zinc-800 text-white/80 py-2.5 rounded-xl font-bold uppercase text-[10px] tracking-wider transition-all flex items-center justify-center gap-1.5 mt-2"
+                    className="w-full bg-zinc-900 border border-white/10 hover:bg-zinc-800 text-white/50 text-[10px] h-10 rounded-2xl font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 mt-2"
                   >
                     {transactionLoading === 'unequip' ? (
                       <Loader2 className="animate-spin" size={12} />
@@ -406,7 +409,7 @@ export default function Shop() {
             className="space-y-8"
           >
             {/* Featured Bonus Banner */}
-            <div className="bg-gradient-to-br from-pink-600 via-indigo-950 to-[#020202] p-10 rounded-[45px] overflow-hidden relative shadow-premium group border border-white/10 card-shine">
+            <div className="bg-gradient-to-br from-purple-600 via-indigo-950 to-[#020202] p-10 rounded-[45px] overflow-hidden relative border border-white/20">
               <div className="relative z-10 space-y-6">
                 <div className="bg-white/10 backdrop-blur-3xl w-fit px-4 py-2 rounded-2xl flex items-center gap-2.5 border border-white/10">
                   <Sparkles className="text-yellow-400 animate-pulse" size={16} />
@@ -414,22 +417,22 @@ export default function Shop() {
                 </div>
                 <div className="space-y-2">
                    <h3 className="text-3xl font-black text-white leading-tight uppercase tracking-tight italic">Aproveite Descontos</h3>
-                   <p className="text-sm text-white/40 max-w-[240px] leading-relaxed font-medium italic">Multiplicador de moedas ativado! Troque EGO por molduras raras do aplicativo.</p>
+                   <p className="text-sm text-white/40 max-w-[400px] leading-relaxed font-medium italic">Multiplicador de moedas ativado! Troque EGO por molduras raras do aplicativo.</p>
                 </div>
               </div>
               <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-white/5 rounded-full blur-[100px]" />
             </div>
 
-            <div className="grid grid-cols-2 gap-5">
+            <div className="grid grid-cols-2 gap-5 animate-fade-in">
               {coinPacks.map((pack) => (
                 <motion.button
                   key={pack.id}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleBuyCoins(pack)}
-                  disabled={loading !== null}
-                  className={`relative glass-dark p-8 rounded-[40px] border transition-all duration-500 group card-shine ${
+                  disabled={loadingCoins !== null}
+                  className={`relative glass-dark p-8 rounded-[40px] border transition-all duration-500 group ${
                     pack.popular 
-                    ? 'border-pink-500/40 bg-pink-500/[0.04] shadow-[0_20px_50px_rgba(236,72,153,0.15)]' 
+                    ? 'border-pink-500/40 bg-pink-500/[0.04]' 
                     : 'border-white/[0.08]'
                   }`}
                 >
@@ -439,7 +442,7 @@ export default function Shop() {
                       </div>
                    )}
 
-                  {loading === pack.id ? (
+                  {loadingCoins === pack.id ? (
                     <div className="py-8"><Loader2 className="animate-spin text-white/20 mx-auto" size={38} /></div>
                   ) : (
                     <div className="relative z-10 flex flex-col items-center w-full">
@@ -454,7 +457,7 @@ export default function Shop() {
                             {pack.price}
                           </div>
                           <div className="text-[10px] font-black text-green-500 uppercase tracking-[0.25em] italic">
-                             +{pack.bonus} bônus
+                             {pack.bonus} bônus
                           </div>
                        </div>
                     </div>
