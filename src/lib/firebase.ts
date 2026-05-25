@@ -13,13 +13,13 @@ import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with persistent cache and long polling for reliability
+// Initialize Firestore with persistent cache, allowing WebSockets by default and auto-fallback for reliability
 const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
   }),
-  experimentalForceLongPolling: true,
-  experimentalAutoDetectLongPolling: false,
+  experimentalForceLongPolling: false,
+  experimentalAutoDetectLongPolling: true,
 }, (firebaseConfig as any).firestoreDatabaseId || undefined);
 
 const auth = getAuth(app);

@@ -20,7 +20,7 @@ import {
   X, Shield, Users, Layers, MessageSquare, AlertTriangle, Terminal, Search, 
   Ban, ShieldAlert, VolumeX, Award, User, RefreshCw, Zap, Gift, Compass, 
   Heart, Flame, Sparkles, CheckCircle2, Lock, Unlock, EyeOff, Radio, Plus, 
-  Trash2, Send, Database, Cpu, Activity, Info
+  Trash2, Send, Database, Cpu, Activity, Info, Crown
 } from 'lucide-react';
 
 const PALETTE = {
@@ -101,7 +101,8 @@ interface AdminMenuProps {
 
 export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
   const { user, profile } = useAuth();
-  const [activeTab, setActiveTab] = useState<'players' | 'rooms' | 'chat' | 'moderation'>('players');
+  const isCurrentUserOwner = ['josivanlopes071@gmail.com', 'manoeldasilva631kejr@gmail.com'].includes((profile?.email || user?.email || '').toLowerCase());
+  const [activeTab, setActiveTab ] = useState<'players' | 'rooms' | 'chat' | 'moderation'>('players');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   
   // Players Tab State
@@ -111,6 +112,7 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
   const [isSearchingUser, setIsSearchingUser] = useState(false);
   const [coinMutationAmt, setCoinMutationAmt] = useState<number>(1000);
   const [newNickname, setNewNickname] = useState('');
+  const [levelDirectSet, setLevelDirectSet] = useState<number>(1);
   
   // Custom states
   const [frozenPlayers, setFrozenPlayers] = useState<{ [uid: string]: boolean }>({});
@@ -300,6 +302,7 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
         const found = { id: snap.docs[0].id, ...snap.docs[0].data() as any };
         setTargetUser(found);
         setNewNickname(found.displayName || '');
+        setLevelDirectSet(found.level || 1);
         playCyberSound('success');
         addAdminLog(`Alvo identificado: ${found.displayName} [ID: ${found.displayId || 'S/I'}] (E-mail: ${found.email || 'Não Registrado'})`, 'success');
       } else {
@@ -470,10 +473,35 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
         vipBadge: null
       });
       setTargetUser({ ...targetUser, coins: 100, isVip: false, bio: 'Iniciante do Universo We Aura', level: 1 });
+      setLevelDirectSet(1);
       addAdminLog(`Estatísticas de ${targetUser.displayName} redefinidas para o nível inicial de rede.`, 'critical');
     } catch (err: any) {
       console.error(err);
       addAdminLog(`Erro ao resetar: ${err.message}`, 'critical');
+    }
+  };
+
+  const handleSetUserLevel = async (newLevelValue: number) => {
+    if (!targetUser) return;
+    const isCurrentUserOwner = ['josivanlopes071@gmail.com', 'manoeldasilva631kejr@gmail.com'].includes((profile?.email || user?.email || '').toLowerCase());
+    if (!isCurrentUserOwner) {
+      addAdminLog(`Acesso negado: Tentativa não autorizada de alterar nível.`, 'critical');
+      alert("Acesso negado: Apenas o dono supremo do sistema pode alterar os níveis.");
+      return;
+    }
+    
+    const nextLevel = Math.max(1, Math.min(9999, newLevelValue));
+    playCyberSound('laser');
+    
+    try {
+      const userRef = doc(db, 'users', targetUser.id);
+      await updateDoc(userRef, { level: nextLevel });
+      setTargetUser({ ...targetUser, level: nextLevel });
+      setLevelDirectSet(nextLevel);
+      addAdminLog(`[NÍVEL DO DONO] Nível de ${targetUser.displayName} ajustado para ${nextLevel}.`, 'success');
+    } catch (err: any) {
+      console.error(err);
+      addAdminLog(`Erro ao atualizar nível: ${err.message}`, 'critical');
     }
   };
 
@@ -991,6 +1019,77 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
                           </button>
                         </div>
                       </div>
+                    </div>
+
+                    {/* OWNER EXCLUSIVE LEVEL CONTROLLER */}
+                    <div className="p-4 rounded-xl bg-gradient-to-r from-[#FF4D9D]/5 to-[#8A2EFF]/5 border border-[#FF4D9D]/20 space-y-3 relative overflow-hidden">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Crown size={14} className="text-[#FF4D9D] animate-pulse" />
+                          <span className="text-[10px] font-black uppercase text-transparent bg-clip-text bg-gradient-to-r from-[#FF4D9D] to-[#8A2EFF] tracking-widest leading-none">
+                            Controle Supremo de Nível (Apenas Dono)
+                          </span>
+                        </div>
+                        {isCurrentUserOwner ? (
+                          <span className="bg-emerald-500/10 border border-emerald-500/20 text-[8px] font-black px-2 py-0.5 rounded text-emerald-400 uppercase tracking-widest">
+                            Acesso Permitido
+                          </span>
+                        ) : (
+                          <span className="bg-red-500/10 border border-red-500/20 text-[8px] font-black px-2 py-0.5 rounded text-red-400 uppercase tracking-widest flex items-center gap-1">
+                            <Lock size={8} /> Bloqueado
+                          </span>
+                        )}
+                      </div>
+
+                      {isCurrentUserOwner ? (
+                        <div className="flex flex-col sm:flex-row items-center gap-3">
+                          <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <button
+                              onClick={() => {
+                                const current = Number(targetUser.level) || 1;
+                                handleSetUserLevel(current - 1);
+                              }}
+                              className="w-10 h-10 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-bold flex items-center justify-center transition-all active:scale-95 text-xs"
+                              title="Tirar Nível (-1)"
+                            >
+                              -1
+                            </button>
+                            <input
+                              type="number"
+                              min="1"
+                              max="9999"
+                              value={levelDirectSet}
+                              onChange={(e) => setLevelDirectSet(Math.max(1, Number(e.target.value)))}
+                              className="bg-white/5 border border-white/5 rounded-lg px-3 py-2 text-xs font-bold text-white outline-none w-20 text-center"
+                            />
+                            <button
+                              onClick={() => {
+                                const current = Number(targetUser.level) || 1;
+                                handleSetUserLevel(current + 1);
+                              }}
+                              className="w-10 h-10 rounded-lg bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 font-bold flex items-center justify-center transition-all active:scale-95 text-xs"
+                              title="Subir Nível (+1)"
+                            >
+                              +1
+                            </button>
+                          </div>
+                          
+                          <button
+                            onClick={() => handleSetUserLevel(levelDirectSet)}
+                            className="w-full sm:flex-1 bg-gradient-to-r from-[#FF4D9D] to-[#8A2EFF] text-white font-black text-[10px] uppercase tracking-[0.15em] h-10 rounded-lg hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md flex items-center justify-center gap-2"
+                          >
+                            <Award size={12} />
+                            Definir Nível Exato
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-black/40 rounded-lg border border-white/5 flex items-center gap-3">
+                          <Lock size={16} className="text-white/20" />
+                          <p className="text-[10px] text-white/40 font-semibold leading-relaxed">
+                            Apenas as contas dos donos oficiais podem alterar ou manipular o nível dos usuários neste painel.
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     {/* POLISHED MULTIPLE TRIGGER UTILITIES */}
