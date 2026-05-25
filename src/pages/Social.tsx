@@ -8,6 +8,7 @@ import { handleFirestoreError, OperationType } from '../lib/firebase';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useNavigate } from 'react-router-dom';
 import UserAvatar from '../components/UserAvatar';
+import PremiumTag from '../components/PremiumTag';
 
 interface Chat {
   id: string;
@@ -225,7 +226,10 @@ export default function Social() {
                                <div className="absolute -top-1.5 -right-1.5 bg-yellow-500 text-[8px] font-black px-1.5 py-0.5 rounded-lg border-2 border-[#0c0c0c]">LV.{u.level || 1}</div>
                             </div>
                             <div className="flex flex-col truncate">
-                               <h4 className="text-sm font-black text-white italic truncate group-hover:text-purple-400 transition-colors uppercase tracking-tight">{u.displayName}</h4>
+                               <div className="flex items-center gap-1.5 flex-wrap">
+                                 <h4 className="text-sm font-black text-white italic truncate group-hover:text-purple-400 transition-colors uppercase tracking-tight">{u.displayName}</h4>
+                                 <PremiumTag email={u.email} role={u.role} size="xs" />
+                               </div>
                                <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest mt-1">ID • {u.displayId}</p>
                             </div>
                          </div>
@@ -270,7 +274,10 @@ export default function Social() {
                          </div>
                          <UserAvatar uid={rank.id} className="w-14 h-14" />
                          <div className="flex flex-col">
-                            <h4 className="text-base font-black text-white italic leading-tight">{rank.displayName}</h4>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h4 className="text-base font-black text-white italic leading-tight">{rank.displayName}</h4>
+                              <PremiumTag email={rank.email} role={rank.role} size="xs" />
+                            </div>
                             <span className="text-[9px] font-black text-purple-400/50 uppercase tracking-widest mt-1">LV.{rank.level || 1} • {rank.displayId}</span>
                          </div>
                       </div>
@@ -296,7 +303,10 @@ export default function Social() {
                     <UserAvatar uid={u.id} className="w-16 h-16" />
                   </div>
                   <div className="flex-1 min-w-0">
-                     <h4 className="font-black text-white truncate text-base italic leading-tight">{u.displayName}</h4>
+                     <div className="flex items-center gap-1.5 flex-wrap">
+                       <h4 className="font-black text-white truncate text-base italic leading-tight">{u.displayName}</h4>
+                       <PremiumTag email={u.email} role={u.role} size="xs" />
+                     </div>
                      <p className="text-[10px] font-bold text-white/10 mt-1 uppercase tracking-widest italic">LV.{u.level || 1} • ONLINE</p>
                   </div>
                   <button 
@@ -325,7 +335,10 @@ export default function Social() {
                     <div className="flex items-center gap-4 cursor-pointer" onClick={() => navigate(`/profile/${u.id}`)}>
                       <UserAvatar uid={u.id} className="w-12 h-12" />
                       <div>
-                        <h4 className="text-sm font-black text-white italic">{u.displayName}</h4>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className="text-sm font-black text-white italic">{u.displayName}</h4>
+                          <PremiumTag email={u.email} role={u.role} size="xs" />
+                        </div>
                         <p className="text-[9px] font-bold text-white/20 uppercase">LV.{u.level || 1} • {u.displayId}</p>
                       </div>
                     </div>
@@ -354,7 +367,10 @@ export default function Social() {
                     <div className="flex items-center gap-4 cursor-pointer" onClick={() => navigate(`/profile/${u.id}`)}>
                       <UserAvatar uid={u.id} className="w-12 h-12" />
                       <div>
-                        <h4 className="text-sm font-black text-white italic">{u.displayName}</h4>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className="text-sm font-black text-white italic">{u.displayName}</h4>
+                          <PremiumTag email={u.email} role={u.role} size="xs" />
+                        </div>
                         <p className="text-[9px] font-bold text-white/20 uppercase">LV.{u.level || 1} • {u.displayId}</p>
                       </div>
                     </div>

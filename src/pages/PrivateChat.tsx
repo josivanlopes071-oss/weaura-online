@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { handleFirestoreError, OperationType } from '../lib/firebase';
 import UserAvatar from '../components/UserAvatar';
+import PremiumTag from '../components/PremiumTag';
 import { 
   ChevronLeft, Send, Gift, MoreVertical, Search, 
   MessageSquare, Volume2, X, Star, Heart, Flame, Trophy, Gamepad2
@@ -142,7 +143,10 @@ export default function PrivateChat() {
               <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-4 border-[#0c0c0c] z-20 ${targetUser.status === 'online' ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-gray-600'}`}></div>
             </div>
             <div>
-              <h2 className="font-black italic uppercase text-xl text-white leading-none tracking-tight group-hover:text-purple-400 transition-colors">{targetUser.displayName}</h2>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h2 className="font-black italic uppercase text-xl text-white leading-none tracking-tight group-hover:text-purple-400 transition-colors">{targetUser.displayName}</h2>
+                <PremiumTag email={targetUser.email} role={targetUser.role} size="xs" />
+              </div>
               <p className="text-[10px] font-black italic text-white/20 uppercase tracking-[0.2em] mt-1.5 flex items-center gap-2">
                  <span className="w-1.5 h-1.5 bg-purple-500/40 rounded-full"></span>
                  LV.{targetUser.level || 1} • {targetUser.status === 'online' ? 'Status Ativo' : 'Conexão Offline'}

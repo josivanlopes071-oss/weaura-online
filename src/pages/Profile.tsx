@@ -7,6 +7,7 @@ import { db } from '../lib/firebase';
 import { doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import AdminMenu from '../components/AdminMenu';
 import UserAvatar from '../components/UserAvatar';
+import PremiumTag from '../components/PremiumTag';
 
 export default function Profile() {
   const { id } = useParams();
@@ -282,6 +283,9 @@ export default function Profile() {
             <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase">
               {displayProfile.displayName}
             </h2>
+            <div className="flex justify-center py-1">
+              <PremiumTag email={displayProfile.email} role={displayProfile.role} size="md" />
+            </div>
             <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.4em] italic mb-4">
               {displayProfile.role === 'admin' ? 'ADM + AURA + EGO' : 'AURORA • EXPLORADOR'}
             </p>

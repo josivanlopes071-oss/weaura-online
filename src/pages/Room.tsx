@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { handleFirestoreError, OperationType } from '../lib/firebase';
 import { useVoiceChat } from '../hooks/useVoiceChat';
 import UserAvatar from '../components/UserAvatar';
+import { UserPremiumTag } from '../components/PremiumTag';
 import { 
   Mic, MicOff, Send, Gift, ChevronLeft, MoreVertical, 
   Users, MessageSquare, Volume2, X, Star, Heart, Flame, Trophy,
@@ -867,9 +868,10 @@ export default function Room() {
                 </div>
                 
                 <div className="mt-8 text-center">
-                  <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2 justify-center">
                     <UserDisplayName uid={room.slots?.[0]} fallback="Esperando Host" />
                     {room.slots?.[0] === room.ownerId && <Crown size={14} className="text-yellow-500 fill-yellow-500/20" />}
+                    <UserPremiumTag uid={room.slots?.[0]} size="xs" />
                   </h3>
                   <div className="flex items-center justify-center gap-1.5 mt-1 bg-white/5 px-3 py-1 rounded-full border border-white/5 w-fit mx-auto">
                     <Flame size={10} className="text-orange-500" />
@@ -948,7 +950,7 @@ export default function Room() {
                                   : 'bg-black/70 border-white/[0.06]'
                             }`}
                           >
-                             <div className="flex items-center gap-1.5 mb-0.5">
+                             <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                                <span 
                                  className="text-[9.5px] font-black uppercase tracking-wider flex items-center gap-1" 
                                  style={{ color: isHost ? '#fbbf24' : currentTheme.primary }}
@@ -956,6 +958,7 @@ export default function Room() {
                                  {msg.authorName}
                                  {isHost && <Crown size={9} className="text-yellow-500 fill-yellow-500/30" />}
                                </span>
+                               <UserPremiumTag uid={msg.authorId} size="xs" />
                              </div>
                              <span className={`text-[11.5px] font-medium leading-relaxed ${msg.type === 'gift' ? 'text-yellow-100 font-bold tracking-wide animate-pulse' : 'text-white/95'}`}>
                                {msg.text}
