@@ -10,13 +10,14 @@ import { handleFirestoreError, OperationType } from '../lib/firebase';
 import { useVoiceChat } from '../hooks/useVoiceChat';
 import UserAvatar from '../components/UserAvatar';
 import { UserPremiumTag } from '../components/PremiumTag';
+import OnboardingTour from '../components/OnboardingTour';
 import { 
   Mic, MicOff, Send, Gift, ChevronLeft, MoreVertical, 
   Users, MessageSquare, Volume2, X, Star, Heart, Flame, Trophy,
   Smile, ThumbsUp, PartyPopper, Ghost as GhostIcon,
   Music, Lock, Plus, LayoutGrid, ShoppingBag, VolumeX, MessageCircle,
   Settings, Shield, Camera, Palette, UserMinus, BellOff, Crown, Eye, EyeOff,
-  Trash2, LogOut, AlertCircle, Sparkles, Rocket, Gem, Coins, Zap
+  Trash2, LogOut, AlertCircle, Sparkles, Rocket, Gem, Coins, Zap, HelpCircle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -122,6 +123,7 @@ export default function Room() {
   const [text, setText] = useState('');
   const sessionStartTimeRef = useRef<number>(Date.now());
   const [isMicOn, setIsMicOn] = useState(false);
+  const [forceShowTour, setForceShowTour] = useState(false);
 
   // Set session start time on mount or whenever the room ID changes, and clear messages cache
   useEffect(() => {
@@ -808,6 +810,13 @@ export default function Room() {
         </div>
         
         <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setForceShowTour(true)}
+            className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-white/30 hover:text-white hover:border-white/20 transition-all active:scale-90"
+            title="Como Funciona"
+          >
+            <HelpCircle size={22} />
+          </button>
           {room.ownerId === user?.uid && (
             <button 
               onClick={() => setShowSettings(true)}
@@ -833,6 +842,7 @@ export default function Room() {
                 <div className="relative">
                   {/* Premium Specialist Tool Ring */}
                   <div 
+                    id="tour-host-seat"
                     className={`p-1.5 rounded-full transition-all duration-1000 relative ${
                       room.activeSpeakers.includes(room.slots?.[0] || '') || (volumes[room.slots?.[0] || ''] > 5) 
                         ? 'shadow-[0_0_60px_rgba(168,85,247,0.3)]' 
@@ -882,7 +892,7 @@ export default function Room() {
         </div>
 
         {/* Audience Seats - Perfectly Circular Grid */}
-        <div className="grid grid-cols-4 gap-y-10 gap-x-4 mb-20 max-w-sm mx-auto bg-white/[0.02] p-8 rounded-[40px] border border-white/[0.03] backdrop-blur-sm">
+        <div id="tour-audience-seats" className="grid grid-cols-4 gap-y-10 gap-x-4 mb-20 max-w-sm mx-auto bg-white/[0.02] p-8 rounded-[40px] border border-white/[0.03] backdrop-blur-sm">
           {Array.from({ length: 8 }).map((_, i) => {
             const slotId = i + 1;
             const uid = room.slots?.[slotId];
@@ -991,6 +1001,7 @@ export default function Room() {
           </button>
 
           <button 
+             id="tour-gift-button"
              onClick={() => setShowGifts(true)}
              className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl sm:rounded-[28px] flex items-center justify-center bg-white/5 border border-white/5 text-yellow-500 active:scale-90 transition-all flex-shrink-0"
           >
@@ -1021,6 +1032,7 @@ export default function Room() {
           )}
 
           <button 
+            id="tour-mic-button"
             onClick={toggleMic}
             className={`w-12 h-12 sm:w-18 sm:h-18 rounded-2xl sm:rounded-[32px] flex items-center justify-center transition-all active:scale-95 border-2 flex-shrink-0 ${
               isMicOn 
@@ -1496,6 +1508,12 @@ export default function Room() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Onboarding Tour */}
+      <OnboardingTour 
+        forceShow={forceShowTour} 
+        onComplete={() => setForceShowTour(false)} 
+      />
     </div>
   );
 }

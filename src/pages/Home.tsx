@@ -38,7 +38,17 @@ const CATEGORIES = [
 ];
 
 export default function Home() {
-  const [rooms, setRooms] = useState<Room[]>([]);
+  const [rooms, setRooms] = useState<Room[]>(() => {
+    try {
+      const cached = sessionStorage.getItem('weplay_cached_rooms');
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (e) {
+      console.warn("Error reading cached rooms from sessionStorage:", e);
+    }
+    return [];
+  });
   const [showCreate, setShowCreate] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Chat');
@@ -53,16 +63,40 @@ export default function Home() {
     // when created inside the local cache during the serverTimestamp() resolved phase.
     const q = query(collection(db, 'rooms'), limit(100));
     return onSnapshot(q, (snapshot) => {
-      const roomList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Room));
+      const roomList = snapshot.docs.map(doc => {
+        const data = doc.data();
+        let createdAtMs = Date.now();
+        if (data.createdAt) {
+          if (typeof data.createdAt.toDate === 'function') {
+            createdAtMs = data.createdAt.toDate().getTime();
+          } else if (typeof data.createdAt === 'number') {
+            createdAtMs = data.createdAt;
+          } else if (data.createdAt.seconds) {
+            createdAtMs = data.createdAt.seconds * 1000;
+          } else if (typeof data.createdAt === 'string') {
+            createdAtMs = new Date(data.createdAt).getTime() || Date.now();
+          }
+        }
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: createdAtMs,
+        } as any;
+      });
       
       // 2. We sort them in memory on the client side smoothly
       roomList.sort((a, b) => {
-        const timeA = (a as any).createdAt?.toDate ? (a as any).createdAt.toDate().getTime() : (a as any).createdAt || Date.now();
-        const timeB = (b as any).createdAt?.toDate ? (b as any).createdAt.toDate().getTime() : (b as any).createdAt || Date.now();
+        const timeA = typeof a.createdAt === 'number' ? a.createdAt : Date.now();
+        const timeB = typeof b.createdAt === 'number' ? b.createdAt : Date.now();
         return timeB - timeA;
       });
       
       setRooms(roomList);
+      try {
+        sessionStorage.setItem('weplay_cached_rooms', JSON.stringify(roomList));
+      } catch (err) {
+        console.warn("Failed to set cached rooms in sessionStorage:", err);
+      }
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'rooms');
     });
