@@ -155,7 +155,12 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
 
   // Load initial logs on mount
   useEffect(() => {
-    const savedLogs = localStorage.getItem('we_aura_admin_logs');
+    let savedLogs = null;
+    try {
+      savedLogs = localStorage.getItem('we_aura_admin_logs');
+    } catch (e) {
+      console.warn("Could not read admin logs from localStorage:", e);
+    }
     if (savedLogs) {
       try {
         setLogs(JSON.parse(savedLogs));

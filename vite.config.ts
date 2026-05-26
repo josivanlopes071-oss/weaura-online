@@ -16,8 +16,8 @@ export default defineConfig(({mode}) => {
       },
     },
     build: {
-      target: ['es2020', 'safari14'],
-      cssTarget: 'safari14'
+      target: ['es2017', 'safari12'],
+      cssTarget: 'safari12'
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
