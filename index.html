@@ -6,10 +6,33 @@
     <title>WE AURA</title>
     <script>
       window.addEventListener('error', function(e) {
-        showFallbackError(e.message, e.filename + ':' + e.lineno);
+        var msg = (e.message || '').toLowerCase();
+        var errStr = e.error ? (e.error.message || String(e.error)).toLowerCase() : '';
+        var isPeerError = msg.indexOf('peerjs') !== -1 || msg.indexOf('peer') !== -1 || msg.indexOf('connect') !== -1 ||
+                            errStr.indexOf('peerjs') !== -1 || errStr.indexOf('peer') !== -1 || errStr.indexOf('connect') !== -1;
+        if (isPeerError) {
+          try {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+          } catch(err) {}
+          return;
+        }
+        showFallbackError(e.message || errStr || 'Erro desconhecido', e.filename + ':' + e.lineno);
       });
       window.addEventListener('unhandledrejection', function(e) {
-        showFallbackError(e.reason ? (e.reason.message || String(e.reason)) : 'Erro desconhecido');
+        var reasonStr = e.reason ? (e.reason.message || String(e.reason)) : '';
+        var lowerReason = reasonStr.toLowerCase();
+        var isPeerError = lowerReason.indexOf('peerjs') !== -1 || lowerReason.indexOf('peer') !== -1 || lowerReason.indexOf('connect') !== -1;
+        if (isPeerError) {
+          try {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+          } catch(err) {}
+          return;
+        }
+        showFallbackError(reasonStr || 'Erro desconhecido');
       });
 
       function showFallbackError(msg, loc) {

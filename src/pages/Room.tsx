@@ -17,7 +17,8 @@ import {
   Smile, ThumbsUp, PartyPopper, Ghost as GhostIcon,
   Music, Lock, Plus, LayoutGrid, ShoppingBag, VolumeX, MessageCircle,
   Settings, Shield, Camera, Palette, UserMinus, BellOff, Crown, Eye, EyeOff,
-  Trash2, LogOut, AlertCircle, Sparkles, Rocket, Gem, Coins, Zap, HelpCircle
+  Trash2, LogOut, AlertCircle, Sparkles, Rocket, Gem, Coins, Zap, HelpCircle,
+  Activity, Wifi, WifiOff
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -121,14 +122,129 @@ export default function Room() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [text, setText] = useState('');
+  const [userVolumes, setUserVolumes] = useState<{ [uid: string]: number }>(() => {
+    try {
+      const saved = localStorage.getItem('weplay_user_volumes');
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+  const audioRefs = useRef<{ [uid: string]: HTMLAudioElement }>({});
+
+  const handleUserVolumeChange = (uid: string, value: number) => {
+    setUserVolumes(prev => {
+      const updated = { ...prev, [uid]: value };
+      try {
+        localStorage.setItem('weplay_user_volumes', JSON.stringify(updated));
+      } catch (e) {
+        console.warn("Could not save updated user volumes:", e);
+      }
+      return updated;
+    });
+
+    if (audioRefs.current[uid]) {
+      audioRefs.current[uid].volume = value;
+    }
+  };
   const sessionStartTimeRef = useRef<number>(Date.now());
   const [isMicOn, setIsMicOn] = useState(false);
   const [forceShowTour, setForceShowTour] = useState(false);
 
+  // Microphone connection latency & stability monitor states
+  const [latencyHistory, setLatencyHistory] = useState<number[]>([]);
+  const [currentLatency, setCurrentLatency] = useState<number | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'excelente' | 'bom' | 'instavel' | 'critico'>('excelente');
+  const [averageLatency, setAverageLatency] = useState<number>(0);
+  const [jitter, setJitter] = useState<number>(0);
+
+  // Active microsecond-accurate connection pinging loop
+  useEffect(() => {
+    let intervalId: any;
+    let active = true;
+
+    const measureLatency = async () => {
+      const start = performance.now();
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        
+        await fetch('/api/health', { 
+          method: 'GET',
+          signal: controller.signal,
+          headers: { 'Cache-Control': 'no-cache' }
+        });
+        
+        clearTimeout(timeoutId);
+        const end = performance.now();
+        const latency = Math.round(end - start);
+
+        if (!active) return;
+
+        setLatencyHistory(prev => {
+          const next = [...prev, latency].slice(-10);
+          const avg = Math.round(next.reduce((sum, val) => sum + val, 0) / next.length);
+          setAverageLatency(avg);
+
+          let deviation = 0;
+          if (next.length > 1) {
+            let sumDiff = 0;
+            for (let i = 1; i < next.length; i++) {
+              sumDiff += Math.abs(next[i] - next[i - 1]);
+            }
+            deviation = Math.round(sumDiff / (next.length - 1));
+          }
+          setJitter(deviation);
+
+          if (avg >= 300 || deviation >= 55) {
+            setConnectionStatus('critico');
+          } else if (avg >= 150 || deviation >= 25) {
+            setConnectionStatus('instavel');
+          } else if (avg >= 65) {
+            setConnectionStatus('bom');
+          } else {
+            setConnectionStatus('excelente');
+          }
+
+          return next;
+        });
+        setCurrentLatency(latency);
+      } catch (err) {
+        if (!active) return;
+        console.warn("[Monitor] Ping check timed out or network of user is slow:", err);
+        setLatencyHistory(prev => {
+          const next = [...prev, 1000].slice(-10);
+          setAverageLatency(1000);
+          setJitter(50);
+          setConnectionStatus('critico');
+          return next;
+        });
+        setCurrentLatency(1000);
+      }
+    };
+
+    measureLatency();
+    intervalId = setInterval(measureLatency, 3000);
+
+    return () => {
+      active = false;
+      clearInterval(intervalId);
+    };
+  }, []);
+
+  // References to keep unsubscribe callbacks and state perfectly manageable for instant cleanup
+  const unsubscribeRoomRef = useRef<(() => void) | null>(null);
+  const unsubscribeMessagesRef = useRef<(() => void) | null>(null);
+  const unsubscribeReactionsRef = useRef<(() => void) | null>(null);
+  const heartbeatIntervalRef = useRef<any>(null);
+  const hasLeftRef = useRef<boolean>(false);
+
   // Set session start time on mount or whenever the room ID changes, and clear messages cache
   useEffect(() => {
     setMessages([]);
+    setReactions([]);
     sessionStartTimeRef.current = Date.now();
+    hasLeftRef.current = false;
   }, [id]);
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
@@ -236,10 +352,36 @@ export default function Room() {
   };
 
   useEffect(() => {
-    if (!id || !user) return;
+    if (!id || !user?.uid) return;
 
     const roomRef = doc(db, 'rooms', id);
     
+    // Check if the room has no other members before joining to clean leftovers from past sessions
+    const checkAndCleanupLeftovers = async () => {
+      try {
+        const snap = await getDoc(roomRef);
+        if (snap.exists()) {
+          const roomData = snap.data();
+          const currentMembers = roomData.members || [];
+          const isReallyEmpty = currentMembers.length === 0 || 
+            (currentMembers.length === 1 && currentMembers.includes(user.uid));
+
+          if (isReallyEmpty) {
+            console.log("[Room] Clean slate detected as first user enters. Deleting leftover messages...");
+            const messagesQuery = query(collection(db, 'rooms', id, 'messages'));
+            const messagesSnap = await getDocs(messagesQuery);
+            const deletePromises = messagesSnap.docs.map(docSnap => 
+              deleteDoc(doc(db, 'rooms', id, 'messages', docSnap.id))
+            );
+            await Promise.all(deletePromises);
+          }
+        }
+      } catch (err) {
+        console.warn("[Room] Error cleaning leftover messages on room join:", err);
+      }
+    };
+    checkAndCleanupLeftovers();
+
     // Join room
     updateDoc(roomRef, {
       members: arrayUnion(user.uid)
@@ -278,6 +420,7 @@ export default function Room() {
     }, (error) => {
       console.warn("Firestore Room snapshot warning (non-fatal):", error.message || error);
     });
+    unsubscribeRoomRef.current = unsubscribeRoom;
 
     // Listen for messages using client-side sorting for zero-latency instant updates
     const messagesQuery = query(
@@ -302,15 +445,26 @@ export default function Room() {
       // Filter out messages that were there BEFORE the user clicked to enter this current room session
       // This guarantees each room session is separate and older chats do not clutter the fresh feed.
       const currentSessionMsgs = msgs.filter(m => {
-        const msgTime = m.clientCreatedAt || 0;
-        return msgTime >= sessionStartTimeRef.current - 60000;
+        const msgTime = m.clientCreatedAt || (m.timestamp && typeof m.timestamp.toMillis === 'function' ? m.timestamp.toMillis() : 0);
+        return msgTime >= sessionStartTimeRef.current;
       });
 
-      setMessages(currentSessionMsgs);
+      // Deduplicate messages by Firestore Id to prevent duplication bugs
+      const seenIds = new Set<string>();
+      const finalMsgs: Message[] = [];
+      for (const m of currentSessionMsgs) {
+        if (!seenIds.has(m.id)) {
+          seenIds.add(m.id);
+          finalMsgs.push(m);
+        }
+      }
+
+      setMessages(finalMsgs);
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     }, (error) => {
       console.warn("Firestore Messages snapshot warning (non-fatal):", error.message || error);
     });
+    unsubscribeMessagesRef.current = unsubscribeMessages;
 
     // Listen for reactions
     const reactionsQuery = query(
@@ -325,22 +479,31 @@ export default function Room() {
     }, (error) => {
       console.warn("Firestore Reactions snapshot warning (non-fatal):", error.message || error);
     });
+    unsubscribeReactionsRef.current = unsubscribeReactions;
 
     // Heartbeat logic to prevent ghost rooms
     const heartbeat = setInterval(() => {
-      if (id && user && roomRefData.current && roomRefData.current.ownerId === user.uid) {
+      if (id && user?.uid && roomRefData.current && roomRefData.current.ownerId === user.uid) {
         updateDoc(roomRef, { lastActive: serverTimestamp() }).catch(() => {});
       }
     }, 60000); // 1 minute
+    heartbeatIntervalRef.current = heartbeat;
 
     return () => {
-      unsubscribeRoom();
-      unsubscribeMessages();
-      unsubscribeReactions();
-      clearInterval(heartbeat);
+      // Detach listeners immediately
+      if (unsubscribeRoomRef.current) unsubscribeRoomRef.current();
+      if (unsubscribeMessagesRef.current) unsubscribeMessagesRef.current();
+      if (unsubscribeReactionsRef.current) unsubscribeReactionsRef.current();
+      if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
+
+      unsubscribeRoomRef.current = null;
+      unsubscribeMessagesRef.current = null;
+      unsubscribeReactionsRef.current = null;
+      heartbeatIntervalRef.current = null;
       
       const exitRoom = async () => {
-        if (!id || !user) return;
+        if (hasLeftRef.current) return; // Skip if manually triggered handleLeaveRoom to avoid race conditions
+        if (!id || !user?.uid) return;
         const roomRef = doc(db, 'rooms', id);
         try {
           const updateData: any = {
@@ -373,7 +536,7 @@ export default function Room() {
       };
       exitRoom();
     };
-  }, [id, user]);
+  }, [id, user?.uid]);
 
   const sendReaction = async (emoji: string) => {
     if (!id || !user) return;
@@ -501,10 +664,35 @@ export default function Room() {
   };
 
   const handleLeaveRoom = () => {
-    // 1. Immediately toggle local microfone and states off
+    // 1. Immediately toggle local microphone and states off
     setIsMicOn(false);
+
+    // 2. Mark manual leave flag to bypass double-deletion/race-conditions in useEffect cleanup
+    hasLeftRef.current = true;
+
+    // 3. Detach all real-time snapshot listeners immediately to avoid ghost logs or residual events
+    if (unsubscribeRoomRef.current) {
+      unsubscribeRoomRef.current();
+      unsubscribeRoomRef.current = null;
+    }
+    if (unsubscribeMessagesRef.current) {
+      unsubscribeMessagesRef.current();
+      unsubscribeMessagesRef.current = null;
+    }
+    if (unsubscribeReactionsRef.current) {
+      unsubscribeReactionsRef.current();
+      unsubscribeReactionsRef.current = null;
+    }
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
+
+    // 4. Force empty memories of room chat/reactions instantly so no legacy items show up in UI
+    setMessages([]);
+    setReactions([]);
     
-    // 2. Perform the Firestore removals asynchronously in the background so they do not block instant navigation
+    // 5. Perform the Firestore removals asynchronously in the background so they do not block instant navigation
     if (id && user && room) {
       const roomRef = doc(db, 'rooms', id);
       const updateData: any = {
@@ -538,7 +726,7 @@ export default function Room() {
       }
     }
 
-    // 3. Drive transition immediately with zero delay
+    // 6. Drive transition immediately with zero delay
     navigate('/');
   };
 
@@ -764,13 +952,20 @@ export default function Room() {
             muted={!isSpeakerOn}
             ref={(el) => {
               if (el) {
+                audioRefs.current[uid] = el;
                 if (el.srcObject !== stream) {
                   el.srcObject = stream;
                 }
+                // Apply individual volume (default to 1.0)
+                const storedVol = userVolumes[uid] !== undefined ? userVolumes[uid] : 1.0;
+                el.volume = storedVol;
+                
                 // Programmatic play fallback to bypass Android/iOS touch-to-play restrictions 
                 el.play().catch((err) => {
                   console.warn(`[Audio] Programmatic play blocked for peer ${uid}:`, err);
                 });
+              } else {
+                delete audioRefs.current[uid];
               }
             }}
           />
@@ -836,6 +1031,63 @@ export default function Room() {
 
       {/* Stage Layout */}
       <main className="flex-1 overflow-y-auto px-6 relative z-10 pt-10 pb-48 no-scrollbar scroll-smooth">
+        {/* Real-time Connection Quality & Latency Dashboard */}
+        <div className="mb-8 p-4 rounded-3xl bg-white/[0.02] border border-white/5 backdrop-blur-md max-w-sm mx-auto flex flex-col gap-2.5 shadow-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Activity size={14} className={
+                connectionStatus === 'excelente' ? 'text-emerald-400 animate-pulse' :
+                connectionStatus === 'bom' ? 'text-purple-400' :
+                connectionStatus === 'instavel' ? 'text-orange-400 animate-bounce' :
+                'text-red-400 animate-bounce'
+              } />
+              <span className="text-[10px] font-black uppercase text-white/50 tracking-wider">Qualidade do Sinal</span>
+            </div>
+            <div className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1 border ${
+              connectionStatus === 'excelente' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+              connectionStatus === 'bom' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
+              connectionStatus === 'instavel' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
+              'bg-red-500/10 text-red-500 border-red-500/30'
+            }`}>
+              <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
+              {connectionStatus === 'excelente' ? 'Excelente' :
+               connectionStatus === 'bom' ? 'Bom / Estável' :
+               connectionStatus === 'instavel' ? 'Instável / Oscilação' :
+               'Crítico / Lento'}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 bg-black/20 p-2 rounded-2xl border border-white/[0.02] text-center">
+            <div>
+              <span className="text-[9px] text-white/30 font-bold uppercase tracking-wider block">Ping</span>
+              <span className="text-xs font-black text-white font-mono mt-0.5 block">
+                {currentLatency !== null ? `${currentLatency}ms` : '--'}
+              </span>
+            </div>
+            <div>
+              <span className="text-[9px] text-white/30 font-bold uppercase tracking-wider block">Média</span>
+              <span className="text-xs font-black text-white font-mono mt-0.5 block">
+                {averageLatency > 0 ? `${averageLatency}ms` : '--'}
+              </span>
+            </div>
+            <div>
+              <span className="text-[9px] text-white/30 font-bold uppercase tracking-wider block">Oscilação (Jit)</span>
+              <span className="text-xs font-black text-white font-mono mt-0.5 block">
+                {jitter > 0 ? `${jitter}ms` : '0ms'}
+              </span>
+            </div>
+          </div>
+
+          {(connectionStatus === 'instavel' || connectionStatus === 'critico') && (
+            <div className="flex gap-2 p-2.5 rounded-xl bg-orange-500/5 border border-orange-500/10 items-start">
+              <AlertCircle size={14} className="text-orange-400 flex-shrink-0 mt-0.5" />
+              <p className="text-[9px] text-orange-300 font-semibold leading-relaxed text-left">
+                Oscilação ou ping elevados detectados. Considere aproximar do Wi-Fi antes de subir ao assento para evitar gargalos em sua voz.
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* Host Area - The "Stage" */}
         <div className="relative mb-16">
             <div className="flex flex-col items-center relative z-10">
@@ -934,10 +1186,15 @@ export default function Room() {
                 return (
                   <motion.div 
                     key={msg.id || idx}
-                    initial={{ opacity: 0, y: 15, x: -15, scale: 0.9 }}
-                    animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.85, y: -10 }}
-                    transition={{ type: "spring", stiffness: 380, damping: 24 }}
+                    initial={{ opacity: 0, y: 12, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9, y: -8 }}
+                    transition={{ 
+                      opacity: { duration: 0.35, ease: "easeOut" },
+                      y: { type: "spring", stiffness: 240, damping: 22 },
+                      scale: { type: "spring", stiffness: 240, damping: 22 },
+                      layout: { type: "spring", stiffness: 200, damping: 25 }
+                    }}
                     layout
                     className="flex items-start gap-2.5 pointer-events-auto max-w-[85%]"
                   >
@@ -1105,6 +1362,51 @@ export default function Room() {
                   Mensagem Privada
                 </button>
               </div>
+
+              {showUserActions !== user?.uid && (
+                <div className="mt-6 p-5 bg-white/5 border border-white/5 rounded-3xl">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Volume2 size={18} className="text-purple-400" style={{ color: currentTheme.primary }} />
+                      <span className="text-sm font-bold text-white">Volume Individual</span>
+                    </div>
+                    <span className="text-xs font-mono font-bold text-white/60">
+                      {Math.round((userVolumes[showUserActions] !== undefined ? userVolumes[showUserActions] : 1.0) * 100)}%
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => {
+                        const isMuted = (userVolumes[showUserActions] !== undefined ? userVolumes[showUserActions] : 1.0) === 0;
+                        handleUserVolumeChange(showUserActions, isMuted ? 1.0 : 0);
+                      }}
+                      className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl transition-all active:scale-95 text-white/70 hover:text-white"
+                      title={ (userVolumes[showUserActions] !== undefined ? userVolumes[showUserActions] : 1.0) === 0 ? "Ativar som" : "Desativar som" }
+                    >
+                      {(userVolumes[showUserActions] !== undefined ? userVolumes[showUserActions] : 1.0) === 0 ? (
+                        <VolumeX size={18} className="text-red-400" />
+                      ) : (
+                        <Volume2 size={18} />
+                      )}
+                    </button>
+                    
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={userVolumes[showUserActions] !== undefined ? userVolumes[showUserActions] : 1.0}
+                      onChange={(e) => handleUserVolumeChange(showUserActions, parseFloat(e.target.value))}
+                      className="flex-1 h-2 rounded-lg appearance-none cursor-pointer bg-white/10 accent-purple-500"
+                      style={{ accentColor: currentTheme.primary }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-white/40 mt-3 font-semibold leading-relaxed">
+                    Ajuste o volume deste participante para você. Mudanças aqui não afetam outras pessoas na sala.
+                  </p>
+                </div>
+              )}
 
               {showUserActions === user?.uid && (
                 <div className="mt-4">
@@ -1508,6 +1810,8 @@ export default function Room() {
           </motion.div>
         )}
       </AnimatePresence>
+
+
 
       {/* Onboarding Tour */}
       <OnboardingTour 

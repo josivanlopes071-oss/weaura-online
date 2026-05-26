@@ -78,7 +78,7 @@ export function useVoiceChat(
 
     console.log(`[Voice] Starting resilient PeerJS connection, ID: ${currentPeerId}`);
     const peer = new Peer(currentPeerId, {
-      debug: 1,
+      debug: 0,
       config: {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
@@ -146,7 +146,7 @@ export function useVoiceChat(
         return;
       }
 
-      console.error('[Voice] General PeerJS client error:', err);
+      console.warn('[Voice] General PeerJS client error:', err);
     });
 
     // Handle incoming calls resiliently (minimizing duplicates and overlap)
@@ -207,7 +207,7 @@ export function useVoiceChat(
 
       call.on('error', (err: any) => {
         if (err.type !== 'peer-unavailable') {
-          console.error(`[Voice] Incoming call error with ${senderUid}:`, err);
+          console.warn(`[Voice] Incoming call error with ${senderUid}:`, err);
         }
         call.close();
       });
@@ -366,7 +366,33 @@ export function useVoiceChat(
         try {
           const targetPeerId = (voicePeerIds && voicePeerIds[pUid]) || `${roomId}-${pUid}`;
           console.log(`[Voice] Starting outgoing connection to ${pUid} using Peer ID: ${targetPeerId}`);
-          const call = peerRef.current!.call(targetPeerId, localStream || undefined);
+          
+          let mediaStreamToUse: MediaStream | undefined = localStream || undefined;
+          if (!mediaStreamToUse) {
+            try {
+              const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+              if (AudioContextClass) {
+                const ctx = new AudioContextClass();
+                const dst = ctx.createMediaStreamDestination();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                gain.gain.value = 0;
+                osc.connect(gain);
+                gain.connect(dst);
+                osc.start();
+                mediaStreamToUse = dst.stream;
+              }
+            } catch (err) {
+              console.warn("[Voice] Failed to create silent fallback audio stream for peer call:", err);
+            }
+          }
+
+          if (!mediaStreamToUse) {
+            console.warn("[Voice] Cannot initiate call without a valid stream.");
+            return;
+          }
+
+          const call = peerRef.current!.call(targetPeerId, mediaStreamToUse);
           
           if (call) {
             callsRef.current[pUid] = call;
@@ -394,13 +420,13 @@ export function useVoiceChat(
 
             call.on('error', (err: any) => {
               if (err.type !== 'peer-unavailable') {
-                console.error(`[Voice] Call link error with ${pUid}:`, err);
+                console.warn(`[Voice] Call link error with ${pUid}:`, err);
               }
               call.close();
             });
           }
         } catch (e) {
-          console.error(`[Voice] Outgoing call sequence crashed for target ${pUid}:`, e);
+          console.warn(`[Voice] Outgoing call sequence crashed for target ${pUid}:`, e);
         }
       }
     });
