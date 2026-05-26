@@ -141,7 +141,11 @@ function AppContent() {
 
   const handleDismissAnnouncement = () => {
     if (latestAnnouncement) {
-      sessionStorage.setItem(`dismissed_announce_${latestAnnouncement.id}`, 'true');
+      try {
+        sessionStorage.setItem(`dismissed_announce_${latestAnnouncement.id}`, 'true');
+      } catch (e) {
+        console.warn("Could not save announcement dismissed flag in sessionStorage:", e);
+      }
     }
     setShowAnnouncement(false);
   };

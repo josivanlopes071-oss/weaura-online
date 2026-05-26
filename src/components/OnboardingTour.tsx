@@ -64,7 +64,12 @@ export default function OnboardingTour({ onComplete, forceShow = false }: Onboar
       return;
     }
     
-    const wasCompleted = localStorage.getItem('weplay_voice_onboarding_done');
+    let wasCompleted = null;
+    try {
+      wasCompleted = localStorage.getItem('weplay_voice_onboarding_done');
+    } catch (e) {
+      console.warn("Storage item reading failed inside private mode:", e);
+    }
     if (!wasCompleted) {
       // Delay slightly for smooth transition on room enter
       const timer = setTimeout(() => {
@@ -120,7 +125,11 @@ export default function OnboardingTour({ onComplete, forceShow = false }: Onboar
 
   const handleClose = () => {
     setIsOpen(false);
-    localStorage.setItem('weplay_voice_onboarding_done', 'true');
+    try {
+      localStorage.setItem('weplay_voice_onboarding_done', 'true');
+    } catch (e) {
+      console.warn("Storage item setting failed inside private mode:", e);
+    }
     if (onComplete) onComplete();
   };
 

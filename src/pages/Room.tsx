@@ -755,7 +755,7 @@ export default function Room() {
       style={{ backgroundColor: currentTheme.bg }}
     >
       {/* Hidden Audio Elements for Voice Chat */}
-      <div className="hidden">
+      <div className="absolute w-0 h-0 opacity-0 overflow-hidden pointer-events-none" aria-hidden="true">
         {Object.entries(remoteStreams).map(([uid, stream]) => (
           <audio
             key={uid}
