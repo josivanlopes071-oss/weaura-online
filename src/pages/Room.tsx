@@ -281,7 +281,7 @@ export default function Room() {
     const messagesQuery = query(
       collection(db, 'rooms', id, 'messages'),
       orderBy('clientCreatedAt', 'desc'),
-      limit(100)
+      limit(30)
     );
 
     const unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {

@@ -336,4 +336,40 @@ body {
   pointer-events: none;
 }
 
+/* GPU Hardware Acceleration triggers for smooth UI performance and high FPS under mobile WebView */
+.animate-pulse,
+.animate-pulse-purple,
+.animate-pulse-cyan,
+.animate-pulse-gold,
+.animate-pulse-pink,
+.animate-pulse-demon,
+.animate-pulse-prism,
+.weplay-aura-glow,
+.weplay-tag-dono,
+.weplay-tag-adm,
+.animate-angle-rotate,
+.weplay-tag-shine::after {
+  will-change: transform, opacity, filter;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* WePlay-style Mobile WebView Optimization: Scales down heavy blur filters for incredible responsiveness on low-end smartphones */
+@media (max-width: 640px) {
+  .backdrop-blur-xl {
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+  }
+  .backdrop-blur-lg {
+    backdrop-filter: blur(6px) !important;
+    -webkit-backdrop-filter: blur(6px) !important;
+  }
+  .backdrop-blur-md, 
+  .backdrop-blur-sm {
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+  }
+}
+
 

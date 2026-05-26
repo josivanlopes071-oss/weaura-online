@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { PREMIUM_FRAMES, getDirectDriveUrl } from '../lib/frames';
@@ -8,6 +8,8 @@ import { getTransparentFrame } from '../lib/transparentFrameProcessor';
 const avatarPhotoCache: { [uid: string]: string } = {};
 const avatarNameCache: { [uid: string]: string } = {};
 const avatarLevelCache: { [uid: string]: number } = {};
+const avatarFrameCache: { [uid: string]: string | null } = {};
+const profileFetchPromises: { [uid: string]: Promise<any> | null } = {};
 
 interface UserAvatarProps {
   uid?: string | null;
@@ -66,41 +68,51 @@ export default function UserAvatar({
       return;
     }
 
-    // Cache preloading
-    if (avatarPhotoCache[uid]) {
+    // Cache preloading for immediate fluid render
+    if (avatarPhotoCache[uid] !== undefined) {
       setPhoto(avatarPhotoCache[uid]);
       setUserLevel(avatarLevelCache[uid] || 1);
+      if (forceFrameId === undefined) {
+        setEquippedFrame(avatarFrameCache[uid] || null);
+      }
+      return;
     }
 
-    // Subscribe to Firestore for real-time profile picture, level and equipped frame
-    const userRef = doc(db, 'users', uid);
-    const unsub = onSnapshot(userRef, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        const photoURL = data.photoURL;
-        const displayName = data.displayName;
-        const level = data.level || 1;
-        const frame = data.equippedFrame || null;
+    // Fetch asynchronously using a unified shared promise registry to prevent double-fetching
+    const fetchUserMeta = async () => {
+      const userRef = doc(db, 'users', uid);
+      if (!profileFetchPromises[uid]) {
+        profileFetchPromises[uid] = getDoc(userRef).then((snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            const fetchedPhoto = data.photoURL || '';
+            const fetchedName = data.displayName || 'Membro Aura';
+            const fetchedLevel = data.level || 1;
+            const fetchedFrame = data.equippedFrame || null;
 
-        if (forceFrameId === undefined) {
-          setEquippedFrame(frame);
-        }
+            avatarPhotoCache[uid] = fetchedPhoto;
+            avatarNameCache[uid] = fetchedName;
+            avatarLevelCache[uid] = fetchedLevel;
+            avatarFrameCache[uid] = fetchedFrame;
 
-        if (photoURL) {
-          avatarPhotoCache[uid] = photoURL;
-          setPhoto(photoURL);
-        }
-        if (displayName) {
-          avatarNameCache[uid] = displayName;
-        }
-        avatarLevelCache[uid] = level;
-        setUserLevel(level);
+            return { fetchedPhoto, fetchedLevel, fetchedFrame };
+          }
+          return { fetchedPhoto: '', fetchedLevel: 1, fetchedFrame: null };
+        }).catch((err) => {
+          console.warn("[UserAvatar Cache] Sync Error:", err);
+          return { fetchedPhoto: '', fetchedLevel: 1, fetchedFrame: null };
+        });
       }
-    }, (err) => {
-      console.warn("[UserAvatar] Error listening to user live meta update:", err);
-    });
 
-    return () => unsub();
+      const res = await profileFetchPromises[uid];
+      setPhoto(res.fetchedPhoto);
+      setUserLevel(res.fetchedLevel);
+      if (forceFrameId === undefined) {
+        setEquippedFrame(res.fetchedFrame);
+      }
+    };
+
+    fetchUserMeta();
   }, [uid, user?.uid, profile?.photoURL, profile?.equippedFrame, forceFrameId, forceLevel]);
 
   // Match the equipped frame item

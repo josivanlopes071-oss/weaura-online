@@ -257,6 +257,7 @@ export default function Home() {
                src={profile?.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.uid}`} 
                className="w-11 h-11 rounded-2xl border border-white/5 object-cover bg-zinc-900 active:scale-95 transition-transform"
                alt=""
+               loading="lazy"
              />
              <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-[#020202] rounded-full"></div>
            </div>
@@ -383,6 +384,7 @@ export default function Home() {
                       src={room.hostInfo?.photoURL || (room as any).coverURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${room.id}`} 
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                       alt={room.name}
+                      loading="lazy"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60" />
                   </div>
@@ -435,7 +437,7 @@ export default function Home() {
                       <div className="flex -space-x-2">
                         {[1, 2, 3].map((i) => (
                           <div key={i} className="w-5 h-5 rounded-full border-2 border-[#0c0c0c] bg-zinc-800 overflow-hidden">
-                            <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=user${room.id}${i}`} className="w-full h-full object-cover" alt="" />
+                            <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=user${room.id}${i}`} className="w-full h-full object-cover" alt="" loading="lazy" />
                           </div>
                         ))}
                       </div>
