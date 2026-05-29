@@ -4,11 +4,13 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { PREMIUM_FRAMES, getDirectDriveUrl } from '../lib/frames';
 import { getTransparentFrame } from '../lib/transparentFrameProcessor';
+import { AURA_LEVELS } from '../lib/aura';
 
 const avatarPhotoCache: { [uid: string]: string } = {};
 const avatarNameCache: { [uid: string]: string } = {};
 const avatarLevelCache: { [uid: string]: number } = {};
 const avatarFrameCache: { [uid: string]: string | null } = {};
+const avatarAuraLevelCache: { [uid: string]: number } = {};
 const profileFetchPromises: { [uid: string]: Promise<any> | null } = {};
 
 interface UserAvatarProps {
@@ -34,6 +36,7 @@ export default function UserAvatar({
   const [photo, setPhoto] = useState<string | null>(null);
   const [userLevel, setUserLevel] = useState<number>(1);
   const [equippedFrame, setEquippedFrame] = useState<string | null>(null);
+  const [userAuraLevel, setUserAuraLevel] = useState<number>(1);
 
   // States to hold the processed high-quality PNG with alpha channel transparency
   const [processedFrameUrl, setProcessedFrameUrl] = useState<string | null>(null);
@@ -65,6 +68,7 @@ export default function UserAvatar({
     if (user && uid === user.uid) {
       setPhoto(profile?.photoURL || null);
       setUserLevel(profile?.level || 1);
+      setUserAuraLevel(profile?.auraLevel || 1);
       return;
     }
 
@@ -72,6 +76,7 @@ export default function UserAvatar({
     if (avatarPhotoCache[uid] !== undefined) {
       setPhoto(avatarPhotoCache[uid]);
       setUserLevel(avatarLevelCache[uid] || 1);
+      setUserAuraLevel(avatarAuraLevelCache[uid] || 1);
       if (forceFrameId === undefined) {
         setEquippedFrame(avatarFrameCache[uid] || null);
       }
@@ -89,24 +94,27 @@ export default function UserAvatar({
             const fetchedName = data.displayName || 'Membro Aura';
             const fetchedLevel = data.level || 1;
             const fetchedFrame = data.equippedFrame || null;
+            const fetchedAuraLevel = data.auraLevel || 1;
 
             avatarPhotoCache[uid] = fetchedPhoto;
             avatarNameCache[uid] = fetchedName;
             avatarLevelCache[uid] = fetchedLevel;
             avatarFrameCache[uid] = fetchedFrame;
+            avatarAuraLevelCache[uid] = fetchedAuraLevel;
 
-            return { fetchedPhoto, fetchedLevel, fetchedFrame };
+            return { fetchedPhoto, fetchedLevel, fetchedFrame, fetchedAuraLevel };
           }
-          return { fetchedPhoto: '', fetchedLevel: 1, fetchedFrame: null };
+          return { fetchedPhoto: '', fetchedLevel: 1, fetchedFrame: null, fetchedAuraLevel: 1 };
         }).catch((err) => {
           console.warn("[UserAvatar Cache] Sync Error:", err);
-          return { fetchedPhoto: '', fetchedLevel: 1, fetchedFrame: null };
+          return { fetchedPhoto: '', fetchedLevel: 1, fetchedFrame: null, fetchedAuraLevel: 1 };
         });
       }
 
       const res = await profileFetchPromises[uid];
       setPhoto(res.fetchedPhoto);
       setUserLevel(res.fetchedLevel);
+      setUserAuraLevel(res.fetchedAuraLevel || 1);
       if (forceFrameId === undefined) {
         setEquippedFrame(res.fetchedFrame);
       }
@@ -146,24 +154,34 @@ export default function UserAvatar({
   const src = getDirectDriveUrl(rawSrc);
   const activeLevel = forceLevel !== undefined ? forceLevel : (isMe ? (profile?.level || 1) : userLevel);
 
+  const activeAuraLevel = isMe ? (profile?.auraLevel || 1) : userAuraLevel;
+  const hasAuraFrame = !currentFrameObj && activeAuraLevel >= 2;
+  const imageSize = currentFrameObj ? '74%' : (hasAuraFrame ? '84%' : '100%');
+
   return (
     <div id="user-avatar-root" className={`relative flex-shrink-0 ${className} overflow-visible group flex items-center justify-center bg-transparent`}>
       
       {/* Background Aura glow - WePlay theme aura */}
-      {currentFrameObj && (
+      {(currentFrameObj || hasAuraFrame) && (
         <div 
           className="absolute rounded-full pointer-events-none transition-all duration-1000 opacity-80 group-hover:opacity-100 weplay-aura-glow animate-pulse"
           style={{
             width: '130%',
             height: '130%',
-            background: `radial-gradient(circle, ${currentFrameObj.glowColor}25 0%, transparent 70%)`,
+            background: `radial-gradient(circle, ${
+              currentFrameObj ? currentFrameObj.glowColor : 
+              activeAuraLevel === 2 ? '#10b981' :
+              activeAuraLevel === 3 ? '#3b82f6' :
+              activeAuraLevel === 4 ? '#a855f7' :
+              activeAuraLevel === 5 ? '#f59e0b' : '#ff4d9d'
+            }25 0%, transparent 70%)`,
             zIndex: 1
           }}
         />
       )}
 
       {/* Rotating holograph loop for VIP / Premium style */}
-      {currentFrameObj?.isVip && (
+      {(currentFrameObj?.isVip || (hasAuraFrame && activeAuraLevel >= 4)) && (
         <div 
           className="absolute rounded-full pointer-events-none opacity-40 mix-blend-screen scale-[1.08] animate-angle-rotate holographic-gradient block"
           style={{
@@ -181,8 +199,8 @@ export default function UserAvatar({
       <div 
         className="rounded-full overflow-hidden flex items-center justify-center bg-zinc-950 border border-white/10 absolute transition-all duration-500"
         style={{
-          width: currentFrameObj ? '74%' : '100%',
-          height: currentFrameObj ? '74%' : '100%',
+          width: imageSize,
+          height: imageSize,
           boxShadow: currentFrameObj ? `0 0 16px ${currentFrameObj.glowColor}30` : 'none',
           zIndex: 10,
           background: 'transparent'
@@ -198,6 +216,28 @@ export default function UserAvatar({
           }}
         />
       </div>
+
+      {/* Dynamic CSS Aura Level Frames */}
+      {hasAuraFrame && (
+        <div 
+          className={`absolute rounded-full pointer-events-none transition-all duration-300 ${
+            activeAuraLevel === 2 ? 'border-2 border-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.55)] animate-pulse' :
+            activeAuraLevel === 3 ? 'border-2 border-blue-500 shadow-[0_0_18px_rgba(59,130,246,0.65)] animate-pulse' :
+            activeAuraLevel === 4 ? 'border-2 border-purple-500 border-dashed shadow-[0_0_22px_rgba(168,85,247,0.7)] animate-spin-slow' :
+            activeAuraLevel === 5 ? 'border-[3px] border-double border-amber-500 shadow-[0_0_28px_rgba(245,158,11,0.85)] animate-pulse' :
+            activeAuraLevel >= 6 ? 'border-2 border-[#8A2EFF] shadow-[0_0_35px_rgba(138,46,255,0.9)] animate-pulse' : ''
+          }`}
+          style={{
+            width: '93%',
+            height: '93%',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 15,
+            borderImage: activeAuraLevel >= 6 ? 'linear-gradient(to right, #FF4D9D, #8A2EFF, #00F0FF) 1' : undefined
+          }}
+        />
+      )}
 
       {/* Frame image layer. Positioned exactly centered around the photo container with zero clipping */}
       {currentFrameObj && (currentFrameObj.imageUrl || processedFrameUrl) && (

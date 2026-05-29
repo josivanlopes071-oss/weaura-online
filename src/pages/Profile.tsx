@@ -2,17 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Settings, Shield, Trophy, MapPin, Calendar, LogOut, Edit2, X, Check, Camera, RefreshCw, UserMinus, Search, ChevronRight, UserPlus, MessageCircle, Star, Flame, Gamepad2 } from 'lucide-react';
+import { Settings, Shield, Trophy, MapPin, Calendar, LogOut, Edit2, X, Check, Camera, RefreshCw, UserMinus, Search, ChevronRight, UserPlus, MessageCircle, Star, Flame, Gamepad2, Gift, Play, Unlock, Sparkles } from 'lucide-react';
 import { db } from '../lib/firebase';
-import { doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, onSnapshot, collection, query, where, getDocs, limit, serverTimestamp } from 'firebase/firestore';
 import AdminMenu from '../components/AdminMenu';
 import UserAvatar from '../components/UserAvatar';
 import PremiumTag from '../components/PremiumTag';
+import { getAuraLevelInfo, AURA_LEVELS, GIFTS } from '../lib/aura';
+import GiftAnimationOverlay from '../components/GiftAnimationOverlay';
 
 export default function Profile() {
-  const { id } = useParams();
+  const idParam = useParams();
+  const id = idParam.id;
   const navigate = useNavigate();
-  const { user, profile: myProfile, logout, updateProfile, followUser } = useAuth();
+  const { user, profile: myProfile, logout, updateProfile, followUser, sendGift } = useAuth();
   
   const [displayProfile, setDisplayProfile] = useState<any>(null);
   const [isMyProfile, setIsMyProfile] = useState(false);
@@ -27,6 +30,11 @@ export default function Profile() {
   const [isSaving, setIsSaving] = useState(false);
   const [imageUrlInput, setImageUrlInput] = useState('');
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const [receivedGifts, setReceivedGifts] = useState<any[]>([]);
+  const [isGiftBoxOpen, setIsGiftBoxOpen] = useState(false);
+  const [isSendingGift, setIsSendingGift] = useState(false);
+  const [activeAnimation, setActiveAnimation] = useState<any | null>(null);
 
   useEffect(() => {
     if (!user || !myProfile) return;
@@ -49,6 +57,22 @@ export default function Profile() {
       return () => unsubscribe();
     }
   }, [id, user, myProfile]);
+
+  useEffect(() => {
+    if (!displayProfile?.uid) return;
+    const fetchUnorderedGifts = async () => {
+      try {
+        const q = query(collection(db, 'gift_transactions'), where('receiverId', '==', displayProfile.uid), limit(24));
+        const snap = await getDocs(q);
+        const list = snap.docs.map(doc => doc.data());
+        list.sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        setReceivedGifts(list);
+      } catch (err) {
+        console.warn("Could not retrieve received gifts:", err);
+      }
+    };
+    fetchUnorderedGifts();
+  }, [displayProfile?.uid]);
 
   if (!displayProfile || !user || !myProfile) return null;
 
@@ -309,7 +333,7 @@ export default function Profile() {
                 <Edit2 size={18} className="text-purple-400" /> Editar Perfil
               </button>
             ) : (
-              <div className="flex w-full gap-3">
+              <div className="flex w-full gap-3 flex-col sm:flex-row">
                 <button 
                   onClick={() => followUser(displayProfile.uid)}
                   className={`flex-1 h-14 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-xl ${
@@ -321,8 +345,14 @@ export default function Profile() {
                   {myProfile.following?.includes(displayProfile.uid) ? 'Seguindo' : 'Seguir'}
                 </button>
                 <button 
+                  onClick={() => setIsGiftBoxOpen(true)}
+                  className="flex-1 h-14 bg-gradient-to-r from-pink-500 to-rose-600 rounded-2xl text-[11px] font-black uppercase tracking-widest text-white shadow-lg shadow-pink-500/10 active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  <Gift size={16} /> Presentear
+                </button>
+                <button 
                   onClick={() => navigate(`/chat/${displayProfile.uid}`)}
-                  className="w-14 h-14 bg-purple-600 rounded-2xl flex items-center justify-center text-white"
+                  className="w-14 h-14 bg-purple-600 rounded-2xl flex items-center justify-center text-white shrink-0"
                 >
                   <MessageCircle size={22} />
                 </button>
@@ -476,6 +506,219 @@ export default function Profile() {
                 <p className="text-[10px] text-white/20 font-medium italic mt-6">Continue jogando para subir de nível!</p>
              </div>
           </section>
+
+          {/* WeAura Prestige & Social Influence Tracker */}
+          {(() => {
+            const auraPoints = displayProfile.aura || 0;
+            const auraInfo = getAuraLevelInfo(auraPoints);
+            const currentAuraLevel = auraInfo.level;
+            const minPoints = auraInfo.minAura;
+            const maxPoints = auraInfo.maxAura || 50000;
+            const targetDiff = maxPoints - minPoints;
+            const earnedInLevel = auraPoints - minPoints;
+            const auraProgressPct = Math.max(0, Math.min(100, targetDiff > 0 ? Math.floor((earnedInLevel / targetDiff) * 100) : 100));
+
+            return (
+              <section className="w-full premium-card p-8 mb-10 relative group overflow-hidden border border-purple-500/10">
+                {/* Background Ambient Glow */}
+                <div className="absolute top-0 right-0 w-36 h-36 bg-purple-500/10 rounded-full blur-3xl pointer-events-none transition-transform duration-700 group-hover:scale-150" />
+                
+                <div className="flex justify-between items-start mb-6 relative z-10">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-purple-400 italic mb-1.5 flex items-center gap-1.5">
+                      <Sparkles size={11} className="text-pink-500/80" /> WeAura Prestige
+                    </span>
+                    <h3 className="text-2xl font-black text-white italic truncate uppercase">
+                      Nível {currentAuraLevel} • {auraInfo.name}
+                    </h3>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-2xl flex items-center gap-1.5 shrink-0">
+                     <span className="text-lg">✨</span>
+                     <span className="text-sm font-extrabold text-white tabular-nums">{auraPoints}</span>
+                  </div>
+                </div>
+
+                <div className="relative z-10 space-y-6">
+                  {/* Progress Bar with Aura Colors */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-[10px] font-bold text-white/40 uppercase">
+                      <span>Progresso da Popularidade</span>
+                      <span>{auraPoints - minPoints} / {targetDiff} AURA</span>
+                    </div>
+                    <div className="w-full h-3.5 bg-black rounded-full overflow-hidden p-0.5 border border-white/5">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${auraProgressPct}%` }}
+                        className="h-full bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded-full shadow-[0_0_20px_rgba(168,85,247,0.6)]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Level Benefits unlocked list */}
+                  <div className="bg-black/40 border border-white/[0.04] p-5 rounded-3xl space-y-3.5">
+                    <h4 className="text-[10px] font-black text-white/30 uppercase tracking-widest italic flex items-center gap-2">
+                      <Unlock size={11} className="text-emerald-400" /> Benefícios do Nível
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-semibold text-white/70">
+                      {currentAuraLevel >= 1 && <div className="flex items-center gap-2">🟢 <span className="opacity-95">Insígnia {auraInfo.name}</span></div>}
+                      {currentAuraLevel >= 2 && <div className="flex items-center gap-2">🟢 <span className="opacity-95">Moldura Esmeralda no Avatar</span></div>}
+                      {currentAuraLevel >= 3 && <div className="flex items-center gap-2">🟢 <span className="opacity-95">Efeito Pulso Luminoso</span></div>}
+                      {currentAuraLevel >= 4 && <div className="flex items-center gap-2">🟢 <span className="opacity-95">Holograma Rotativo VIP</span></div>}
+                      {currentAuraLevel >= 5 && <div className="flex items-center gap-2">🟢 <span className="opacity-95">Glow Imperial Dourado</span></div>}
+                      {currentAuraLevel >= 6 && <div className="flex items-center gap-2">🟢 <span className="opacity-95">Aura Cósmica Multicromática</span></div>}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            );
+          })()}
+
+          {/* Virtual Gifts Chest Received Gallery */}
+          <section className="w-full space-y-6 mb-10">
+            <div className="flex items-center justify-between px-2">
+               <div className="flex items-center gap-3">
+                  <Gift size={20} className="text-pink-500" />
+                  <h3 className="text-lg font-black text-white italic uppercase tracking-tight">Estojo de Presentes Recebidos</h3>
+               </div>
+               <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">
+                 {receivedGifts.length} Recebidos
+               </span>
+            </div>
+
+            {receivedGifts.length === 0 ? (
+              <div className="premium-card p-12 text-center text-white/20 italic text-sm border-dashed">
+                <Gift className="mx-auto mb-4 opacity-10 animate-bounce" size={40} />
+                Nenhum presente recebido ainda. Seja o primeiro a animar o perfil!
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {(() => {
+                  const giftCounts = receivedGifts.reduce((acc: any, t: any) => {
+                    acc[t.giftId] = (acc[t.giftId] || 0) + 1;
+                    return acc;
+                  }, {});
+
+                  return GIFTS.map((gift) => {
+                    const count = giftCounts[gift.id] || 0;
+                    return (
+                      <div 
+                        key={gift.id} 
+                        className={`relative p-5 rounded-[28px] border bg-[#0c0c0c] flex flex-col items-center justify-center transition-all ${
+                          count > 0 ? 'border-pink-500/20 shadow-[0_5px_15px_rgba(244,63,94,0.05)]' : 'border-white/[0.04] opacity-35'
+                        }`}
+                      >
+                        {count > 0 && (
+                          <div className="absolute top-3 right-3 bg-pink-500 text-white text-[9px] font-black leading-none px-2 py-1 rounded-lg">
+                            x{count}
+                          </div>
+                        )}
+                        <span className="text-4xl mb-2.5 filter drop-shadow-[0_5px_10px_rgba(0,0,0,0.5)]">{gift.icon}</span>
+                        <span className="text-xs font-bold text-white uppercase tracking-wider text-center">{gift.name}</span>
+                        <span className="text-[10px] font-semibold text-purple-400 mt-1 uppercase">+{gift.aura} Aura</span>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            )}
+          </section>
+
+          {/* Gift Selection slide-up Modal drawer */}
+          <AnimatePresence>
+            {isGiftBoxOpen && !isMyProfile && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsGiftBoxOpen(false)}
+                  className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[60]"
+                />
+                <motion.div
+                  initial={{ y: '100%' }}
+                  animate={{ y: 0 }}
+                  exit={{ y: '100%' }}
+                  className="fixed inset-x-0 bottom-0 bg-[#0a0a0a] rounded-t-[40px] border-t border-pink-500/20 p-8 z-[70] pb-12 shadow-2xl"
+                >
+                  <div className="flex justify-between items-center mb-6">
+                    <div className="flex flex-col">
+                      <h3 className="text-xl font-black text-white italic tracking-tighter uppercase flex items-center gap-2">
+                        <Gift size={20} className="text-pink-500" /> Baú de Presentes
+                      </h3>
+                      <span className="text-[10px] font-black text-white/30 uppercase tracking-widest mt-1">
+                        Seu Saldo: <span className="text-yellow-400">🪙 {myProfile?.coins || 0} Moedas</span>
+                      </span>
+                    </div>
+                    <button 
+                      onClick={() => setIsGiftBoxOpen(false)} 
+                      className="p-2.5 bg-white/5 rounded-2xl text-white/30 hover:text-white transition-all hover:scale-105 active:scale-95"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  {/* Gifts Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    {GIFTS.map((gift) => {
+                      const hasEnough = (myProfile?.coins || 0) >= gift.price;
+                      return (
+                        <button
+                          key={gift.id}
+                          disabled={isSendingGift || !hasEnough}
+                          onClick={async () => {
+                            setIsSendingGift(true);
+                            try {
+                              const result = await sendGift(displayProfile.uid, gift.id);
+                              if (result.success) {
+                                setIsGiftBoxOpen(false);
+                                // Set local animation trigger
+                                setActiveAnimation({
+                                  id: Math.random().toString(),
+                                  senderName: myProfile?.displayName || "Usuário",
+                                  receiverName: displayProfile.displayName,
+                                  giftName: result.giftName,
+                                  giftIcon: result.giftIcon,
+                                  auraGained: result.auraGained
+                                });
+                                // Reload gift shelf
+                                const q = query(collection(db, 'gift_transactions'), where('receiverId', '==', displayProfile.uid), limit(24));
+                                const snap = await getDocs(q);
+                                const list = snap.docs.map(doc => doc.data());
+                                list.sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+                                setReceivedGifts(list);
+                              }
+                            } catch (err: any) {
+                              alert(err.message || "Erro ao presentear.");
+                            } finally {
+                              setIsSendingGift(false);
+                            }
+                          }}
+                          className={`p-6 rounded-[32px] border flex flex-col items-center justify-center text-center transition-all bg-black/40 hover:bg-white/[0.02] ${
+                            hasEnough 
+                              ? 'border-white/5 hover:border-pink-500/30 active:scale-95 cursor-pointer' 
+                              : 'border-red-500/10 opacity-40 cursor-not-allowed'
+                          }`}
+                        >
+                          <span className="text-5xl mb-3 filter drop-shadow-[0_5px_12px_rgba(0,0,0,0.5)]">{gift.icon}</span>
+                          <span className="font-extrabold text-sm text-white uppercase tracking-wide">{gift.name}</span>
+                          <span className="text-xs font-black text-yellow-400 mt-2">🪙 {gift.price} moedas</span>
+                          <span className="text-[9px] font-bold text-pink-400 mt-1 uppercase tracking-widest bg-pink-500/10 border border-pink-500/20 px-2 py-0.5 rounded-lg">
+                            +{gift.aura} Aura
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="text-center text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">
+                    O destinatário receberá pontos de aura de prestígio instantaneamente.
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+
+          <GiftAnimationOverlay activeAnimation={activeAnimation} onAnimationComplete={() => setActiveAnimation(null)} />
         </div>
       </div>
 

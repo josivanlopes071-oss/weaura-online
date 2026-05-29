@@ -21,6 +21,8 @@ interface UserProfile {
   email?: string;
   equippedFrame?: string;
   purchasedFrames?: string[];
+  aura?: number;
+  auraLevel?: number;
 }
 
 const SUPER_ADMINS = ['josivanlopes071@gmail.com', 'manoeldasilva631kejr@gmail.com'];
@@ -44,6 +46,7 @@ interface AuthContextType {
   gainXp: (amount: number) => Promise<void>;
   followUser: (targetId: string) => Promise<void>;
   refreshConnection: () => Promise<void>;
+  sendGift: (targetUserId: string, giftId: string, roomId?: string, chatId?: string) => Promise<{ success: boolean; auraGained: number; giftName: string; giftIcon: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -137,6 +140,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               followers: [],
               isBanned: false,
               status: 'online',
+              aura: 0,
+              auraLevel: 1,
             };
             try {
               await setDoc(userRef, {
@@ -223,6 +228,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               ...data,
               level: data.level || 1,
               xp: data.xp || 0,
+              aura: data.aura || 0,
+              auraLevel: data.auraLevel || 1,
               following: data.following || [],
               followers: data.followers || []
             });
@@ -409,11 +416,100 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const sendGift = async (targetUserId: string, giftId: string, roomId?: string, chatId?: string) => {
+    if (!user || !profile) throw new Error("Você precisa estar logado.");
+    if (user.uid === targetUserId) throw new Error("Você não pode enviar um presente para si mesmo!");
+
+    const { GIFTS, getAuraLevelInfo } = await import('../lib/aura');
+    const { addDoc, collection } = await import('firebase/firestore');
+
+    const gift = GIFTS.find(g => g.id === giftId);
+    if (!gift) throw new Error("Presente inválido.");
+
+    try {
+      const result = await runTransaction(db, async (transaction) => {
+        const senderRef = doc(db, 'users', user.uid);
+        const receiverRef = doc(db, 'users', targetUserId);
+
+        const senderSnap = await transaction.get(senderRef);
+        const receiverSnap = await transaction.get(receiverRef);
+
+        if (!senderSnap.exists()) throw new Error("Seu perfil não foi encontrado.");
+        if (!receiverSnap.exists()) throw new Error("Destinatário não encontrado.");
+
+        const senderData = senderSnap.data();
+        const receiverData = receiverSnap.data();
+
+        const currentCoins = senderData.coins || 0;
+        if (currentCoins < gift.price) {
+          throw new Error(`Saldo insuficiente! Você precisa de ${gift.price} moedas.`);
+        }
+
+        const receiverAura = (receiverData.aura || 0) + gift.aura;
+        const auraLevelInfo = getAuraLevelInfo(receiverAura);
+        const receiverAuraLevel = auraLevelInfo.level;
+
+        const newSenderCoins = currentCoins - gift.price;
+
+        // Deduct coins from sender
+        transaction.update(senderRef, {
+          coins: newSenderCoins,
+          updatedAt: serverTimestamp()
+        });
+
+        // Add aura points to receiver
+        transaction.update(receiverRef, {
+          aura: receiverAura,
+          auraLevel: receiverAuraLevel,
+          updatedAt: serverTimestamp()
+        });
+
+        return {
+          senderCoins: newSenderCoins,
+          receiverAura,
+          receiverAuraLevel,
+          receiverName: receiverData.displayName || "Membro Aura"
+        };
+      });
+
+      // Update local sender state
+      setProfile(prev => prev ? { ...prev, coins: result.senderCoins } : null);
+
+      // Save transaction to gift_transactions catalog for live animation overlays & records
+      await addDoc(collection(db, 'gift_transactions'), {
+        senderId: user.uid,
+        senderName: profile.displayName || "Usuário",
+        senderPhoto: profile.photoURL || "",
+        receiverId: targetUserId,
+        receiverName: result.receiverName,
+        giftId,
+        giftName: gift.name,
+        giftIcon: gift.icon,
+        price: gift.price,
+        auraGained: gift.aura,
+        createdAt: serverTimestamp(),
+        roomId: roomId || null,
+        chatId: chatId || null
+      });
+
+      return {
+        success: true,
+        auraGained: gift.aura,
+        giftName: gift.name,
+        giftIcon: gift.icon
+      };
+    } catch (err: any) {
+      console.error("Erro ao enviar presente:", err);
+      throw err;
+    }
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, profile, loading, isOnline, connectionError, 
       loginAnonymously, loginWithEmail, loginWithGoogle, logout, 
-      updateProfile, updateCoins, gainXp, followUser, refreshConnection 
+      updateProfile, updateCoins, gainXp, followUser, refreshConnection,
+      sendGift
     }}>
       {children}
     </AuthContext.Provider>

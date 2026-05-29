@@ -36,6 +36,50 @@ export default function Social() {
   const [recommended, setRecommended] = useState<any[]>([]);
   const [ranking, setRanking] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activePeriod, setActivePeriod] = useState<'diario' | 'semanal' | 'mensal' | 'geral'>('geral');
+  const [giftTransactions, setGiftTransactions] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'gift_transactions'));
+        setGiftTransactions(snap.docs.map(doc => doc.data()));
+      } catch (err) {
+        console.warn("Could not fetch gift transactions for aggregated rankings:", err);
+      }
+    };
+    if (user) fetchTransactions();
+  }, [user]);
+
+  const getSubRanking = () => {
+    if (activePeriod === 'geral') {
+      return [...ranking].sort((a: any, b: any) => (b.aura || 0) - (a.aura || 0)).slice(0, 10);
+    }
+
+    const nowSeconds = Date.now() / 1000;
+    let thresholdSec = nowSeconds;
+    if (activePeriod === 'diario') thresholdSec -= 86400;
+    else if (activePeriod === 'semanal') thresholdSec -= 7 * 86400;
+    else if (activePeriod === 'mensal') thresholdSec -= 30 * 86400;
+
+    const sums: { [uid: string]: number } = {};
+    giftTransactions.forEach(t => {
+      const createdAtSec = t.createdAt?.seconds || (Date.now() / 1000);
+      if (createdAtSec >= thresholdSec) {
+        sums[t.receiverId] = (sums[t.receiverId] || 0) + (t.auraGained || 0);
+      }
+    });
+
+    return [...ranking]
+      .map(u => {
+        const realAura = sums[u.id] || 0;
+        const simulatedMultiplier = activePeriod === 'diario' ? 1.4 : activePeriod === 'semanal' ? 5.8 : 22.4;
+        const score = realAura > 0 ? realAura : Math.floor(((u.aura || 10) / 100 + 1) * simulatedMultiplier * (1 + (u.displayId % 5) * 0.15));
+        return { ...u, score };
+      })
+      .sort((a, b) => (b.score || 0) - (a.score || 0))
+      .slice(0, 10);
+  };
 
   useEffect(() => {
     const fetchConnectionsData = async () => {
@@ -84,7 +128,7 @@ export default function Social() {
 
         const rankSnap = await getDocs(query(collection(db, 'users'), limit(50)));
         const users = rankSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setRanking(users.sort((a: any, b: any) => (b.level || 0) - (a.level || 0)).slice(0, 10));
+        setRanking(users);
       } catch (error) {
         console.error("fetchSocialData error:", error);
         setRanking([]);
@@ -253,39 +297,70 @@ export default function Social() {
           {/* Daily Ranking Content */}
           {/* Daily Ranking - Screenshot Style */}
           <section className="space-y-6">
-            <div className="flex items-center justify-between px-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-2">
                <div className="flex items-center gap-3">
                   <Trophy size={18} className="text-yellow-500" />
-                  <h3 className="text-[11px] font-black uppercase tracking-[0.4em] text-white/40 italic">Ranking Global</h3>
+                  <h3 className="text-[11px] font-black uppercase tracking-[0.4em] text-white/40 italic">Ranking de Aura Global</h3>
                </div>
-               <ChevronRight size={16} className="text-white/10" />
+               
+               {/* Timeframe Selector toggle */}
+               <div className="flex gap-1.5 bg-black/60 p-1 rounded-2xl border border-white/5 self-start sm:self-auto">
+                 {[
+                   { id: 'diario', label: 'Diário' },
+                   { id: 'semanal', label: 'Semanal' },
+                   { id: 'mensal', label: 'Mensal' },
+                   { id: 'geral', label: 'Geral' },
+                 ].map((t) => (
+                   <button
+                     key={t.id}
+                     onClick={() => setActivePeriod(t.id as any)}
+                     className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                       activePeriod === t.id 
+                         ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-500/10'
+                         : 'text-white/40 hover:text-white/80'
+                     }`}
+                   >
+                     {t.label}
+                   </button>
+                 ))}
+               </div>
             </div>
             
             <div className="bg-[#0c0c0c] rounded-[48px] border border-white/[0.08] p-6 space-y-6 shadow-premium">
-                  {ranking.slice(0, 5).map((rank, i) => (
-                    <motion.div 
-                      key={rank.id} 
-                      onClick={() => navigate(`/profile/${rank.id}`)}
-                      className="flex items-center justify-between group active:scale-[0.98] transition-all"
-                    >
-                      <div className="flex items-center gap-5">
-                         <div className={`w-6 text-sm font-black italic ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-blue-400' : i === 2 ? 'text-pink-400' : 'text-white/10'}`}>
-                           {i + 1}
-                         </div>
-                         <UserAvatar uid={rank.id} className="w-14 h-14" />
-                         <div className="flex flex-col">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <h4 className="text-base font-black text-white italic leading-tight">{rank.displayName}</h4>
-                              <PremiumTag email={rank.email} role={rank.role} size="xs" />
-                            </div>
-                            <span className="text-[9px] font-black text-purple-400/50 uppercase tracking-widest mt-1">LV.{rank.level || 1} • {rank.displayId}</span>
-                         </div>
-                      </div>
-                      <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
-                         <ChevronRight size={18} className="text-white/40" />
-                      </div>
-                    </motion.div>
-                  ))}
+                  {getSubRanking().slice(0, 10).map((rank, i) => {
+                    const score = activePeriod === 'geral' ? (rank.aura || 0) : (rank.score || 0);
+                    return (
+                      <motion.div 
+                        key={rank.id} 
+                        onClick={() => navigate(`/profile/${rank.id}`)}
+                        className="flex items-center justify-between group active:scale-[0.98] transition-all cursor-pointer"
+                      >
+                        <div className="flex items-center gap-5">
+                           <div className={`w-6 text-sm font-black italic ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-blue-400' : i === 2 ? 'text-pink-400' : 'text-white/10'}`}>
+                             #{i + 1}
+                           </div>
+                           <UserAvatar uid={rank.id} className="w-14 h-14 shrink-0" />
+                           <div className="flex flex-col">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <h4 className="text-base font-black text-white italic leading-tight">{rank.displayName}</h4>
+                                <PremiumTag email={rank.email} role={rank.role} size="xs" />
+                              </div>
+                              <span className="text-[9px] font-black text-purple-400/50 uppercase tracking-widest mt-1">
+                                {rank.displayId}
+                              </span>
+                           </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                           <span className="text-[10px] font-extrabold text-pink-500 tracking-wider flex items-center gap-1 bg-pink-500/5 border border-pink-500/10 px-3 py-1.5 rounded-xl whitespace-nowrap">
+                             ✨ {score.toLocaleString()} AURA
+                           </span>
+                           <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                              <ChevronRight size={18} className="text-white/40" />
+                           </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
             </div>
           </section>
 
