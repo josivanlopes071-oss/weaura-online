@@ -104,9 +104,68 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["adminId", "adminEmail", "action", "type", "timestamp"]
+    },
+    "checkers_match": {
+      "title": "Checkers Match",
+      "description": "Competitive checkers match with automated matchmaking and betting",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "creatorName": { "type": "string" },
+        "creatorPhoto": { "type": "string" },
+        "player1": { "type": "string" },
+        "player2": { "type": "string" },
+        "player2Name": { "type": "string" },
+        "player2Photo": { "type": "string" },
+        "status": { "type": "string", "enum": ["waiting_peer", "playing", "ended"] },
+        "betAmount": { "type": "integer" },
+        "winnerId": { "type": "string" },
+        "winnerName": { "type": "string" },
+        "reason": { "type": "string", "enum": ["victory", "abandoned", "draw"] },
+        "turn": { "type": "string", "enum": ["player1", "player2"] },
+        "board": { "type": "array", "items": { "type": "integer" } },
+        "potClaimed": { "type": "boolean" },
+        "player1AuraActive": { "type": "boolean" },
+        "player2AuraActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastMoveAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "creatorId", "player1", "status", "betAmount", "board"]
+    },
+    "tictactoe_match": {
+      "title": "Tic Tac Toe Match",
+      "description": "Multiplayer Tic-Tac-Toe match with betting",
+      "type": "object",
+      "properties": {
+        "player1": { "type": "string" },
+        "player1Name": { "type": "string" },
+        "player1Photo": { "type": "string" },
+        "player2": { "type": "string" },
+        "player2Name": { "type": "string" },
+        "player2Photo": { "type": "string" },
+        "status": { "type": "string", "enum": ["waiting", "playing", "ended"] },
+        "betAmount": { "type": "integer" },
+        "board": { "type": "array", "items": { "type": "string" } },
+        "turn": { "type": "string" },
+        "winner": { "type": "string" },
+        "winningLine": { "type": "array", "items": { "type": "integer" } },
+        "potClaimedByWinner": { "type": "boolean" },
+        "refundedUsers": { "type": "array", "items": { "type": "string" } },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["player1", "status", "betAmount", "board", "turn"]
     }
   },
   "firestore": {
+    "/tictactoe_matches/{matchId}": {
+      "schema": "tictactoe_match",
+      "description": "1v1 competitive Tic-Tac-Toe matches with coin betting"
+    },
+    "/checkers_matches/{matchId}": {
+      "schema": "checkers_match",
+      "description": "1v1 competitive checkers matches with coin betting"
+    },
     "/system_announcements/{announcementId}": {
       "schema": "system_announcement",
       "description": "Global admin announcements"

@@ -325,21 +325,49 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Banner - Screenshot 1 Style */}
-      <section className="relative h-48 rounded-[48px] overflow-hidden group cursor-pointer shadow-premium" onClick={() => navigate('/challenges')}>
-        <div className="absolute inset-0 bg-[#0c0c0c] border border-white/[0.08]">
-           <div className="absolute inset-0 bg-gradient-to-br from-purple-600/30 via-transparent to-blue-600/10" />
-           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-500/20 blur-[100px] rounded-full animate-pulse" />
+      {/* Featured Banners - Horizontal Swipe Carousel */}
+      <section className="flex gap-4 overflow-x-auto pb-4 px-1 scrollbar-hide snap-x snap-mandatory w-full mb-2">
+        {/* Banner 1: Missão Especial */}
+        <div 
+          className="relative h-44 sm:h-48 rounded-[36px] sm:rounded-[48px] overflow-hidden group cursor-pointer shadow-premium w-[85vw] sm:w-[48%] min-w-[280px] md:flex-1 shrink-0 snap-center transition-all duration-300" 
+          onClick={() => navigate('/challenges')}
+        >
+          <div className="absolute inset-0 bg-[#0c0c0c] border border-white/[0.08] rounded-[36px] sm:rounded-[48px]">
+             <div className="absolute inset-0 bg-gradient-to-br from-purple-600/30 via-transparent to-blue-600/10" />
+             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-500/20 blur-[100px] rounded-full animate-pulse" />
+          </div>
+          <div className="absolute inset-0 p-8 sm:p-10 flex flex-col justify-center relative z-10">
+              <div className="bg-white/10 w-fit px-3 py-1.5 rounded-full border border-white/10 mb-3 sm:mb-5">
+                 <span className="text-[9px] sm:text-[10px] font-black uppercase text-purple-400 tracking-[0.3em] italic">Missão Especial</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black text-white leading-none uppercase tracking-tighter italic">Desafios <br/><span className="text-purple-500">Temporários</span></h2>
+              <p className="text-white/30 text-[9px] sm:text-[10px] font-bold mt-2 sm:mt-4 uppercase tracking-[0.2em] italic">Complete e ganhe Aura Coins</p>
+          </div>
+          <div className="absolute right-[-20px] bottom-[-20px] opacity-20 group-hover:scale-110 transition-transform duration-1000">
+             <Trophy size={140} className="text-white blur-xs" />
+          </div>
         </div>
-        <div className="absolute inset-0 p-10 flex flex-col justify-center relative z-10">
-            <div className="bg-white/10 w-fit px-4 py-1.5 rounded-full border border-white/10 mb-5">
-               <span className="text-[10px] font-black uppercase text-purple-400 tracking-[0.3em] italic">Missão Especial</span>
-            </div>
-            <h2 className="text-3xl font-black text-white leading-none uppercase tracking-tighter italic">Desafios <br/><span className="text-purple-500">Temporários</span></h2>
-            <p className="text-white/30 text-[10px] font-bold mt-4 uppercase tracking-[0.2em] italic">Complete e ganhe Aura Coins</p>
-        </div>
-        <div className="absolute right-[-20px] bottom-[-20px] opacity-20 group-hover:scale-110 transition-transform duration-1000">
-           <Trophy size={180} className="text-white blur-sm" />
+
+        {/* Banner 2: Arena de Jogos */}
+        <div 
+          className="relative h-44 sm:h-48 rounded-[36px] sm:rounded-[48px] overflow-hidden group cursor-pointer shadow-premium border border-fuchsia-500/10 hover:border-fuchsia-500/30 w-[85vw] sm:w-[48%] min-w-[280px] md:flex-1 shrink-0 snap-center transition-all duration-300" 
+          onClick={() => navigate('/games')}
+        >
+          <div className="absolute inset-0 bg-[#06030c]">
+             <div className="absolute inset-0 bg-gradient-to-br from-[#00F0FF]/15 via-transparent to-[#FF4D9D]/20" />
+             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-fuchsia-600/10 blur-[90px] rounded-full animate-pulse" />
+          </div>
+          <div className="absolute inset-0 p-8 sm:p-10 flex flex-col justify-center relative z-10">
+              <div className="bg-[#00F0FF]/10 w-fit px-3 py-1.5 rounded-full border border-[#00F0FF]/20 mb-3 sm:mb-5 flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,240,255,0.15)]">
+                 <span className="w-1.5 h-1.5 rounded-full bg-[#00F0FF] animate-ping" />
+                 <span className="text-[9px] sm:text-[10px] font-black uppercase text-[#00F0FF] tracking-[0.3em] italic">Arena de Jogos</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black text-white leading-none uppercase tracking-tighter italic">ARENA DE <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-[#FF4D9D]">MINIJOGOS</span></h2>
+              <p className="text-white/40 text-[9px] font-bold mt-2 sm:mt-4 uppercase tracking-[0.2em] italic flex items-center gap-1">Damas 1v1 • Jogo da Velha • Campo Minado • Prêmios 🔥</p>
+          </div>
+          <div className="absolute right-[-10px] bottom-[-10px] opacity-25 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-1000">
+             <Gamepad2 size={130} className="text-fuchsia-400 blur-xs" />
+          </div>
         </div>
       </section>
 
@@ -469,11 +497,23 @@ export default function Home() {
                       </div>
                       
                       <div className="flex -space-x-2">
-                        {[1, 2, 3].map((i) => (
-                          <div key={i} className="w-5 h-5 rounded-full border-2 border-[#0c0c0c] bg-zinc-800 overflow-hidden">
-                            <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=user${room.id}${i}`} className="w-full h-full object-cover" alt="" loading="lazy" />
+                        {room.members && room.members.length > 0 ? (
+                          room.members.slice(0, 3).map((memberUid: string) => (
+                            <div key={memberUid} className="w-5 h-5 rounded-full border-2 border-[#0c0c0c] bg-zinc-800 overflow-hidden" title="Membro Ativo">
+                              <img 
+                                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${memberUid}`} 
+                                className="w-full h-full object-cover" 
+                                alt="" 
+                                loading="lazy" 
+                                referrerPolicy="no-referrer"
+                              />
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-[9px] text-white/20 font-bold uppercase tracking-wider pl-1.5 font-mono">
+                            Sala Vazia
                           </div>
-                        ))}
+                        )}
                       </div>
                     </div>
 

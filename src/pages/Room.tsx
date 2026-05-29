@@ -355,6 +355,97 @@ export default function Room() {
     if (!id || !user?.uid) return;
 
     const roomRef = doc(db, 'rooms', id);
+
+    const cleanupGhostPlayers = async () => {
+      if (!id || !user?.uid) return;
+      try {
+        const snap = await getDoc(roomRef);
+        if (!snap.exists()) return;
+        const roomData = snap.data();
+        const currentMembers: string[] = roomData.members || [];
+        const slots: { [slotId: string]: string | null } = roomData.slots || {};
+        
+        // Collect all distinct uids from members and slots, excluding current user and not empty
+        const uidsToCheck = Array.from(new Set([
+          ...currentMembers,
+          ...Object.values(slots).filter((uid): uid is string => typeof uid === 'string' && !!uid)
+        ])).filter(uid => uid !== user.uid);
+
+        if (uidsToCheck.length === 0) return;
+
+        const inactiveUids: string[] = [];
+        const now = Date.now();
+        
+        for (const uid of uidsToCheck) {
+          try {
+            const userSnap = await getDoc(doc(db, 'users', uid));
+            if (userSnap.exists()) {
+              const userData = userSnap.data();
+              const lastSeen = userData.lastSeen;
+              let lastSeenMs = 0;
+              if (lastSeen) {
+                if (typeof lastSeen.toDate === 'function') {
+                  lastSeenMs = lastSeen.toDate().getTime();
+                } else if (lastSeen.seconds) {
+                  lastSeenMs = lastSeen.seconds * 1000;
+                } else if (typeof lastSeen === 'number') {
+                  lastSeenMs = lastSeen;
+                }
+              }
+              
+              // If status is offline or heartbeat is older than 3 minutes, they are offline
+              const isOffline = userData.status === 'offline' || 
+                                (lastSeenMs > 0 && (now - lastSeenMs > 180000));
+              
+              if (isOffline) {
+                inactiveUids.push(uid);
+              }
+            } else {
+              // User doc doesn't exist anymore, treat as inactive
+              inactiveUids.push(uid);
+            }
+          } catch (e) {
+            console.warn("Failed to check user presence for", uid, e);
+          }
+        }
+
+        if (inactiveUids.length > 0) {
+          console.log("[Room Cleanup] Removing offline members/slots:", inactiveUids);
+          const newMembers = currentMembers.filter(m => !inactiveUids.includes(m));
+          const newSlots = { ...slots };
+          let slotsUpdated = false;
+          
+          Object.entries(newSlots).forEach(([slotKey, slotUid]) => {
+            if (slotUid && inactiveUids.includes(slotUid)) {
+              newSlots[slotKey] = null;
+              slotsUpdated = true;
+            }
+          });
+
+          const updateObj: any = {
+            members: newMembers
+          };
+          if (slotsUpdated) {
+            updateObj.slots = newSlots;
+          }
+          
+          if (roomData.activeSpeakers) {
+            updateObj.activeSpeakers = (roomData.activeSpeakers as string[]).filter(uid => !inactiveUids.includes(uid));
+          }
+
+          // Clean voicePeerIds
+          inactiveUids.forEach(uid => {
+            if (roomData.voicePeerIds && roomData.voicePeerIds[uid]) {
+              updateObj[`voicePeerIds.${uid}`] = deleteField();
+            }
+          });
+
+          await updateDoc(roomRef, updateObj).catch(() => {});
+        }
+      } catch (err) {
+        console.warn("Error in cleanupGhostPlayers:", err);
+      }
+    };
     
     // Check if the room has no other members before joining to clean leftovers from past sessions
     const checkAndCleanupLeftovers = async () => {
@@ -374,6 +465,11 @@ export default function Room() {
               deleteDoc(doc(db, 'rooms', id, 'messages', docSnap.id))
             );
             await Promise.all(deletePromises);
+          } else {
+            // Run a clean up call after short delay so room state is fresh and doesn't display ghosts
+            setTimeout(() => {
+              cleanupGhostPlayers();
+            }, 3000);
           }
         }
       } catch (err) {
@@ -481,10 +577,21 @@ export default function Room() {
     });
     unsubscribeReactionsRef.current = unsubscribeReactions;
 
-    // Heartbeat logic to prevent ghost rooms
+    // Heartbeat logic to prevent ghost rooms and periodically clean offline members
     const heartbeat = setInterval(() => {
-      if (id && user?.uid && roomRefData.current && roomRefData.current.ownerId === user.uid) {
-        updateDoc(roomRef, { lastActive: serverTimestamp() }).catch(() => {});
+      if (id && user?.uid && roomRefData.current) {
+        if (roomRefData.current.ownerId === user.uid) {
+          updateDoc(roomRef, { lastActive: serverTimestamp() }).catch(() => {});
+        }
+        
+        // Coordinated presence cleanup check (only run by owner, or sorted first member if owner is missing)
+        const sortedMembers = [...(roomRefData.current.members || [])].sort();
+        const amITheCleaner = roomRefData.current.ownerId === user.uid || 
+                              (!sortedMembers.includes(roomRefData.current.ownerId) && sortedMembers[0] === user.uid);
+        
+        if (amITheCleaner) {
+          cleanupGhostPlayers();
+        }
       }
     }, 60000); // 1 minute
     heartbeatIntervalRef.current = heartbeat;
@@ -613,8 +720,9 @@ export default function Room() {
   const takeSlot = async (slotId: number) => {
     if (!id || !user || !room) return;
     
-    // Check if slot is locked or taken
-    if (room.slots?.[slotId] && room.slots[slotId] !== user.uid) return;
+    // Check if slot is taken and the occupant is actually still inside the room
+    const occupant = room.slots?.[slotId];
+    if (occupant && occupant !== user.uid && room.members.includes(occupant)) return;
 
     // Check if user is already in a slot
     const currentSlotEntry = Object.entries(room.slots || {}).find(([_, uid]) => uid === user.uid);
@@ -1089,65 +1197,71 @@ export default function Room() {
         </div>
 
         {/* Host Area - The "Stage" */}
-        <div className="relative mb-16">
-            <div className="flex flex-col items-center relative z-10">
-                <div className="relative">
-                  {/* Premium Specialist Tool Ring */}
-                  <div 
-                    id="tour-host-seat"
-                    className={`p-1.5 rounded-full transition-all duration-1000 relative ${
-                      room.activeSpeakers.includes(room.slots?.[0] || '') || (volumes[room.slots?.[0] || ''] > 5) 
-                        ? 'shadow-[0_0_60px_rgba(168,85,247,0.3)]' 
-                        : 'bg-white/5 border border-white/5'
-                    }`}
-                    style={{ 
-                      background: room.activeSpeakers.includes(room.slots?.[0] || '') || (volumes[room.slots?.[0] || ''] > 5) 
-                        ? `linear-gradient(to tr, ${currentTheme.primary}, ${currentTheme.secondary}, #fb923c)` 
-                        : undefined 
-                    }}
-                  >
-                    {/* Inner Hardware Ring */}
-                    <div className="absolute inset-1 rounded-full border border-white/10 border-dashed animate-[spin_20s_linear_infinite] opacity-30 pointer-events-none" />
+        {(() => {
+          const hostUid = room.slots?.[0] && room.members.includes(room.slots?.[0]) ? room.slots?.[0] : null;
+          return (
+            <div className="relative mb-16">
+                <div className="flex flex-col items-center relative z-10">
+                    <div className="relative">
+                      {/* Premium Specialist Tool Ring */}
+                      <div 
+                        id="tour-host-seat"
+                        className={`p-1.5 rounded-full transition-all duration-1000 relative ${
+                          (hostUid && (room.activeSpeakers.includes(hostUid) || (volumes[hostUid] > 5)))
+                            ? 'shadow-[0_0_60px_rgba(168,85,247,0.3)]' 
+                            : 'bg-white/5 border border-white/5'
+                        }`}
+                        style={{ 
+                          background: (hostUid && (room.activeSpeakers.includes(hostUid) || (volumes[hostUid] > 5)))
+                            ? `linear-gradient(to tr, ${currentTheme.primary}, ${currentTheme.secondary}, #fb923c)` 
+                            : undefined 
+                        }}
+                      >
+                        {/* Inner Hardware Ring */}
+                        <div className="absolute inset-1 rounded-full border border-white/10 border-dashed animate-[spin_20s_linear_infinite] opacity-30 pointer-events-none" />
+                        
+                        <VoiceSeat 
+                          slotId={0} 
+                          userId={hostUid} 
+                          size="large" 
+                          isActive={!!(hostUid && (room.activeSpeakers.includes(hostUid) || (volumes[hostUid] > 5)))}
+                          isOwner={hostUid === room.ownerId}
+                          volumeLevel={hostUid ? volumes[hostUid] : 0}
+                          activeColor={currentTheme.primary}
+                          onTake={takeSlot}
+                          onUserClick={setShowUserActions}
+                        />
+                      </div>
+                      
+                      {/* Luxury Badge */}
+                      <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-zinc-900 px-4 py-1 rounded-full border border-white/20 shadow-2xl z-20">
+                         <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse" />
+                         <span className="text-[9px] font-black uppercase text-white tracking-[0.15em] whitespace-nowrap">HOST PRINCIPAL</span>
+                      </div>
+                    </div>
                     
-                    <VoiceSeat 
-                      slotId={0} 
-                      userId={room.slots?.[0]} 
-                      size="large" 
-                      isActive={room.activeSpeakers.includes(room.slots?.[0] || '') || (volumes[room.slots?.[0] || ''] > 5)}
-                      isOwner={room.slots?.[0] === room.ownerId}
-                      volumeLevel={volumes[room.slots?.[0] || '']}
-                      activeColor={currentTheme.primary}
-                      onTake={takeSlot}
-                      onUserClick={setShowUserActions}
-                    />
-                  </div>
-                  
-                  {/* Luxury Badge */}
-                  <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-zinc-900 px-4 py-1 rounded-full border border-white/20 shadow-2xl z-20">
-                     <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse" />
-                     <span className="text-[9px] font-black uppercase text-white tracking-[0.15em] whitespace-nowrap">HOST PRINCIPAL</span>
-                  </div>
-                </div>
-                
-                <div className="mt-8 text-center">
-                  <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2 justify-center">
-                    <UserDisplayName uid={room.slots?.[0]} fallback="Esperando Host" />
-                    {room.slots?.[0] === room.ownerId && <Crown size={14} className="text-yellow-500 fill-yellow-500/20" />}
-                    <UserPremiumTag uid={room.slots?.[0]} size="xs" />
-                  </h3>
-                  <div className="flex items-center justify-center gap-1.5 mt-1 bg-white/5 px-3 py-1 rounded-full border border-white/5 w-fit mx-auto">
-                    <Flame size={10} className="text-orange-500" />
-                    <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Ativo Agora</span>
-                  </div>
+                    <div className="mt-8 text-center">
+                      <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2 justify-center">
+                        <UserDisplayName uid={hostUid} fallback="Esperando Host" />
+                        {hostUid && hostUid === room.ownerId && <Crown size={14} className="text-yellow-500 fill-yellow-500/20" />}
+                        {hostUid && <UserPremiumTag uid={hostUid} size="xs" />}
+                      </h3>
+                      <div className="flex items-center justify-center gap-1.5 mt-1 bg-white/5 px-3 py-1 rounded-full border border-white/5 w-fit mx-auto">
+                        <Flame size={10} className="text-orange-500" />
+                        <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Ativo Agora</span>
+                      </div>
+                    </div>
                 </div>
             </div>
-        </div>
+          );
+        })()}
 
         {/* Audience Seats - Perfectly Circular Grid */}
         <div id="tour-audience-seats" className="grid grid-cols-4 gap-y-10 gap-x-4 mb-20 max-w-sm mx-auto bg-white/[0.02] p-8 rounded-[40px] border border-white/[0.03] backdrop-blur-sm">
           {Array.from({ length: 8 }).map((_, i) => {
             const slotId = i + 1;
-            const uid = room.slots?.[slotId];
+            const rawUid = room.slots?.[slotId];
+            const uid = rawUid && room.members.includes(rawUid) ? rawUid : null;
             return (
               <motion.div 
                 key={slotId} 
@@ -1160,9 +1274,9 @@ export default function Room() {
                   slotId={slotId} 
                   userId={uid} 
                   size="medium"
-                  isActive={room.activeSpeakers.includes(uid || '') || (volumes[uid || ''] > 5)}
+                  isActive={!!(uid && (room.activeSpeakers.includes(uid) || (volumes[uid] > 5)))}
                   isOwner={uid === room.ownerId}
-                  volumeLevel={volumes[uid || '']}
+                  volumeLevel={uid ? volumes[uid] : 0}
                   activeColor={currentTheme.primary}
                   onTake={takeSlot}
                   onUserClick={setShowUserActions}

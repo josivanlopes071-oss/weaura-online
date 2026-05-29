@@ -91,7 +91,7 @@ export default function Navigation() {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center justify-center transition-all duration-500 py-4 px-3 rounded-[24px] gap-1.5 ${
+              className={`flex flex-col items-center justify-center transition-all duration-500 py-4 px-3 rounded-[24px] gap-1.5 relative ${
                 isActive ? 'text-white' : 'text-white/20 hover:text-white/40'
               }`}
             >

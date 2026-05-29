@@ -24,6 +24,8 @@ const Shop = lazy(() => import('./pages/Shop'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Login = lazy(() => import('./pages/Login'));
 const Challenges = lazy(() => import('./pages/Challenges'));
+const Checkers = lazy(() => import('./pages/Checkers'));
+const Games = lazy(() => import('./pages/Games'));
 
 // Loading screen
 const PageLoading = () => (
@@ -239,6 +241,8 @@ function AppContent() {
               <Route path="/profile" element={<Profile />} />
               <Route path="/profile/:id" element={<Profile />} />
               <Route path="/challenges" element={<Challenges />} />
+              <Route path="/checkers" element={<Checkers />} />
+              <Route path="/games" element={<Games />} />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </Suspense>

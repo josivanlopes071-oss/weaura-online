@@ -20,7 +20,7 @@ const db = initializeFirestore(app, {
   }),
   experimentalForceLongPolling: false,
   experimentalAutoDetectLongPolling: true,
-}, (firebaseConfig as any).firestoreDatabaseId || undefined);
+}, (firebaseConfig as any).firestoreDatabaseId && (firebaseConfig as any).firestoreDatabaseId !== '(default)' ? (firebaseConfig as any).firestoreDatabaseId : undefined);
 
 const auth = getAuth(app);
 
