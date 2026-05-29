@@ -5,7 +5,8 @@ import { collection, onSnapshot, query, orderBy, limit, addDoc, serverTimestamp 
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../lib/firebase';
-import { Plus, Users, Mic, Flame, MessageSquare, X, Lock, Gamepad2, Music, Coffee, MessageCircle, Trophy } from 'lucide-react';
+import { Plus, Users, Mic, Flame, MessageSquare, X, Lock, Gamepad2, Music, Coffee, MessageCircle, Trophy, Sparkles, Check, Sun, Moon } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface Room {
   id: string;
@@ -57,6 +58,8 @@ export default function Home() {
   const [roomLimitInput, setRoomLimitInput] = useState(12);
   const { user, profile } = useAuth();
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const [showPatchNotes, setShowPatchNotes] = useState(() => !sessionStorage.getItem('dismissed_patch_notes_lightmode'));
 
   useEffect(() => {
     // 1. We remove orderBy from snapshot to prevent rooms from temporarily disappearing 
@@ -324,6 +327,70 @@ export default function Home() {
            </button>
         </div>
       </section>
+
+      <AnimatePresence>
+        {showPatchNotes && (
+          <motion.section 
+            initial={{ height: 0, opacity: 0, y: -20 }}
+            animate={{ height: 'auto', opacity: 1, y: 0 }}
+            exit={{ height: 0, opacity: 0, y: -20 }}
+            className="overflow-hidden mb-6"
+          >
+            <div className="p-6 relative rounded-[32px] bg-gradient-to-tr from-purple-900/30 via-indigo-900/20 to-purple-500/10 border border-purple-500/20 dark:border-purple-500/10 shadow-[0_15px_40px_rgba(168,85,247,0.1)]">
+              <button 
+                onClick={() => {
+                  sessionStorage.setItem('dismissed_patch_notes_lightmode', 'true');
+                  setShowPatchNotes(false);
+                }}
+                className="absolute top-4 right-4 p-2 rounded-full bg-black/20 dark:bg-white/5 text-white/50 hover:text-white dark:hover:text-white transition-all hover:scale-105 active:scale-95"
+              >
+                <X size={15} />
+              </button>
+              
+              <div className="flex gap-4 items-start">
+                <div className="w-12 h-12 rounded-2xl bg-purple-500/20 flex items-center justify-center border border-purple-500/30 text-purple-400 shrink-0">
+                  <Sparkles size={22} className="animate-pulse text-purple-600 dark:text-purple-400" />
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <span className="text-[9px] font-black uppercase text-purple-600 dark:text-purple-400 tracking-[0.2em] bg-purple-500/10 px-2.5 py-1 rounded-full border border-purple-500/25">Atualização de Sistema</span>
+                    <h3 className="text-lg font-black text-zinc-900 dark:text-white italic uppercase tracking-tighter mt-2">O que há de novo (v1.1)</h3>
+                  </div>
+                  
+                  <div className="space-y-2.5 text-xs text-zinc-600 dark:text-white/70">
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-5 h-5 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                        <Check size={12} className="text-green-600 dark:text-green-400" />
+                      </div>
+                      <p className="leading-relaxed">
+                        <strong className="text-zinc-900 dark:text-white">Modo Claro Lindo de Verdade:</strong> Chega de bugs e partes pretas no Tema Claro! Ajustamos todas as tabelas de damas, minijogos, dezenas de cards e balões de chat para um visual limpo e super contrastante.
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-5 h-5 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                        <Check size={12} className="text-green-600 dark:text-green-400" />
+                      </div>
+                      <p className="leading-relaxed">
+                        <strong className="text-zinc-900 dark:text-white">Fidelidade de Cores Adaptável:</strong> Os headers, avatares, moedas e barras de navegação agora alternam automaticamente com brilhos e tons suaves que combinam perfeitamente com o seu estilo escolhido.
+                      </p>
+                    </div>
+
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-5 h-5 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                        <Check size={12} className="text-green-600 dark:text-green-400" />
+                      </div>
+                      <p className="leading-relaxed">
+                        <strong className="text-zinc-900 dark:text-white">Estabilidade e Performance:</strong> Elementos flutuantes, inputs de formulário e alertas agora têm bordas suaves de alta nitidez que facilitam a leitura sob a luz do dia do novo tema claro.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
 
       {/* Featured Banners - Horizontal Swipe Carousel */}
       <section className="flex gap-4 overflow-x-auto pb-4 px-1 scrollbar-hide snap-x snap-mandatory w-full mb-2">
