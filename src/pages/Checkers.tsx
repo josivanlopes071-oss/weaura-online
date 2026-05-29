@@ -204,6 +204,11 @@ export default function Checkers() {
   const [hasCoinDeductedForThisGame, setHasCoinDeductedForThisGame] = useState<boolean>(false);
   const [showRules, setShowRules] = useState<boolean>(false);
 
+  // New states for Ranking and Leaderboards
+  const [activeLobbyTab, setActiveLobbyTab] = useState<'play' | 'ranking'>('play');
+  const [checkersLeaderboard, setCheckersLeaderboard] = useState<any[]>([]);
+  const [loadingRankings, setLoadingRankings] = useState<boolean>(false);
+
   // Firestore reference holders to handle safe unmount state changes
   const activeMatchListenerRef = useRef<(() => void) | null>(null);
   const activeMatchDataRef = useRef<MatchState | null>(null);
@@ -216,6 +221,40 @@ export default function Checkers() {
   const checkersStreak = profile ? ((profile as any).checkersStreak || 0) : 0;
   const totalGames = checkersWins + checkersLosses;
   const winRate = totalGames > 0 ? Math.round((checkersWins / totalGames) * 100) : 0;
+
+  const fetchCheckersLeaderboard = async () => {
+    setLoadingRankings(true);
+    try {
+      const q = query(collection(db, 'users'), limit(50));
+      const querySnapshot = await getDocs(q);
+      const playersList: any[] = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        playersList.push({
+          id: doc.id,
+          displayName: data.displayName || 'Jogador Desconhecido',
+          photoURL: data.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${doc.id}`,
+          checkersElo: data.checkersElo || 1200,
+          checkersWins: data.checkersWins || 0,
+          checkersLosses: data.checkersLosses || 0,
+          checkersStreak: data.checkersStreak || 0,
+        });
+      });
+      // Sort client-side by checkersElo DESC
+      playersList.sort((a, b) => b.checkersElo - a.checkersElo);
+      setCheckersLeaderboard(playersList);
+    } catch (err) {
+      console.error("Error fetching checkers leaderboard:", err);
+    } finally {
+      setLoadingRankings(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeLobbyTab === 'ranking') {
+      fetchCheckersLeaderboard();
+    }
+  }, [activeLobbyTab]);
 
   // Track daily claim state
   const lastDailyClaim = profile ? ((profile as any).lastDailyClaimCheckers) : null;
@@ -884,121 +923,295 @@ export default function Checkers() {
 
       {/* LOBBY INTERFACE */}
       {matchmakingStatus === 'idle' && (
-        <div className="flex-1 max-w-md mx-auto w-full flex flex-col gap-8 relative z-10">
+        <div className="flex-1 max-w-md mx-auto w-full flex flex-col gap-6 relative z-10">
           
-          {/* PROFILE SUMMARY COINS AND RANK */}
-          <section className="bg-[#0a0518]/60 p-6 rounded-[32px] border border-fuchsia-500/10 shadow-[0_0_50px_rgba(168,85,247,0.05)] backdrop-blur-md flex items-center justify-between relative overflow-hidden">
-            <div className="flex items-center gap-4">
-              <div className="relative group">
-                <img 
-                  src={profile?.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.uid}`} 
-                  className="w-14 h-14 rounded-2xl border border-white/10 object-cover bg-zinc-900"
-                  alt=""
-                />
-                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-[#020202] rounded-full"></div>
-              </div>
-              
-              <div>
-                <h3 className="text-base font-black uppercase text-white tracking-tight italic">
-                  {profile?.displayName || 'Dama Master'}
-                </h3>
-                <div className="flex items-center gap-1.5 mt-1.5">
-                  <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${getEloRankName(checkersElo).bg} ${getEloRankName(checkersElo).color}`}>
-                    {getEloRankName(checkersElo).name}
-                  </span>
-                  <span className="text-[10px] text-white/40 font-bold font-mono">
-                    {checkersElo} ELO
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="text-right">
-              <div className="text-[9px] text-white/30 font-bold uppercase tracking-wider">Seu Saldo</div>
-              <div className="flex items-center gap-1 bg-white/5 border border-white/5 px-3 py-1.5 rounded-xl text-yellow-500 font-bold text-sm mt-1">
-                {(profile as any)?.coins || 0}
-                <Coins size={14} className="animate-spin-slow text-yellow-500" />
-              </div>
-            </div>
-          </section>
-
-          {/* GAME STATS ROW */}
-          <section className="grid grid-cols-3 gap-3">
-            <div className="bg-[#08080a] p-4 rounded-3xl border border-white/[0.03] text-center">
-              <span className="text-[9px] text-white/30 font-bold uppercase tracking-wider block">Vitórias</span>
-              <span className="text-xl font-black text-emerald-400 mt-1 block">{checkersWins}</span>
-            </div>
-            <div className="bg-[#08080a] p-4 rounded-3xl border border-white/[0.03] text-center">
-              <span className="text-[9px] text-white/30 font-bold uppercase tracking-wider block">Taxa de Vitória</span>
-              <span className="text-xl font-black text-[#00F0FF] mt-1 block">{winRate}%</span>
-            </div>
-            <div className="bg-[#08080a] p-4 rounded-3xl border border-white/[0.03] text-center">
-              <span className="text-[9px] text-white/30 font-bold uppercase tracking-wider block">Série Ativa</span>
-              <span className="text-xl font-black text-[#FF4D9D] mt-1 block">🔥 {checkersStreak}</span>
-            </div>
-          </section>
-
-          {/* DAILY RECLAIM SYSTEM BOOSTS RETENTION */}
-          <section className="bg-gradient-to-r from-purple-950/20 to-[#FF4D9D]/5 border border-purple-500/10 p-5 rounded-3xl flex items-center justify-between relative overflow-hidden">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
-                <Sparkles size={20} className="animate-pulse" />
-              </div>
-              <div>
-                <h4 className="text-xs font-black text-white uppercase tracking-tight">Frequência Diária</h4>
-                <p className="text-[10px] text-white/40 mt-1">Ganhe +150 Aura Coins grátis se estiver zerado!</p>
-              </div>
-            </div>
-            
+          {/* TABS FOR LOBBY / RANKING */}
+          <div className="flex gap-2 p-1.5 bg-black/60 border border-white/5 rounded-2xl w-full">
             <button
-              onClick={claimDailyCoins}
-              disabled={timeUntilNextClaim !== ''}
-              className={`px-4 py-2.5 rounded-xl font-black text-[9px] uppercase tracking-wider shadow-lg active:scale-95 transition-all outline-none ${
-                timeUntilNextClaim !== ''
-                  ? 'bg-white/5 border border-white/5 text-white/20'
-                  : 'bg-yellow-500 text-black hover:bg-yellow-400'
+              onClick={() => { playFX('click'); setActiveLobbyTab('play'); }}
+              className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                activeLobbyTab === 'play'
+                  ? 'bg-[#00F0FF]/10 text-[#00F0FF] border border-[#00F0FF]/30 shadow-[0_0_15px_rgba(0,240,255,0.1)]'
+                  : 'text-white/40 hover:text-white/60 border border-transparent'
               }`}
             >
-              {timeUntilNextClaim !== '' ? timeUntilNextClaim : 'Resgatar'}
+              🕹️ Jogar
             </button>
-          </section>
+            <button
+              onClick={() => { playFX('click'); setActiveLobbyTab('ranking'); }}
+              className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                activeLobbyTab === 'ranking'
+                  ? 'bg-gradient-to-r from-purple-600 to-[#FF4D9D] text-white shadow-lg border border-purple-500/30'
+                  : 'text-white/40 hover:text-white/60 border border-transparent'
+              }`}
+            >
+              🏆 Classificação
+            </button>
+          </div>
 
-          {/* BET PICKER DIALOG */}
-          <section className="space-y-4">
-            <div className="flex items-center justify-between px-2">
-              <h3 className="text-sm font-black italic uppercase text-white/60 tracking-wider">Escolha a Aposta da Partida</h3>
-              <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest bg-purple-500/5 px-2 py-0.5 rounded border border-purple-500/10">Vencedor Leva Tudo</span>
+          {/* PLAY SCREEN */}
+          {activeLobbyTab === 'play' && (
+            <div className="flex flex-col gap-6 w-full animate-fade-in">
+              {/* PROFILE SUMMARY COINS AND RANK */}
+              <section className="bg-[#0a0518]/60 p-6 rounded-[32px] border border-fuchsia-500/10 shadow-[0_0_50px_rgba(168,85,247,0.05)] backdrop-blur-md flex items-center justify-between relative overflow-hidden">
+                <div className="flex items-center gap-4">
+                  <div className="relative group">
+                    <img 
+                      src={profile?.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.uid}`} 
+                      className="w-14 h-14 rounded-2xl border border-white/10 object-cover bg-zinc-900"
+                      alt=""
+                    />
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-[#020202] rounded-full"></div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-base font-black uppercase text-white tracking-tight italic">
+                      {profile?.displayName || 'Dama Master'}
+                    </h3>
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${getEloRankName(checkersElo).bg} ${getEloRankName(checkersElo).color}`}>
+                        {getEloRankName(checkersElo).name}
+                      </span>
+                      <span className="text-[10px] text-white/40 font-bold font-mono">
+                        {checkersElo} ELO
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <div className="text-[9px] text-white/30 font-bold uppercase tracking-wider">Seu Saldo</div>
+                  <div className="flex items-center gap-1 bg-white/5 border border-white/5 px-3 py-1.5 rounded-xl text-yellow-500 font-bold text-sm mt-1">
+                    {(profile as any)?.coins || 0}
+                    <Coins size={14} className="animate-spin-slow text-yellow-500" />
+                  </div>
+                </div>
+              </section>
+
+              {/* GAME STATS ROW */}
+              <section className="grid grid-cols-3 gap-3">
+                <div className="bg-[#08080a] p-4 rounded-3xl border border-white/[0.03] text-center">
+                  <span className="text-[9px] text-white/30 font-bold uppercase tracking-wider block">Vitórias</span>
+                  <span className="text-xl font-black text-emerald-400 mt-1 block">{checkersWins}</span>
+                </div>
+                <div className="bg-[#08080a] p-4 rounded-3xl border border-white/[0.03] text-center">
+                  <span className="text-[9px] text-white/30 font-bold uppercase tracking-wider block">Taxa de Vitória</span>
+                  <span className="text-xl font-black text-[#00F0FF] mt-1 block">{winRate}%</span>
+                </div>
+                <div className="bg-[#08080a] p-4 rounded-3xl border border-white/[0.03] text-center">
+                  <span className="text-[9px] text-white/30 font-bold uppercase tracking-wider block">Série Ativa</span>
+                  <span className="text-xl font-black text-[#FF4D9D] mt-1 block">🔥 {checkersStreak}</span>
+                </div>
+              </section>
+
+              {/* DAILY RECLAIM SYSTEM BOOSTS RETENTION */}
+              <section className="bg-gradient-to-r from-purple-950/20 to-[#FF4D9D]/5 border border-purple-500/10 p-5 rounded-3xl flex items-center justify-between relative overflow-hidden">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
+                    <Sparkles size={20} className="animate-pulse" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-white uppercase tracking-tight">Frequência Diária</h4>
+                    <p className="text-[10px] text-white/40 mt-1">Ganhe +150 Aura Coins grátis se estiver zerado!</p>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={claimDailyCoins}
+                  disabled={timeUntilNextClaim !== ''}
+                  className={`px-4 py-2.5 rounded-xl font-black text-[9px] uppercase tracking-wider shadow-lg active:scale-95 transition-all outline-none ${
+                    timeUntilNextClaim !== ''
+                      ? 'bg-white/5 border border-white/5 text-white/20'
+                      : 'bg-yellow-500 text-black hover:bg-yellow-400'
+                  }`}
+                >
+                  {timeUntilNextClaim !== '' ? timeUntilNextClaim : 'Resgatar'}
+                </button>
+              </section>
+
+              {/* BET PICKER DIALOG */}
+              <section className="space-y-4">
+                <div className="flex items-center justify-between px-2">
+                  <h3 className="text-sm font-black italic uppercase text-white/60 tracking-wider">Escolha a Aposta da Partida</h3>
+                  <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest bg-purple-500/5 px-2 py-0.5 rounded border border-purple-500/10">Vencedor Leva Tudo</span>
+                </div>
+
+                <div className="grid grid-cols-5 gap-2 bg-black/60 p-2.5 rounded-[28px] border border-white/5">
+                  {[50, 100, 200, 500, 1000].map((bet) => {
+                    const isSelected = matchmakingBet === bet;
+                    return (
+                      <button
+                        key={bet}
+                        onClick={() => { playFX('click'); setMatchmakingBet(bet); }}
+                        className={`py-4 px-2.5 rounded-2xl flex flex-col items-center justify-center gap-1.5 transition-all text-xs outline-none cursor-pointer ${
+                          isSelected 
+                            ? 'bg-gradient-to-tr from-purple-600 to-[#FF4D9D] border border-pink-500 text-white font-black scale-105 shadow-[0_0_15px_rgba(249,115,22,0.15)]' 
+                            : 'bg-[#0f0f12] text-white/40 hover:text-white/60 hover:bg-zinc-900 border border-white/[0.02]'
+                        }`}
+                      >
+                        <Coins size={12} className={isSelected ? 'text-yellow-300' : 'text-white/20'} />
+                        <span className="font-mono font-bold leading-none">{bet}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* START SEACH TRIGGER BUTTON */}
+              <button
+                onClick={startMatchmaking}
+                className="w-full py-5 bg-gradient-to-r from-[#00F0FF] via-purple-600 to-[#FF4D9D] font-black uppercase text-xs tracking-[0.25em] text-white rounded-[32px] shadow-[0_0_40px_rgba(168,85,247,0.35)] hover:shadow-[0_0_60px_rgba(168,85,247,0.5)] active:scale-95 transition-all text-center flex items-center justify-center gap-2 cursor-pointer mt-auto border border-white/10"
+              >
+                <Zap size={14} className="animate-bounce" />
+                PARTIDA MULTIPLAYER RÁPIDA
+              </button>
             </div>
+          )}
 
-            <div className="grid grid-cols-5 gap-2 bg-black/60 p-2.5 rounded-[28px] border border-white/5">
-              {[50, 100, 200, 500, 1000].map((bet) => {
-                const isSelected = matchmakingBet === bet;
-                return (
-                  <button
-                    key={bet}
-                    onClick={() => { playFX('click'); setMatchmakingBet(bet); }}
-                    className={`py-4 px-2.5 rounded-2xl flex flex-col items-center justify-center gap-1.5 transition-all text-xs outline-none cursor-pointer ${
-                      isSelected 
-                        ? 'bg-gradient-to-tr from-purple-600 to-[#FF4D9D] border border-pink-500 text-white font-black scale-105 shadow-[0_0_15px_rgba(249,115,22,0.15)]' 
-                        : 'bg-[#0f0f12] text-white/40 hover:text-white/60 hover:bg-zinc-900 border border-white/[0.02]'
-                    }`}
-                  >
-                    <Coins size={12} className={isSelected ? 'text-yellow-300' : 'text-white/20'} />
-                    <span className="font-mono font-bold leading-none">{bet}</span>
-                  </button>
-                );
-              })}
+          {/* LEADERBOARD / RANKING SCREEN */}
+          {activeLobbyTab === 'ranking' && (
+            <div className="flex-1 w-full flex flex-col gap-6 animate-fade-in">
+              
+              {/* Leaderboard Podiums / top 3 */}
+              {checkersLeaderboard.length > 0 && (
+                <section className="grid grid-cols-3 items-end gap-2.5 bg-black/40 p-5 rounded-[32px] border border-white/5 relative overflow-hidden min-h-[160px]">
+                  {/* Decorative faint glow */}
+                  <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-purple-500/10 to-transparent pointer-events-none" />
+
+                  {/* 2nd Place */}
+                  {checkersLeaderboard[1] && (
+                    <div className="flex flex-col items-center pb-2">
+                      <div className="relative">
+                        <img 
+                          src={checkersLeaderboard[1].photoURL} 
+                          className="w-11 h-11 rounded-2xl border border-zinc-400 bg-zinc-900 object-cover"
+                          alt="2nd"
+                        />
+                        <span className="absolute -top-2 -right-1 w-5 h-5 bg-zinc-400 text-black text-[9px] font-black rounded-lg flex items-center justify-center">2º</span>
+                      </div>
+                      <span className="text-[10px] font-black text-white/80 mt-2 truncate w-full text-center">
+                        {checkersLeaderboard[1].displayName.split(' ')[0]}
+                      </span>
+                      <span className="text-[9px] font-black text-zinc-300 font-mono mt-0.5">
+                        {checkersLeaderboard[1].checkersElo}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* 1st Place */}
+                  {checkersLeaderboard[0] && (
+                    <div className="flex flex-col items-center pb-4 scale-110">
+                      <div className="relative mb-1">
+                        <Crown size={18} className="absolute -top-4.5 left-1/2 -translate-x-1/2 text-yellow-400 filter drop-shadow-[0_0_8px_rgba(234,179,8,0.6)] animate-bounce" />
+                        <img 
+                          src={checkersLeaderboard[0].photoURL} 
+                          className="w-14 h-14 rounded-2xl border-2 border-yellow-400 bg-zinc-900 object-cover shadow-[0_0_15px_rgba(234,179,8,0.25)]"
+                          alt="1st"
+                        />
+                        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-yellow-400 text-black text-[8px] font-black rounded-md leading-none">1º</span>
+                      </div>
+                      <span className="text-[11px] font-black text-yellow-400 mt-2 truncate w-full text-center">
+                        {checkersLeaderboard[0].displayName.split(' ')[0]}
+                      </span>
+                      <span className="text-[10px] font-black text-white font-mono mt-0.5">
+                        {checkersLeaderboard[0].checkersElo}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* 3rd Place */}
+                  {checkersLeaderboard[2] && (
+                    <div className="flex flex-col items-center pb-2">
+                      <div className="relative">
+                        <img 
+                          src={checkersLeaderboard[2].photoURL} 
+                          className="w-11 h-11 rounded-2xl border border-amber-600 bg-zinc-900 object-cover"
+                          alt="3rd"
+                        />
+                        <span className="absolute -top-2 -right-1 w-5 h-5 bg-amber-600 text-black text-[9px] font-black rounded-lg flex items-center justify-center">3º</span>
+                      </div>
+                      <span className="text-[10px] font-black text-white/80 mt-2 truncate w-full text-center">
+                        {checkersLeaderboard[2].displayName.split(' ')[0]}
+                      </span>
+                      <span className="text-[9px] font-black text-amber-500 font-mono mt-0.5">
+                        {checkersLeaderboard[2].checkersElo}
+                      </span>
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {/* Loader */}
+              {loadingRankings ? (
+                <div className="flex-1 flex flex-col items-center justify-center py-12">
+                  <div className="w-8 h-8 rounded-full border-2 border-purple-500 border-t-transparent animate-spin mb-3"></div>
+                  <span className="text-[10px] text-white/30 uppercase tracking-widest font-black font-mono">Buscando Classificação...</span>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2.5 max-h-[400px] overflow-y-auto pr-1">
+                  {checkersLeaderboard.map((player, idx) => {
+                    const position = idx + 1;
+                    const rankInfo = getEloRankName(player.checkersElo);
+                    const isSelf = player.id === user?.uid;
+                    return (
+                      <div 
+                        key={player.id} 
+                        className={`p-3 rounded-2xl border flex items-center justify-between transition-all ${
+                          isSelf 
+                            ? 'bg-purple-600/15 border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.15)]' 
+                            : 'bg-black/50 border-white/[0.03] hover:border-white/10'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className={`text-[10px] font-bold font-mono w-5 text-center ${position <= 3 ? 'text-yellow-400' : 'text-white/30'}`}>#{position}</span>
+                          <img 
+                            src={player.photoURL} 
+                            className="w-9 h-9 rounded-xl object-cover bg-zinc-900 border border-white/5"
+                            alt=""
+                          />
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-black uppercase text-white truncate max-w-[120px]">{player.displayName}</span>
+                              {player.id === user?.uid && (
+                                <span className="text-[7.5px] font-black bg-purple-500 text-white rounded px-1 uppercase tracking-widest">Você</span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className={`text-[8px] font-black uppercase tracking-wider ${rankInfo.color}`}>
+                                {rankInfo.name.split(' ')[0]}
+                              </span>
+                              <span className="text-[8px] font-bold font-mono text-white/30">
+                                {player.checkersElo} ELO
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          {player.checkersStreak > 0 && (
+                            <div className="flex items-center gap-0.5 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20 text-red-400 font-mono text-[9px] font-black animate-pulse">
+                              <Flame size={10} className="fill-red-400" />
+                              {player.checkersStreak}
+                            </div>
+                          )}
+                          <div className="text-right">
+                            <span className="text-[9px] text-white/50 font-black font-mono block">{player.checkersWins}V</span>
+                            <span className="text-[7px] text-white/20 uppercase tracking-widest font-black block mt-0.5">Vitórias</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {checkersLeaderboard.length === 0 && (
+                    <div className="text-center py-10">
+                      <span className="text-xs text-white/20 uppercase tracking-widest font-black font-mono block">Nenhum registro encontrado</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          </section>
-
-          {/* START SEACH TRIGGER BUTTON */}
-          <button
-            onClick={startMatchmaking}
-            className="w-full py-5 bg-gradient-to-r from-[#00F0FF] via-purple-600 to-[#FF4D9D] font-black uppercase text-xs tracking-[0.25em] text-white rounded-[32px] shadow-[0_0_40px_rgba(168,85,247,0.35)] hover:shadow-[0_0_60px_rgba(168,85,247,0.5)] active:scale-95 transition-all text-center flex items-center justify-center gap-2 cursor-pointer mt-auto border border-white/10"
-          >
-            <Zap size={14} className="animate-bounce" />
-            PARTIDA MULTIPLAYER RÁPIDA
-          </button>
+          )}
         </div>
       )}
 
@@ -1113,11 +1326,12 @@ export default function Checkers() {
 
             <div className="grid grid-cols-8 grid-rows-8 h-full w-full gap-1 p-1 rounded-2xl bg-[#09090b] relative z-10 border border-white/[0.04]">
               {Array(64).fill(0).map((_, index) => {
-                const { row, col } = getCellRowCol(index);
+                const boardIndex = myPlayerRole === 'player1' ? 63 - index : index;
+                const { row, col } = getCellRowCol(boardIndex);
                 const isDarkCell = (row + col) % 2 === 1;
-                const cellPieceValue = activeMatch.board[index];
-                const isSelected = selectedCell === index;
-                const isValidTarget = validMovesForPiece.includes(index);
+                const cellPieceValue = activeMatch.board[boardIndex];
+                const isSelected = selectedCell === boardIndex;
+                const isValidTarget = validMovesForPiece.includes(boardIndex);
 
                 // Colors for pieces: player 1 standard (1), player 2 standard (2), player 1 king (3), player 2 king (4)
                 const isP1Piece = cellPieceValue === 1 || cellPieceValue === 3;
@@ -1129,20 +1343,23 @@ export default function Checkers() {
                   cellBgClass = 'bg-[#0b0b0d]'; 
                 }
 
+                const visualRow = Math.floor(index / 8);
+                const visualCol = index % 8;
+
                 // Interactive target indicators
                 return (
                   <div
                     key={index}
-                    onClick={() => handleCellClick(index)}
+                    onClick={() => handleCellClick(boardIndex)}
                     className={`relative rounded-lg flex items-center justify-center transition-all cursor-pointer select-none ${cellBgClass} ${
                       isSelected ? 'ring-2 ring-purple-500 ring-offset-2 ring-offset-black' : ''
                     }`}
                   >
                     {/* Dark coordinates coordinates (subtle) */}
-                    {index % 8 === 0 && (
+                    {visualCol === 0 && (
                       <span className="absolute bottom-0.5 left-1 text-[6.5px] font-black text-white/10 uppercase leading-none">{8 - row}</span>
                     )}
-                    {row === 7 && (
+                    {visualRow === 7 && (
                       <span className="absolute bottom-0.5 right-1 text-[6.5px] font-black text-white/10 uppercase leading-none">{String.fromCharCode(65 + col)}</span>
                     )}
 
