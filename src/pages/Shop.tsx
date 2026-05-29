@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Loader2, Check, Flame, Eye, Zap, ShieldCheck } from 'lucide-react';
+import { Sparkles, Loader2, Check, Flame, Eye, Zap, ShieldCheck, Lock, AlertCircle, X, Coins, CreditCard } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { PREMIUM_FRAMES, FrameItem } from '../lib/frames';
 import UserAvatar from '../components/UserAvatar';
@@ -10,6 +10,7 @@ export default function Shop() {
   const [transactionLoading, setTransactionLoading] = useState<string | null>(null);
   const [loadingCoins, setLoadingCoins] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'frames' | 'coins'>('frames');
+  const [selectedPack, setSelectedPack] = useState<any | null>(null);
 
   // Preview frame state: defaults to current equipped frame, or first premium frame
   const [previewFrameId, setPreviewFrameId] = useState<string>(() => {
@@ -26,18 +27,10 @@ export default function Shop() {
   const handleBuyCoins = async (pack: typeof coinPacks[0]) => {
     if (!profile) return;
     setLoadingCoins(pack.id);
-    setTimeout(async () => {
-      try {
-        const bonusValue = parseInt(pack.bonus.replace('+', ''), 10) || 0;
-        const totalCoins = pack.coins + bonusValue;
-        await updateCoins(totalCoins, 'add');
-        alert(`Recarga realizada! +${totalCoins} EGO adicionados ao seu perfil.`);
-      } catch (err) { 
-        alert("Erro na transação"); 
-      } finally { 
-        setLoadingCoins(null); 
-      }
-    }, 1200);
+    setTimeout(() => {
+      setLoadingCoins(null);
+      setSelectedPack(pack);
+    }, 800);
   };
 
   const handleBuyFrame = async (frame: FrameItem) => {
@@ -466,6 +459,93 @@ export default function Shop() {
               ))}
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* POPUP MODAL FOR SHOP PURCHASE WARNING & SYSTEM LIMITS */}
+      <AnimatePresence>
+        {selectedPack && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-sm bg-[#0d0718] border border-white/[0.06] rounded-[32px] p-6 shadow-[0_0_50px_rgba(168,85,247,0.15)] text-center overflow-hidden animate-fade-in"
+            >
+              <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-yellow-500" />
+              
+              {/* Absolutes for visual background fluff */}
+              <div className="absolute -top-10 -right-10 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl" />
+              <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-pink-500/10 rounded-full blur-2xl" />
+
+              {/* Close Button */}
+              <button 
+                onClick={() => setSelectedPack(null)}
+                className="absolute top-4 right-4 p-1.5 rounded-lg bg-white/5 border border-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-all"
+              >
+                <X size={14} />
+              </button>
+
+              {/* Icon Panel */}
+              <div className="w-14 h-14 bg-gradient-to-tr from-purple-500/20 to-pink-500/20 rounded-[20px] border border-purple-500/30 flex items-center justify-center mx-auto mb-4 text-purple-400">
+                <Lock size={22} className="animate-pulse" />
+              </div>
+
+              {/* Custom Warning Header */}
+              <h3 className="text-lg font-black text-white uppercase tracking-tight italic">
+                Mercado Aura
+              </h3>
+              <p className="text-[9px] text-yellow-400/90 font-extrabold uppercase tracking-widest mt-1 mb-4 flex items-center justify-center gap-1">
+                <AlertCircle size={10} /> Transações Temporariamente Restritas
+              </p>
+
+              {/* Chosen Product Details */}
+              <div className="bg-[#120c24] border border-white/5 rounded-2xl p-4 mb-4 text-left space-y-1.5">
+                <div className="text-[8px] font-black uppercase text-white/40 tracking-wider">Produto Selecionado</div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-pink-500/20 border border-pink-500/30 flex items-center justify-center text-pink-400">
+                      <Coins size={14} />
+                    </div>
+                    <div>
+                      <span className="text-xs font-black text-white leading-none block">
+                        {selectedPack.coins} EGO
+                      </span>
+                      <span className="text-[8px] text-green-400 font-bold block mt-0.5">
+                        {selectedPack.bonus} bônus
+                      </span>
+                    </div>
+                  </div>
+                  <span className="font-black text-white text-xs bg-white/5 border border-white/10 px-2.5 py-1.5 rounded-xl">
+                    {selectedPack.price}
+                  </span>
+                </div>
+              </div>
+
+              {/* Interactive Info / Exploit Block message */}
+              <div className="text-[11px] text-white/60 leading-relaxed space-y-2 px-1 mb-5 text-left">
+                <p>
+                  As compras reais integradas de moedas estão em fase de homologação. Para garantir a honestidade das apostas competitivas no jogo de Dama, recargas instantâneas estão desativadas.
+                </p>
+                <p className="font-bold text-white/80">
+                  💎 Como obter moedas EGO de graça:
+                </p>
+                <div className="text-[10px] text-white/50 space-y-1 pl-1">
+                  <p>• Resgate o bônus na <span className="text-yellow-400">"Frequência Diária"</span> se seu saldo estiver zerado;</p>
+                  <p>• Ganhe e aposte suas moedas em partidas multiplayer de <span className="text-[#00F0FF]">Dama</span>;</p>
+                  <p>• Realize desafios e participe de eventos no menu principal.</p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <button
+                onClick={() => setSelectedPack(null)}
+                className="w-full py-3 bg-gradient-to-r from-purple-600 via-pink-600 to-pink-500 hover:from-purple-500 hover:to-pink-500 text-white font-black uppercase text-3xs tracking-widest rounded-2xl shadow-lg transition-all"
+              >
+                Voltar ao Mercado
+              </button>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </motion.div>
