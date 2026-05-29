@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { ChevronRight, Shield, Bell, Moon, Languages, HelpCircle, Lock, Smartphone, LogOut, ChevronLeft, Trash2 } from 'lucide-react';
+import { ChevronRight, Shield, Bell, Moon, Sun, Languages, HelpCircle, Lock, Smartphone, LogOut, ChevronLeft, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function Settings() {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const isDarkMode = theme === 'dark';
   const [notifications, setNotifications] = useState(true);
-  const [darkMode, setDarkMode] = useState(true);
   
   const [cacheSize, setCacheSize] = useState(() => {
     try {
@@ -93,7 +95,7 @@ export default function Settings() {
       title: 'Preferências',
       items: [
         { icon: Bell, label: 'Notificações', isSwitch: true, value: notifications, onToggle: () => setNotifications(!notifications), color: 'text-purple-500' },
-        { icon: Moon, label: 'Modo Escuro', isSwitch: true, value: darkMode, onToggle: () => setDarkMode(!darkMode), color: 'text-zinc-500' },
+        { icon: isDarkMode ? Moon : Sun, label: isDarkMode ? 'Modo Escuro' : 'Modo Claro', isSwitch: true, value: isDarkMode, onToggle: toggleTheme, color: isDarkMode ? 'text-zinc-500' : 'text-yellow-500' },
         { icon: Languages, label: 'Idioma', value: 'Português (BR)', color: 'text-orange-500' },
         { 
           icon: Trash2, 

@@ -7,6 +7,7 @@ import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import Navigation from './components/Navigation';
 import Header from './components/Header';
 import { AnimatePresence, motion } from 'motion/react';
@@ -39,6 +40,7 @@ const PageLoading = () => (
 
 function AppContent() {
   const { user, profile, loading, connectionError, isOnline, refreshConnection } = useAuth();
+  const { theme } = useTheme();
   const location = useLocation();
   const isRoomPage = location.pathname.startsWith('/room/');
 
@@ -174,7 +176,7 @@ function AppContent() {
   }
 
   return (
-    <div className={`min-h-screen bg-[#050505] text-white flex flex-col ${!isRoomPage ? 'pt-6' : ''}`}>
+    <div className={`min-h-screen flex flex-col ${theme === 'light' ? 'bg-[#f4f4f7] text-zinc-900 light' : 'bg-[#050505] text-white dark'} ${!isRoomPage ? 'pt-6' : ''}`}>
       {/* Real-time Admin Announcement Overlay */}
       <AnimatePresence>
         {showAnnouncement && latestAnnouncement && (
@@ -256,11 +258,13 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <NotificationProvider>
-        <Router>
-          <AppContent />
-        </Router>
-      </NotificationProvider>
+      <ThemeProvider>
+        <NotificationProvider>
+          <Router>
+            <AppContent />
+          </Router>
+        </NotificationProvider>
+      </ThemeProvider>
     </AuthProvider>
   );
 }

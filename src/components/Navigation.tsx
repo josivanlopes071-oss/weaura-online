@@ -4,11 +4,13 @@ import { motion } from 'motion/react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function Navigation() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
+  const { theme } = useTheme();
 
   const handleCreateRoom = async () => {
     if (!user || !profile) return;
@@ -78,7 +80,7 @@ export default function Navigation() {
                   whileHover={{ scale: 1.1, y: -6 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={handleCreateRoom}
-                  className="w-[72px] h-[72px] bg-gradient-to-tr from-purple-700 via-purple-500 to-blue-600 rounded-[30px] shadow-[0_20px_50px_rgba(168,85,247,0.4)] flex items-center justify-center text-white border-[5px] border-[#020202] transition-all relative z-10 group overflow-hidden"
+                  className={`w-[72px] h-[72px] bg-gradient-to-tr from-purple-700 via-purple-500 to-blue-600 rounded-[30px] shadow-[0_20px_50px_rgba(168,85,247,0.4)] flex items-center justify-center text-white border-[5px] ${theme === 'light' ? 'border-[#f8fafc]' : 'border-[#020202]'} transition-all relative z-10 group overflow-hidden`}
                 >
                    <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                    <Icon size={32} className="relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]" />
@@ -92,14 +94,16 @@ export default function Navigation() {
               key={item.path}
               to={item.path}
               className={`flex flex-col items-center justify-center transition-all duration-500 py-4 px-3 rounded-[24px] gap-1.5 relative ${
-                isActive ? 'text-white' : 'text-white/20 hover:text-white/40'
+                isActive 
+                  ? (theme === 'light' ? 'text-zinc-950 font-black' : 'text-white') 
+                  : (theme === 'light' ? 'text-zinc-400 hover:text-zinc-600' : 'text-white/20 hover:text-white/40')
               }`}
             >
               <div className={`relative ${isActive ? 'scale-110 mb-0.5' : ''} transition-all duration-500`}>
-                <Icon size={22} className={isActive ? 'text-purple-400 drop-shadow-[0_0_12px_rgba(168,85,247,0.8)]' : ''} />
-                {item.label === 'Social' && isActive && <div className="absolute -top-1 -right-1 w-2 h-2 bg-purple-500 rounded-full border-2 border-[#0c0c0c]" />}
+                <Icon size={22} className={isActive ? 'text-purple-600 dark:text-purple-400 drop-shadow-[0_0_12px_rgba(168,85,247,0.8)]' : ''} />
+                {item.label === 'Social' && isActive && <div className={`absolute -top-1 -right-1 w-2 h-2 bg-purple-500 rounded-full border-2 ${theme === 'light' ? 'border-white' : 'border-[#0c0c0c]'}`} />}
               </div>
-              <span className={`text-[8.5px] font-black uppercase tracking-[0.25em] italic ${isActive ? 'opacity-100 text-purple-400' : 'opacity-0'}`}>
+              <span className={`text-[8.5px] font-black uppercase tracking-[0.25em] italic ${isActive ? 'opacity-100 text-purple-600 dark:text-purple-400' : 'opacity-0'}`}>
                 {item.label}
               </span>
             </Link>

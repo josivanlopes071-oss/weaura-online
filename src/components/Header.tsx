@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
-import { Bell, Search, Coins, X, MessageCircle, UserPlus, AtSign, Gift } from 'lucide-react';
+import { Bell, Search, Coins, X, MessageCircle, UserPlus, AtSign, Gift, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import UserAvatar from './UserAvatar';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function Header() {
   const { profile } = useAuth();
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   const { notifications, unreadCount, markAsRead, clearAllNotifications } = useNotifications();
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -41,7 +43,7 @@ export default function Header() {
           className="relative cursor-pointer"
         >
           <UserAvatar uid={profile?.uid} className="w-12 h-12" />
-          <div className="absolute -bottom-1 -right-1 bg-yellow-500 text-[9px] px-2 py-0.5 rounded-lg font-black border-2 border-[#020202] shadow-[0_4px_10px_rgba(0,0,0,0.5)] z-20">
+          <div className={`absolute -bottom-1 -right-1 bg-yellow-500 text-[9px] px-2 py-0.5 rounded-lg font-black border-2 ${theme === 'light' ? 'border-white' : 'border-[#020202]'} shadow-[0_4px_10px_rgba(0,0,0,0.5)] z-20`}>
             {profile?.level || 1}
           </div>
         </motion.div>
@@ -52,25 +54,36 @@ export default function Header() {
           </h1>
           <div 
             onClick={() => navigate('/shop')}
-            className="flex items-center gap-1.5 cursor-pointer mt-2 bg-white/5 px-2.5 py-1 rounded-full border border-white/5 hover:bg-white/10 transition-all active:scale-95 group w-fit"
+            className="flex items-center gap-1.5 cursor-pointer mt-2 bg-zinc-100 dark:bg-white/5 px-2.5 py-1 rounded-full border border-zinc-200/50 dark:border-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 transition-all active:scale-95 group w-fit"
           >
             <Coins size={12} className="text-yellow-500 group-hover:rotate-12 transition-transform" />
-            <span className="text-[10px] font-black text-white/40 group-hover:text-white transition-colors tabular-nums tracking-wider">{profile?.coins || 0}</span>
+            <span className="text-[10px] font-black text-zinc-400 dark:text-white/40 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors tabular-nums tracking-wider">{profile?.coins || 0}</span>
           </div>
         </div>
       </div>
 
       <div className="flex items-center gap-2.5">
-        <button className="w-12 h-12 bg-white/5 rounded-2xl text-white/30 hover:text-white transition-all active:scale-90 flex items-center justify-center border border-white/5">
+        <button className="w-12 h-12 bg-zinc-100 dark:bg-white/5 rounded-2xl text-zinc-400 dark:text-white/30 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-90 flex items-center justify-center border border-zinc-200/80 dark:border-white/5">
           <Search size={22} />
         </button>
         <button 
+          onClick={toggleTheme}
+          className="w-12 h-12 bg-zinc-100 dark:bg-white/5 rounded-2xl text-zinc-400 dark:text-white/30 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-90 flex items-center justify-center border border-zinc-200/80 dark:border-white/5"
+          title={theme === 'light' ? 'Alterar para Modo Escuro' : 'Alterar para Modo Claro'}
+        >
+          {theme === 'light' ? (
+            <Moon size={22} className="text-zinc-600 fill-zinc-600 animate-in" />
+          ) : (
+            <Sun size={22} className="text-yellow-400 fill-yellow-400 animate-in" />
+          )}
+        </button>
+        <button 
           onClick={() => setShowNotifications(!showNotifications)}
-          className="w-12 h-12 bg-white/5 rounded-2xl text-white/30 hover:text-white transition-all relative active:scale-90 flex items-center justify-center border border-white/5"
+          className="w-12 h-12 bg-zinc-100 dark:bg-white/5 rounded-2xl text-zinc-400 dark:text-white/30 hover:text-zinc-900 dark:hover:text-white transition-all relative active:scale-90 flex items-center justify-center border border-zinc-200/80 dark:border-white/5"
         >
           <Bell size={22} />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-purple-500 rounded-full border-[3.5px] border-[#020202] flex items-center justify-center text-[8px] font-black text-white shadow-lg shadow-purple-500/40">
+            <span className={`absolute -top-1 -right-1 w-5 h-5 bg-purple-500 rounded-full border-[3.5px] ${theme === 'light' ? 'border-white' : 'border-[#020202]'} flex items-center justify-center text-[8px] font-black text-white shadow-lg shadow-purple-500/40`}>
               {unreadCount}
             </span>
           )}
