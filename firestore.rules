@@ -52,7 +52,8 @@ service cloud.firestore {
       allow create: if isOwner(userId);
       allow update: if (isOwner(userId) && (!resource.data.get('isBanned', false) || isSuperAdmin())) || 
                     isAdmin() ||
-                    (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers']));
+                    (isSignedIn() && isNotBanned() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers'])) ||
+                    (isSignedIn() && isNotBanned() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['aura', 'auraLevel', 'coins', 'updatedAt']));
 
       match /notifications/{notifId} {
         allow read: if isOwner(userId);
@@ -239,6 +240,12 @@ service cloud.firestore {
                     );
 
       allow delete: if isSignedIn() && resource.data.player1 == request.auth.uid && resource.data.status == 'waiting';
+    }
+
+    // Gift Transactions History
+    match /gift_transactions/{transactionId} {
+      allow read: if isSignedIn();
+      allow create: if isNotBanned() && request.resource.data.senderId == request.auth.uid;
     }
 
     // 5. Admin system & audit tables

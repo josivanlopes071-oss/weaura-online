@@ -155,9 +155,35 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["player1", "status", "betAmount", "board", "turn"]
+    },
+    "gift_transaction": {
+      "title": "Gift Transaction",
+      "description": "A record of a gift sent from one user to another",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "giftId": { "type": "string" },
+        "giftName": { "type": "string" },
+        "giftIcon": { "type": "string" },
+        "price": { "type": "integer" },
+        "quantity": { "type": "integer" },
+        "totalPrice": { "type": "integer" },
+        "auraGained": { "type": "integer" },
+        "coinsGained": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "roomId": { "type": "string" },
+        "chatId": { "type": "string" }
+      },
+      "required": ["senderId", "receiverId", "giftId", "quantity", "totalPrice", "auraGained", "createdAt"]
     }
   },
   "firestore": {
+    "/gift_transactions/{transactionId}": {
+      "schema": "gift_transaction",
+      "description": "History of all sent gifts"
+    },
     "/tictactoe_matches/{matchId}": {
       "schema": "tictactoe_match",
       "description": "1v1 competitive Tic-Tac-Toe matches with coin betting"

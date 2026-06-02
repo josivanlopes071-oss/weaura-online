@@ -582,7 +582,7 @@ export default function Profile() {
                   <h3 className="text-lg font-black text-white italic uppercase tracking-tight">Estojo de Presentes Recebidos</h3>
                </div>
                <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">
-                 {receivedGifts.length} Recebidos
+                 {receivedGifts.reduce((acc: number, t: any) => acc + (t.quantity || 1), 0)} Recebidos
                </span>
             </div>
 
@@ -595,7 +595,7 @@ export default function Profile() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {(() => {
                   const giftCounts = receivedGifts.reduce((acc: any, t: any) => {
-                    acc[t.giftId] = (acc[t.giftId] || 0) + 1;
+                    acc[t.giftId] = (acc[t.giftId] || 0) + (t.quantity || 1);
                     return acc;
                   }, {});
 

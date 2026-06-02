@@ -46,7 +46,7 @@ interface AuthContextType {
   gainXp: (amount: number) => Promise<void>;
   followUser: (targetId: string) => Promise<void>;
   refreshConnection: () => Promise<void>;
-  sendGift: (targetUserId: string, giftId: string, roomId?: string, chatId?: string) => Promise<{ success: boolean; auraGained: number; giftName: string; giftIcon: string }>;
+  sendGift: (targetUserId: string, giftId: string, roomId?: string, chatId?: string, quantity?: number) => Promise<{ success: boolean; quantity: number; auraGained: number; coinsGained: number; giftName: string; giftIcon: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
