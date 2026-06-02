@@ -8,8 +8,10 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { handleFirestoreError, OperationType } from '../lib/firebase';
+import { GIFTS } from '../lib/aura';
 import UserAvatar from '../components/UserAvatar';
 import PremiumTag from '../components/PremiumTag';
+import GiftAnimationOverlay from '../components/GiftAnimationOverlay';
 import { 
   ChevronLeft, Send, Gift, MoreVertical, Search, 
   MessageSquare, Volume2, X, Star, Heart, Flame, Trophy, Gamepad2
@@ -28,12 +30,13 @@ interface Message {
 export default function PrivateChat() {
   const { id } = useParams(); // This is the target userId
   const navigate = useNavigate();
-  const { profile, user, updateProfile, updateCoins, gainXp } = useAuth();
+  const { profile, user, updateProfile, updateCoins, gainXp, sendGift } = useAuth();
   const { sendNotification } = useNotifications();
   const [targetUser, setTargetUser] = useState<any>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
   const [showGifts, setShowGifts] = useState(false);
+  const [activeAnimation, setActiveAnimation] = useState<any | null>(null);
   const [isTyping, setIsTyping] = useState(false);
   const [targetIsTyping, setTargetIsTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -99,26 +102,57 @@ export default function PrivateChat() {
     } catch (err) { console.error(err); }
   };
 
-  const sendGift = async (gift: { label: string; cost: number }) => {
-    if (!chatId || !profile || !profile.coins || profile.coins < gift.cost || !id) {
-      alert("Saldo EGO insuficiente! Recarregue na Loja.");
+  const handleSendGift = async (giftId: string) => {
+    if (!id || !profile) return;
+    const gift = GIFTS.find(g => g.id === giftId);
+    if (!gift) return;
+
+    if (!profile.coins || profile.coins < gift.price) {
+      alert(`Saldo EGO insuficiente! Você precisa de ${gift.price} moedas.`);
       return;
     }
+
     try {
-      await updateCoins(gift.cost, 'subtract');
-      await addDoc(collection(db, 'private_chats', chatId, 'messages'), {
-        authorId: profile.uid,
-        authorName: profile.displayName,
-        text: `enviou um presente: ${gift.label}!`,
-        type: 'gift',
-        giftType: gift.label,
-        timestamp: serverTimestamp()
-      });
-      const xpEarned = Math.max(20, gift.cost);
-      await gainXp(xpEarned);
-      await sendNotification({ type: 'gift', fromId: profile.uid, fromName: profile.displayName, toId: id, text: `Enviou um ${gift.label} para você!` });
-      setShowGifts(false);
-    } catch (err: any) { alert(err.message || "Erro no envio."); }
+      const result = await sendGift(id, giftId, undefined, chatId || undefined);
+      if (result.success) {
+        if (chatId) {
+          await addDoc(collection(db, 'private_chats', chatId, 'messages'), {
+            authorId: profile.uid,
+            authorName: profile.displayName,
+            text: `enviou um presente: ${gift.name} ${gift.icon}!`,
+            type: 'gift',
+            giftType: gift.name,
+            timestamp: serverTimestamp()
+          });
+          await setDoc(doc(db, 'private_chats', chatId), { lastMessage: `Presente: ${gift.name} ${gift.icon}`, lastMessageAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
+        }
+
+        const xpEarned = Math.max(20, gift.price);
+        await gainXp(xpEarned);
+
+        await sendNotification({ 
+          type: 'gift', 
+          fromId: profile.uid, 
+          fromName: profile.displayName, 
+          toId: id, 
+          text: `Enviou um ${gift.name} para você!` 
+        });
+
+        setShowGifts(false);
+
+        setActiveAnimation({
+          id: Math.random().toString(),
+          senderName: profile.displayName || "Usuário",
+          receiverName: targetUser?.displayName || "Membro Aura",
+          giftName: gift.name,
+          giftIcon: gift.icon,
+          auraGained: gift.aura
+        });
+      }
+    } catch (err: any) {
+      console.error("Erro no envio:", err);
+      alert(err.message || "Erro no envio do presente.");
+    }
   };
 
   if (!targetUser) return <div className="min-h-screen bg-[#020202] flex items-center justify-center text-xs font-black uppercase text-white/20 tracking-widest italic animate-pulse">Sincronizando Aura...</div>;
@@ -236,28 +270,22 @@ export default function PrivateChat() {
                 </div>
                 <button onClick={() => setShowGifts(false)} className="w-8 h-8 bg-white/5 rounded-lg text-white/40 hover:text-white transition-colors flex items-center justify-center border border-white/5"><X size={16} /></button>
               </div>
-              <div className="grid grid-cols-4 gap-3">
-                {[
-                  { icon: Heart, label: 'Amor', color: 'text-red-500 bg-red-500/10 shadow-[0_0_15px_rgba(239,68,68,0.15)]', cost: 10 },
-                  { icon: Star, label: 'Estrela', color: 'text-yellow-500 bg-yellow-500/10 shadow-[0_0_15px_rgba(234,179,8,0.15)]', cost: 25 },
-                  { icon: Flame, label: 'Fogo', color: 'text-orange-500 bg-orange-500/10 shadow-[0_0_15px_rgba(249,115,22,0.15)]', cost: 50 },
-                  { icon: Trophy, label: 'Elite', color: 'text-blue-500 bg-blue-500/10 shadow-[0_0_15px_rgba(59,130,246,0.15)]', cost: 100 },
-                ].map((g) => (
+              <div className="grid grid-cols-4 gap-3 max-h-48 overflow-y-auto pr-1">
+                {GIFTS.map((g) => (
                   <button
-                    key={g.label}
-                    onClick={() => sendGift(g)}
-                    className="flex flex-col items-center gap-3 p-4 bg-black/20 rounded-[22px] hover:bg-white/5 active:scale-95 transition-all group border border-white/[0.03]"
+                    key={g.id}
+                    onClick={() => handleSendGift(g.id)}
+                    className="flex flex-col items-center gap-2 p-3 bg-black/20 rounded-[22px] hover:bg-white/5 active:scale-95 transition-all group border border-white/[0.03]"
                   >
-                     <div className={`w-12 h-12 rounded-[16px] flex items-center justify-center ${g.color} border border-white/5 group-hover:scale-105 transition-all duration-300`}>
-                        <g.icon size={22} className="drop-shadow-md" />
+                     <div className={`w-10 h-10 rounded-[14px] flex items-center justify-center border border-white/5 group-hover:scale-105 transition-all duration-300 ${g.bgColor} ${g.color}`}>
+                        <span className="text-lg">{g.icon}</span>
                      </div>
-                    <div className="flex flex-col items-center space-y-1">
-                      <span className="text-[10px] font-bold text-white uppercase tracking-tight">{g.label}</span>
-                      <div className="flex items-center gap-1 bg-yellow-400 px-2 py-0.5 rounded-full">
-                         <Gamepad2 size={8} className="text-black" />
-                         <span className="text-[8px] font-black text-black uppercase tabular-nums">{g.cost}</span>
-                      </div>
-                    </div>
+                     <div className="flex flex-col items-center space-y-1">
+                       <span className="text-[10px] font-bold text-white uppercase tracking-tight truncate max-w-[65px]">{g.name}</span>
+                       <div className="flex items-center gap-1 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/10">
+                          <span className="text-[8px] font-black text-purple-400 uppercase tabular-nums">{g.price}</span>
+                       </div>
+                     </div>
                   </button>
                 ))}
               </div>
@@ -294,6 +322,12 @@ export default function PrivateChat() {
           </div>
         </form>
       </div>
+      {activeAnimation && (
+        <GiftAnimationOverlay 
+          activeAnimation={activeAnimation} 
+          onAnimationComplete={() => setActiveAnimation(null)} 
+        />
+      )}
     </div>
   );
 }

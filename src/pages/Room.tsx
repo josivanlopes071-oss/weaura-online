@@ -7,6 +7,8 @@ import {
 } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { handleFirestoreError, OperationType } from '../lib/firebase';
+import { GIFTS } from '../lib/aura';
+import GiftAnimationOverlay from '../components/GiftAnimationOverlay';
 import { useVoiceChat } from '../hooks/useVoiceChat';
 import UserAvatar from '../components/UserAvatar';
 import { UserPremiumTag } from '../components/PremiumTag';
@@ -117,7 +119,7 @@ export default function Room() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { profile, user, updateProfile, updateCoins, gainXp } = useAuth();
+  const { profile, user, updateProfile, updateCoins, gainXp, sendGift: authSendGift } = useAuth();
   const [room, setRoom] = useState<RoomData | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [reactions, setReactions] = useState<Reaction[]>([]);
@@ -306,6 +308,8 @@ export default function Room() {
 
   const [showGifts, setShowGifts] = useState(false);
   const [giftActiveTab, setGiftActiveTab] = useState<'gifts' | 'ranking'>('gifts');
+  const [selectedReceiverId, setSelectedReceiverId] = useState<string | null>(null);
+  const [activeAnimation, setActiveAnimation] = useState<any | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showUserActions, setShowUserActions] = useState<string | null>(null);
   
@@ -913,12 +917,33 @@ export default function Room() {
     setShowUserActions(null);
   };
 
-  const sendGift = async (gift: { label: string; cost: number }) => {
-    if (!id || !profile || !profile.coins || profile.coins < gift.cost) {
-      alert("Saldo EGO insuficiente!");
+  const sendGift = async (giftId: string) => {
+    if (!id || !profile) return;
+    const gift = GIFTS.find(g => g.id === giftId);
+    if (!gift) return;
+
+    if (!profile.coins || profile.coins < gift.price) {
+      alert(`Saldo EGO insuficiente! Você precisa de ${gift.price} moedas.`);
       return;
     }
-    
+
+    let targetId = selectedReceiverId;
+    if (!targetId) {
+      if (room?.ownerId && room.ownerId !== user?.uid) {
+        targetId = room.ownerId;
+      } else {
+        const otherM = room?.members ? room.members.find(m => m !== user?.uid) : null;
+        if (otherM) {
+          targetId = otherM;
+        }
+      }
+    }
+
+    if (!targetId) {
+      alert("Nenhum destinatário válido selecionado ou disponível na sala!");
+      return;
+    }
+
     confetti({
       particleCount: 100,
       spread: 70,
@@ -930,34 +955,52 @@ export default function Room() {
       const dName = profile?.displayName || user?.displayName || user?.email?.split('@')[0] || 'Usuário';
       const uPhoto = profile?.photoURL || user?.photoURL || '';
       
-      await updateCoins(gift.cost, 'subtract');
-
-      // Track generosity ranking inside the room document in Firestore
-      const roomRef = doc(db, 'rooms', id);
-      const userRankKey = `giftRank.${uid}`;
-      await updateDoc(roomRef, {
-        [userRankKey]: {
-          displayName: dName,
-          photoURL: uPhoto,
-          totalSpent: increment(gift.cost)
+      let targetName = "Membro";
+      try {
+        const targetSnap = await getDoc(doc(db, 'users', targetId));
+        if (targetSnap.exists()) {
+          targetName = targetSnap.data().displayName || targetSnap.data().email?.split('@')[0] || "Membro";
         }
-      }).catch((e) => console.warn("Erro ao atualizar ranking de presentes:", e));
+      } catch (e) {
+        console.warn("Failed to fetch target user name:", e);
+      }
 
-      await addDoc(collection(db, 'rooms', id, 'messages'), {
-        authorId: uid,
-        authorName: dName,
-        text: `enviou um presente: ${gift.label}!`,
-        type: 'gift',
-        giftType: gift.label,
-        timestamp: serverTimestamp(),
-        clientCreatedAt: Date.now()
-      });
+      const result = await authSendGift(targetId, giftId, id);
+      if (result.success) {
+        const roomRef = doc(db, 'rooms', id);
+        const userRankKey = `giftRank.${uid}`;
+        await updateDoc(roomRef, {
+          [userRankKey]: {
+            displayName: dName,
+            photoURL: uPhoto,
+            totalSpent: increment(gift.price)
+          }
+        }).catch((e) => console.warn("Erro ao atualizar ranking de presentes:", e));
 
-      // Gain XP proportional to the gift's value (1 XP per EGO, min 20 XP)
-      const xpEarned = Math.max(20, gift.cost);
-      await gainXp(xpEarned);
+        await addDoc(collection(db, 'rooms', id, 'messages'), {
+          authorId: uid,
+          authorName: dName,
+          text: `enviou um presente: ${gift.name} ${gift.icon} para @${targetName}!`,
+          type: 'gift',
+          giftType: gift.name,
+          timestamp: serverTimestamp(),
+          clientCreatedAt: Date.now()
+        });
 
-      setShowGifts(false);
+        const xpEarned = Math.max(20, gift.price);
+        await gainXp(xpEarned);
+
+        setShowGifts(false);
+
+        setActiveAnimation({
+          id: Math.random().toString(),
+          senderName: dName,
+          receiverName: targetName,
+          giftName: gift.name,
+          giftIcon: gift.icon,
+          auraGained: gift.aura
+        });
+      }
     } catch (err: any) {
       console.error(err);
       alert(err.message || "Erro ao processar presente.");
@@ -1599,31 +1642,66 @@ export default function Room() {
               </div>
               
               {giftActiveTab === 'gifts' ? (
-                <div className="grid grid-cols-4 gap-4 max-h-[320px] overflow-y-auto pr-1">
-                  {[
-                    { icon: Heart, label: 'Amor', color: 'text-rose-500', cost: 10, bg: 'bg-rose-500/10 shadow-[0_0_15px_rgba(244,63,94,0.15)]' },
-                    { icon: Star, label: 'Estrela', color: 'text-amber-400', cost: 50, bg: 'bg-amber-400/10 shadow-[0_0_15px_rgba(251,191,36,0.15)]' },
-                    { icon: Flame, label: 'Fogo', color: 'text-orange-500', cost: 100, bg: 'bg-orange-500/10 shadow-[0_0_15px_rgba(249,115,22,0.15)]' },
-                    { icon: Trophy, label: 'Troféu', color: 'text-cyan-400', cost: 500, bg: 'bg-cyan-400/10 shadow-[0_0_15px_rgba(34,211,238,0.15)]' },
-                    { icon: Crown, label: 'Crown VIP', color: 'text-indigo-400', cost: 1000, bg: 'bg-indigo-400/10 shadow-[0_0_20px_rgba(129,140,248,0.25)] border border-indigo-400/20 animate-pulse' },
-                    { icon: Sparkles, label: 'Aura Divina', color: 'text-purple-400', cost: 5000, bg: 'bg-purple-400/10 shadow-[0_0_25px_rgba(192,132,252,0.3)] border border-purple-400/30' },
-                    { icon: Rocket, label: 'Foguete', color: 'text-fuchsia-500', cost: 10000, bg: 'bg-fuchsia-400/10 shadow-[0_0_30px_rgba(217,70,239,0.35)] border border-fuchsia-500/30' },
-                    { icon: Gem, label: 'Nirvana', color: 'text-emerald-400', cost: 50000, bg: 'bg-emerald-400/10 shadow-[0_0_40px_rgba(52,211,153,0.4)] border border-emerald-400/40 animate-bounce' },
-                  ].map((g) => (
-                    <button
-                      key={g.label}
-                      onClick={() => { sendGift(g); }}
-                      className="flex flex-col items-center gap-3 p-4 bg-white/5 rounded-3xl border border-white/5 hover:border-white/10 active:scale-90 transition-all group"
-                    >
-                      <div className={`p-3 rounded-2xl transition-transform group-hover:scale-110 ${g.bg} ${g.color}`}>
-                        <g.icon size={22} className="fill-current/20" />
-                      </div>
-                      <div className="text-center">
-                        <span className="block text-[9px] font-bold text-white/40 uppercase tracking-widest">{g.label}</span>
-                        <span className="block text-xs text-pink-500 font-black mt-0.5">{g.cost}</span>
-                      </div>
-                    </button>
-                  ))}
+                <div>
+                  {/* Recipient Selection Bar */}
+                  <div className="mb-6 bg-white/[0.02] border border-white/[0.04] p-4 rounded-3xl">
+                    <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] block mb-3 italic">
+                      Selecione o Destinatário:
+                    </span>
+                    <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-none">
+                      {/* Option: Host/Default */}
+                      <button
+                        onClick={() => setSelectedReceiverId(null)}
+                        className={`px-4 py-2.5 rounded-2xl text-[10px] font-black transition-all border shrink-0 flex items-center gap-2 ${
+                          !selectedReceiverId 
+                            ? 'bg-gradient-to-r from-pink-600 to-purple-600 border-pink-400 text-white shadow-lg' 
+                            : 'bg-white/5 border-white/5 text-white/40 hover:text-white/60'
+                        }`}
+                      >
+                        🎙️ Sala / Host
+                      </button>
+                      
+                      {/* Room members (filtered except current user) */}
+                      {(room?.members || []).filter(m => m !== user?.uid).map((memberUid) => {
+                        const isSelected = selectedReceiverId === memberUid;
+                        return (
+                          <button
+                            key={memberUid}
+                            onClick={() => setSelectedReceiverId(memberUid)}
+                            className={`px-3 py-1.5 rounded-2xl text-[10px] font-black transition-all border shrink-0 flex items-center gap-2 ${
+                              isSelected 
+                                ? 'bg-gradient-to-r from-pink-600 to-purple-600 border-pink-400 text-white shadow-lg' 
+                                : 'bg-white/5 border-white/5 text-white/40 hover:text-white/60'
+                            }`}
+                          >
+                            <UserAvatar uid={memberUid} className="w-5 h-5 rounded-full shrink-0" />
+                            <span className="max-w-[70px] truncate">
+                              <UserDisplayName uid={memberUid} fallback="Membro" />
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Standardized Gifts Grid */}
+                  <div className="grid grid-cols-4 gap-3 max-h-[240px] overflow-y-auto pr-1">
+                    {GIFTS.map((g) => (
+                      <button
+                        key={g.id}
+                        onClick={() => { sendGift(g.id); }}
+                        className="flex flex-col items-center gap-3 p-3 bg-white/5 rounded-3xl border border-white/5 hover:border-white/10 active:scale-90 transition-all group"
+                      >
+                        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 ${g.bgColor} ${g.color}`}>
+                          <span className="text-xl">{g.icon}</span>
+                        </div>
+                        <div className="text-center">
+                          <span className="block text-[8px] font-bold text-white/40 uppercase tracking-widest truncate max-w-[55px]">{g.name}</span>
+                          <span className="block text-xs text-pink-500 font-black mt-0.5">{g.price}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
@@ -1932,6 +2010,13 @@ export default function Room() {
         forceShow={forceShowTour} 
         onComplete={() => setForceShowTour(false)} 
       />
+
+      {activeAnimation && (
+        <GiftAnimationOverlay 
+          activeAnimation={activeAnimation} 
+          onAnimationComplete={() => setActiveAnimation(null)} 
+        />
+      )}
     </div>
   );
 }

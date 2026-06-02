@@ -12,70 +12,92 @@ export interface GiftItem {
 
 export const GIFTS: GiftItem[] = [
   { 
-    id: 'blue_rose', 
-    name: 'Rosa de Cristal', 
-    icon: '🌹', 
-    price: 5, 
-    aura: 5, 
-    color: 'text-sky-500 dark:text-sky-400', 
-    bgColor: 'bg-sky-500/10', 
-    borderColor: 'border-sky-500/20 dark:border-sky-500/10',
-    glowColor: '#38bdf8'
-  },
-  { 
-    id: 'neon_heart', 
-    name: 'Coração de Neon', 
+    id: 'amor', 
+    name: 'Amor', 
     icon: '💖', 
-    price: 15, 
-    aura: 15, 
-    color: 'text-rose-500 dark:text-rose-400', 
+    price: 10, 
+    aura: 10, 
+    color: 'text-rose-500', 
     bgColor: 'bg-rose-500/10', 
-    borderColor: 'border-rose-500/20 dark:border-rose-500/10',
+    borderColor: 'border-rose-500/20',
     glowColor: '#f43f5e'
   },
   { 
-    id: 'gold_mic', 
-    name: 'Microfone de Ouro', 
-    icon: '🎤', 
+    id: 'estrela', 
+    name: 'Estrela', 
+    icon: '⭐', 
     price: 50, 
-    aura: 60, // 20% Aura bonus
-    color: 'text-yellow-500 dark:text-yellow-400', 
-    bgColor: 'bg-yellow-500/10', 
-    borderColor: 'border-yellow-500/20 dark:border-yellow-500/10',
+    aura: 55, 
+    color: 'text-amber-400', 
+    bgColor: 'bg-amber-400/10', 
+    borderColor: 'border-amber-400/20',
     glowColor: '#eab308'
   },
   { 
-    id: 'royal_crown', 
-    name: 'Coroa Suprema', 
-    icon: '👑', 
-    price: 150, 
-    aura: 185, // 23% Aura bonus
-    color: 'text-amber-500 dark:text-amber-400', 
-    bgColor: 'bg-amber-500/10', 
-    borderColor: 'border-amber-500/25 dark:border-amber-500/15',
-    glowColor: '#f59e0b'
+    id: 'fogo', 
+    name: 'Fogo', 
+    icon: '🔥', 
+    price: 100, 
+    aura: 120, 
+    color: 'text-orange-500', 
+    bgColor: 'bg-orange-500/10', 
+    borderColor: 'border-orange-500/20',
+    glowColor: '#ef4444'
   },
   { 
-    id: 'sparkling_aura', 
-    name: 'Aura Cósmica', 
-    icon: '✨', 
+    id: 'trofeu', 
+    name: 'Troféu', 
+    icon: '🏆', 
     price: 500, 
-    aura: 650, // 30% Aura bonus
-    color: 'text-fuchsia-500 dark:text-fuchsia-400', 
+    aura: 650, 
+    color: 'text-cyan-400', 
+    bgColor: 'bg-cyan-400/10', 
+    borderColor: 'border-cyan-400/20',
+    glowColor: '#06b6d4'
+  },
+  { 
+    id: 'crown_vip', 
+    name: 'Crown VIP', 
+    icon: '👑', 
+    price: 1000, 
+    aura: 1400, 
+    color: 'text-indigo-400', 
+    bgColor: 'bg-indigo-400/10', 
+    borderColor: 'border-indigo-400/20',
+    glowColor: '#6366f1'
+  },
+  { 
+    id: 'aura_divina', 
+    name: 'Aura Divina', 
+    icon: '✨', 
+    price: 5000, 
+    aura: 7500, 
+    color: 'text-purple-400', 
+    bgColor: 'bg-purple-500/10', 
+    borderColor: 'border-purple-500/20',
+    glowColor: '#a855f7'
+  },
+  { 
+    id: 'foguete', 
+    name: 'Foguete', 
+    icon: '🚀', 
+    price: 10000, 
+    aura: 16000, 
+    color: 'text-fuchsia-500', 
     bgColor: 'bg-fuchsia-500/10', 
-    borderColor: 'border-fuchsia-500/25 dark:border-fuchsia-500/15',
+    borderColor: 'border-fuchsia-500/20',
     glowColor: '#d946ef'
   },
   { 
-    id: 'legend_phoenix', 
-    name: 'Fênix Lendária', 
-    icon: '🔥', 
-    price: 1500, 
-    aura: 2100, // 40% Aura bonus
-    color: 'text-red-500 dark:text-red-400', 
-    bgColor: 'bg-red-500/10', 
-    borderColor: 'border-red-500/25 dark:border-red-500/15',
-    glowColor: '#ef4444'
+    id: 'nirvana', 
+    name: 'Nirvana', 
+    icon: '💎', 
+    price: 50000, 
+    aura: 90000, 
+    color: 'text-emerald-400', 
+    bgColor: 'bg-emerald-400/10', 
+    borderColor: 'border-emerald-400/20',
+    glowColor: '#10b981'
   }
 ];
 
