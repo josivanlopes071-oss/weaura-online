@@ -71,16 +71,18 @@ export default function PrivateChat() {
             ? m.timestamp.toMillis() 
             : Date.now();
           if (m.type === 'gift' && msgTime >= sessionStartTimeRef.current && msgTime > Date.now() - 15000) {
-            setActiveAnimation({
-              id: change.doc.id,
-              senderName: m.authorName || 'Usuário',
-              receiverName: m.receiverName || (m.authorId === user?.uid ? (targetUser?.displayName || 'Membro') : (profile?.displayName || 'Você')),
-              giftName: m.giftType || m.text,
-              giftIcon: m.giftIcon || '🎁',
-              auraGained: m.auraGained || 0,
-              quantity: m.giftQuantity || 1,
-              coinsGained: m.coinsGained || 0
-            });
+            if (m.authorId !== user?.uid) {
+              setActiveAnimation({
+                id: change.doc.id,
+                senderName: m.authorName || 'Usuário',
+                receiverName: m.receiverName || (targetUser?.displayName || 'Membro'),
+                giftName: m.giftType || m.text,
+                giftIcon: m.giftIcon || '🎁',
+                auraGained: m.auraGained || 0,
+                quantity: m.giftQuantity || 1,
+                coinsGained: m.coinsGained || 0
+              });
+            }
           }
         }
       });
@@ -168,6 +170,17 @@ export default function PrivateChat() {
           text: `Enviou ${giftQuantity}x ${gift.name} para você!` 
         });
 
+        setActiveAnimation({
+          id: Math.random().toString(),
+          senderName: profile.displayName || "Usuário",
+          receiverName: targetUser?.displayName || "Membro Aura",
+          giftName: gift.name,
+          giftIcon: gift.icon,
+          auraGained: result.auraGained || (gift.aura * giftQuantity),
+          quantity: giftQuantity,
+          coinsGained: result.coinsGained || 0
+        });
+
         setShowGifts(false);
       }
     } catch (err: any) {
@@ -242,13 +255,32 @@ export default function PrivateChat() {
                     : 'bg-[#121214] text-white/90 border border-white/[0.04] rounded-tl-none shadow-premium'
                 }`}>
                   {msg.type === 'gift' ? (
-                     <div className="flex flex-col items-center gap-4 py-3 min-w-[140px]">
-                        <div className={`w-16 h-16 rounded-[20px] flex items-center justify-center bg-black/40 border border-white/5 shadow-xl ${isMe ? 'text-purple-300' : 'text-yellow-400'}`}>
-                           <Gift size={36} className="drop-shadow-[0_0_12px_currentColor]" />
+                     <div className="flex flex-col items-center gap-3 py-2.5 px-4 min-w-[160px]">
+                        <div className="relative">
+                          <div className="w-16 h-16 rounded-[22px] flex items-center justify-center bg-black/40 border border-white/10 shadow-xl text-3xl filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]">
+                             {msg.giftIcon || '🎁'}
+                          </div>
+                          {msg.giftQuantity && msg.giftQuantity > 1 && (
+                            <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white font-black text-[9px] px-2 py-0.5 rounded-full select-none shadow-md border border-red-400 animate-pulse">
+                              x{msg.giftQuantity}
+                            </span>
+                          )}
                         </div>
-                        <div className="text-center">
-                           <span className="font-black uppercase text-[10px] tracking-[0.15em] block text-purple-200">Mimo Aura</span>
-                           <span className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 block opacity-50 ${isMe ? 'text-white/80' : 'text-white'}`}>{msg.giftType}</span>
+                        <div className="text-center space-y-1 w-full">
+                           <span className="font-black uppercase text-[8px] tracking-[0.2em] block text-pink-400">PRESENTE ENVIADO</span>
+                           <span className="text-xs font-black uppercase tracking-wider block text-white">
+                             {msg.giftType || 'Aura Mimo'}
+                           </span>
+                           <div className="flex flex-col gap-1 items-center justify-center mt-2 w-full">
+                             <span className="text-[9px] font-extrabold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/10 leading-none whitespace-nowrap">
+                               +{msg.auraGained || 0} Aura
+                             </span>
+                             {msg.coinsGained && msg.coinsGained > 0 ? (
+                               <span className="text-[9px] font-extrabold text-yellow-400 bg-yellow-500/10 px-2.5 py-0.5 rounded-full border border-yellow-500/10 leading-none whitespace-nowrap flex items-center gap-1">
+                                 🪙 +{msg.coinsGained} Moedas EGO
+                               </span>
+                             ) : null}
+                           </div>
                         </div>
                      </div>
                   ) : (

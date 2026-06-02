@@ -537,16 +537,18 @@ export default function Room() {
           const m = change.doc.data();
           const msgTime = m.clientCreatedAt || 0;
           if (m.type === 'gift' && msgTime >= sessionStartTimeRef.current && msgTime > Date.now() - 15000) {
-            setActiveAnimation({
-              id: change.doc.id,
-              senderName: m.authorName || 'Usuário',
-              receiverName: m.receiverName || 'Membro',
-              giftName: m.giftType || m.text,
-              giftIcon: m.giftIcon || '🎁',
-              auraGained: m.auraGained || 0,
-              quantity: m.giftQuantity || 1,
-              coinsGained: m.coinsGained || 0
-            });
+            if (m.authorId !== user?.uid) {
+              setActiveAnimation({
+                id: change.doc.id,
+                senderName: m.authorName || 'Usuário',
+                receiverName: m.receiverName || 'Membro',
+                giftName: m.giftType || m.text,
+                giftIcon: m.giftIcon || '🎁',
+                auraGained: m.auraGained || 0,
+                quantity: m.giftQuantity || 1,
+                coinsGained: m.coinsGained || 0
+              });
+            }
           }
         }
       });
@@ -1016,6 +1018,17 @@ export default function Room() {
 
         const xpEarned = Math.max(20, totalCost);
         await gainXp(xpEarned);
+
+        setActiveAnimation({
+          id: Math.random().toString(),
+          senderName: dName,
+          receiverName: targetName,
+          giftName: gift.name,
+          giftIcon: gift.icon,
+          auraGained: result.auraGained || (gift.aura * giftQuantity),
+          quantity: giftQuantity,
+          coinsGained: result.coinsGained || 0
+        });
 
         setShowGifts(false);
       }
