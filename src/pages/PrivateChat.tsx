@@ -36,7 +36,9 @@ export default function PrivateChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
   const [showGifts, setShowGifts] = useState(false);
+  const [giftQuantity, setGiftQuantity] = useState<number>(1);
   const [activeAnimation, setActiveAnimation] = useState<any | null>(null);
+  const sessionStartTimeRef = useRef(Date.now() - 5000);
   const [isTyping, setIsTyping] = useState(false);
   const [targetIsTyping, setTargetIsTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -61,6 +63,28 @@ export default function PrivateChat() {
 
     const messagesQuery = query(collection(db, 'private_chats', chatId, 'messages'), orderBy('timestamp', 'asc'), limit(100));
     const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
+      // Trigger live animations for any newly arriving gift messages
+      snapshot.docChanges().forEach(change => {
+        if (change.type === 'added') {
+          const m = change.doc.data();
+          const msgTime = m.timestamp && typeof m.timestamp.toMillis === 'function' 
+            ? m.timestamp.toMillis() 
+            : Date.now();
+          if (m.type === 'gift' && msgTime >= sessionStartTimeRef.current && msgTime > Date.now() - 15000) {
+            setActiveAnimation({
+              id: change.doc.id,
+              senderName: m.authorName || 'Usuário',
+              receiverName: m.receiverName || (m.authorId === user?.uid ? (targetUser?.displayName || 'Membro') : (profile?.displayName || 'Você')),
+              giftName: m.giftType || m.text,
+              giftIcon: m.giftIcon || '🎁',
+              auraGained: m.auraGained || 0,
+              quantity: m.giftQuantity || 1,
+              coinsGained: m.coinsGained || 0
+            });
+          }
+        }
+      });
+
       const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
       setMessages(msgs);
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
@@ -107,27 +131,33 @@ export default function PrivateChat() {
     const gift = GIFTS.find(g => g.id === giftId);
     if (!gift) return;
 
-    if (!profile.coins || profile.coins < gift.price) {
-      alert(`Saldo EGO insuficiente! Você precisa de ${gift.price} moedas.`);
+    const totalCost = gift.price * giftQuantity;
+    if (!profile.coins || profile.coins < totalCost) {
+      alert(`Saldo EGO insuficiente! Você precisa de ${totalCost} moedas para enviar ${giftQuantity}x ${gift.name}.`);
       return;
     }
 
     try {
-      const result = await sendGift(id, giftId, undefined, chatId || undefined);
+      const result = await sendGift(id, giftId, undefined, chatId || undefined, giftQuantity);
       if (result.success) {
         if (chatId) {
           await addDoc(collection(db, 'private_chats', chatId, 'messages'), {
             authorId: profile.uid,
             authorName: profile.displayName,
-            text: `enviou um presente: ${gift.name} ${gift.icon}!`,
+            text: `enviou ${giftQuantity}x ${gift.name} ${gift.icon}! Ganhos de sorte: +${result.coinsGained} Moedas EGO!`,
             type: 'gift',
             giftType: gift.name,
+            giftIcon: gift.icon,
+            giftQuantity,
+            receiverName: targetUser?.displayName || "Membro Aura",
+            auraGained: result.auraGained,
+            coinsGained: result.coinsGained,
             timestamp: serverTimestamp()
           });
-          await setDoc(doc(db, 'private_chats', chatId), { lastMessage: `Presente: ${gift.name} ${gift.icon}`, lastMessageAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
+          await setDoc(doc(db, 'private_chats', chatId), { lastMessage: `Presente: ${giftQuantity}x ${gift.name} ${gift.icon}`, lastMessageAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
         }
 
-        const xpEarned = Math.max(20, gift.price);
+        const xpEarned = Math.max(20, totalCost);
         await gainXp(xpEarned);
 
         await sendNotification({ 
@@ -135,19 +165,10 @@ export default function PrivateChat() {
           fromId: profile.uid, 
           fromName: profile.displayName, 
           toId: id, 
-          text: `Enviou um ${gift.name} para você!` 
+          text: `Enviou ${giftQuantity}x ${gift.name} para você!` 
         });
 
         setShowGifts(false);
-
-        setActiveAnimation({
-          id: Math.random().toString(),
-          senderName: profile.displayName || "Usuário",
-          receiverName: targetUser?.displayName || "Membro Aura",
-          giftName: gift.name,
-          giftIcon: gift.icon,
-          auraGained: gift.aura
-        });
       }
     } catch (err: any) {
       console.error("Erro no envio:", err);
@@ -270,6 +291,44 @@ export default function PrivateChat() {
                 </div>
                 <button onClick={() => setShowGifts(false)} className="w-8 h-8 bg-white/5 rounded-lg text-white/40 hover:text-white transition-colors flex items-center justify-center border border-white/5"><X size={16} /></button>
               </div>
+
+              {/* Quantity Selector */}
+              <div className="mb-4 bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl flex items-center justify-between">
+                <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] italic">
+                  Quantidade:
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {[1, 5, 10, 50, 100].map((q) => (
+                    <button
+                      key={q}
+                      onClick={() => setGiftQuantity(q)}
+                      className={`px-2.5 py-1 rounded-xl text-[10px] font-black transition-all ${
+                        giftQuantity === q
+                          ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-md'
+                          : 'bg-white/5 text-white/40 hover:text-white/60 hover:bg-white/10'
+                      }`}
+                    >
+                      x{q}
+                    </button>
+                  ))}
+                  {/* Custom Input */}
+                  <div className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-xl border border-white/5">
+                    <span className="text-[8px] font-bold text-white/20 uppercase">Custom</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="999"
+                      value={giftQuantity}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        setGiftQuantity(isNaN(val) || val < 1 ? 1 : val);
+                      }}
+                      className="w-10 bg-transparent text-center text-[10px] font-black text-pink-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-4 gap-3 max-h-48 overflow-y-auto pr-1">
                 {GIFTS.map((g) => (
                   <button

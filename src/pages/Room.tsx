@@ -309,6 +309,7 @@ export default function Room() {
   const [showGifts, setShowGifts] = useState(false);
   const [giftActiveTab, setGiftActiveTab] = useState<'gifts' | 'ranking'>('gifts');
   const [selectedReceiverId, setSelectedReceiverId] = useState<string | null>(null);
+  const [giftQuantity, setGiftQuantity] = useState<number>(1);
   const [activeAnimation, setActiveAnimation] = useState<any | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showUserActions, setShowUserActions] = useState<string | null>(null);
@@ -530,6 +531,26 @@ export default function Room() {
     );
 
     const unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
+      // Trigger live animations for any newly arriving gift messages
+      snapshot.docChanges().forEach(change => {
+        if (change.type === 'added') {
+          const m = change.doc.data();
+          const msgTime = m.clientCreatedAt || 0;
+          if (m.type === 'gift' && msgTime >= sessionStartTimeRef.current && msgTime > Date.now() - 15000) {
+            setActiveAnimation({
+              id: change.doc.id,
+              senderName: m.authorName || 'Usuário',
+              receiverName: m.receiverName || 'Membro',
+              giftName: m.giftType || m.text,
+              giftIcon: m.giftIcon || '🎁',
+              auraGained: m.auraGained || 0,
+              quantity: m.giftQuantity || 1,
+              coinsGained: m.coinsGained || 0
+            });
+          }
+        }
+      });
+
       const msgs = snapshot.docs.map(doc => {
         const data = doc.data();
         return { id: doc.id, ...data } as Message;
@@ -922,8 +943,9 @@ export default function Room() {
     const gift = GIFTS.find(g => g.id === giftId);
     if (!gift) return;
 
-    if (!profile.coins || profile.coins < gift.price) {
-      alert(`Saldo EGO insuficiente! Você precisa de ${gift.price} moedas.`);
+    const totalCost = gift.price * giftQuantity;
+    if (!profile.coins || profile.coins < totalCost) {
+      alert(`Saldo EGO insuficiente! Você precisa de ${totalCost} moedas para enviar ${giftQuantity}x ${gift.name}.`);
       return;
     }
 
@@ -965,7 +987,7 @@ export default function Room() {
         console.warn("Failed to fetch target user name:", e);
       }
 
-      const result = await authSendGift(targetId, giftId, id);
+      const result = await authSendGift(targetId, giftId, id, undefined, giftQuantity);
       if (result.success) {
         const roomRef = doc(db, 'rooms', id);
         const userRankKey = `giftRank.${uid}`;
@@ -973,33 +995,29 @@ export default function Room() {
           [userRankKey]: {
             displayName: dName,
             photoURL: uPhoto,
-            totalSpent: increment(gift.price)
+            totalSpent: increment(totalCost)
           }
         }).catch((e) => console.warn("Erro ao atualizar ranking de presentes:", e));
 
         await addDoc(collection(db, 'rooms', id, 'messages'), {
           authorId: uid,
           authorName: dName,
-          text: `enviou um presente: ${gift.name} ${gift.icon} para @${targetName}!`,
+          text: `enviou ${giftQuantity}x ${gift.name} ${gift.icon} para @${targetName}! Ganhos extras para o destinatário: +${result.coinsGained} Moedas EGO!`,
           type: 'gift',
           giftType: gift.name,
+          giftIcon: gift.icon,
+          giftQuantity: giftQuantity,
+          receiverName: targetName,
+          auraGained: result.auraGained,
+          coinsGained: result.coinsGained,
           timestamp: serverTimestamp(),
           clientCreatedAt: Date.now()
         });
 
-        const xpEarned = Math.max(20, gift.price);
+        const xpEarned = Math.max(20, totalCost);
         await gainXp(xpEarned);
 
         setShowGifts(false);
-
-        setActiveAnimation({
-          id: Math.random().toString(),
-          senderName: dName,
-          receiverName: targetName,
-          giftName: gift.name,
-          giftIcon: gift.icon,
-          auraGained: gift.aura
-        });
       }
     } catch (err: any) {
       console.error(err);
@@ -1681,6 +1699,43 @@ export default function Room() {
                           </button>
                         );
                       })}
+                    </div>
+                  </div>
+
+                  {/* Quantity Selector */}
+                  <div className="mb-4 bg-white/[0.02] border border-white/[0.04] p-3 rounded-2xl flex items-center justify-between">
+                    <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] italic">
+                      Quantidade:
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {[1, 5, 10, 50, 100].map((q) => (
+                        <button
+                          key={q}
+                          onClick={() => setGiftQuantity(q)}
+                          className={`px-2.5 py-1 rounded-xl text-[10px] font-black transition-all ${
+                            giftQuantity === q
+                              ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-md'
+                              : 'bg-white/5 text-white/40 hover:text-white/60 hover:bg-white/10'
+                          }`}
+                        >
+                          x{q}
+                        </button>
+                      ))}
+                      {/* Custom Input */}
+                      <div className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-xl border border-white/5">
+                        <span className="text-[8px] font-bold text-white/20 uppercase">Custom</span>
+                        <input
+                          type="number"
+                          min="1"
+                          max="999"
+                          value={giftQuantity}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value);
+                            setGiftQuantity(isNaN(val) || val < 1 ? 1 : val);
+                          }}
+                          className="w-10 bg-transparent text-center text-[10px] font-black text-pink-500 focus:outline-none"
+                        />
+                      </div>
                     </div>
                   </div>
 

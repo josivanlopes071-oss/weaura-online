@@ -9,6 +9,8 @@ interface ActiveGiftAnimation {
   giftName: string;
   giftIcon: string;
   auraGained: number;
+  quantity?: number;
+  coinsGained?: number;
 }
 
 interface GiftAnimationOverlayProps {
@@ -108,6 +110,12 @@ export default function GiftAnimationOverlay({ activeAnimation, onAnimationCompl
             >
               {animation.giftIcon}
               
+              {animation.quantity && animation.quantity > 1 && (
+                <span className="absolute -top-3 -right-3 bg-red-500 text-white font-black text-xs px-2.5 py-1 rounded-full select-none shadow-lg border border-red-400 animate-pulse">
+                  x{animation.quantity}
+                </span>
+              )}
+
               {/* Spinning Halo */}
               <motion.div
                 animate={{ rotate: 360 }}
@@ -122,22 +130,35 @@ export default function GiftAnimationOverlay({ activeAnimation, onAnimationCompl
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ delay: 0.5, duration: 0.6 }}
-              className="bg-black/85 border border-white/10 p-6 rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.8)] backdrop-blur-2xl relative z-10"
+              className="bg-black/85 border border-white/10 p-6 rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.8)] backdrop-blur-2xl relative z-10 min-w-[280px]"
             >
               <div className="flex items-center justify-center gap-1.5 text-pink-500/90 font-black text-[10px] uppercase tracking-[0.3em] mb-2.5 italic">
                 <Sparkles size={11} className="animate-spin" /> PRESENTE ENVIADO <Sparkles size={11} className="animate-spin" />
               </div>
 
-              <h3 className="text-sm font-bold text-white/50 mb-1">
-                <span className="text-white font-extrabold text-base italic uppercase">{animation.senderName}</span> enviou um presente para <span className="text-white font-extrabold text-base italic uppercase">{animation.receiverName}</span>
+              <h3 className="text-sm font-bold text-white/50 mb-1 leading-relaxed">
+                <span className="text-white font-extrabold text-base italic uppercase">{animation.senderName}</span> enviou <span className="text-pink-500 font-extrabold text-base">{animation.quantity && animation.quantity > 1 ? `${animation.quantity}x` : 'um'}</span> presente para <span className="text-white font-extrabold text-base italic uppercase">{animation.receiverName}</span>
               </h3>
 
-              <div className="flex items-center justify-center gap-2 mt-4 bg-purple-500/10 border border-purple-500/20 py-2.5 px-5 rounded-2xl">
-                <span className="text-xl font-bold">{animation.giftIcon}</span>
-                <span className="text-xs font-black text-purple-300 uppercase tracking-widest">{animation.giftName}</span>
-                <span className="text-xs font-black text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-lg border border-emerald-500/20">
-                  +{animation.auraGained} Aura
-                </span>
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center justify-center gap-2 bg-purple-500/10 border border-purple-500/20 py-2.5 px-5 rounded-2xl">
+                  <span className="text-xl font-bold">{animation.giftIcon}</span>
+                  <span className="text-xs font-black text-purple-300 uppercase tracking-widest truncate max-w-[120px]">
+                    {animation.giftName} {animation.quantity && animation.quantity > 1 ? `x${animation.quantity}` : ''}
+                  </span>
+                  <span className="text-xs font-black text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-lg border border-emerald-500/20 whitespace-nowrap">
+                    +{animation.auraGained} Aura
+                  </span>
+                </div>
+
+                {animation.coinsGained && animation.coinsGained > 0 ? (
+                  <div className="flex items-center justify-center gap-2 bg-yellow-500/10 border border-yellow-500/20 py-2 px-3 rounded-xl max-w-sm mx-auto animate-bounce mt-1">
+                    <span className="text-sm">🪙</span>
+                    <span className="text-[10px] font-black text-yellow-400 uppercase tracking-wider leading-tight">
+                      Destinatário sorteado com: +{animation.coinsGained} Moedas EGO!
+                    </span>
+                  </div>
+                ) : null}
               </div>
             </motion.div>
           </div>

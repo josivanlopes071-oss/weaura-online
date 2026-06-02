@@ -416,15 +416,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const sendGift = async (targetUserId: string, giftId: string, roomId?: string, chatId?: string) => {
+  const sendGift = async (targetUserId: string, giftId: string, roomId?: string, chatId?: string, quantity: number = 1) => {
     if (!user || !profile) throw new Error("Você precisa estar logado.");
     if (user.uid === targetUserId) throw new Error("Você não pode enviar um presente para si mesmo!");
+    if (quantity < 1) throw new Error("Quantidade inválida.");
 
     const { GIFTS, getAuraLevelInfo } = await import('../lib/aura');
     const { addDoc, collection } = await import('firebase/firestore');
 
     const gift = GIFTS.find(g => g.id === giftId);
     if (!gift) throw new Error("Presente inválido.");
+
+    const totalCost = gift.price * quantity;
+    const totalAuraGained = gift.aura * quantity;
+
+    // Roll random EGO coins received by the recipient: between 5 and 150 coins per gift!
+    const randomCoinsPerGift = Math.floor(Math.random() * 116) + 5; // 5 to 120 EGO coins
+    const totalCoinsGained = randomCoinsPerGift * quantity;
 
     try {
       const result = await runTransaction(db, async (transaction) => {
@@ -441,15 +449,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const receiverData = receiverSnap.data();
 
         const currentCoins = senderData.coins || 0;
-        if (currentCoins < gift.price) {
-          throw new Error(`Saldo insuficiente! Você precisa de ${gift.price} moedas.`);
+        if (currentCoins < totalCost) {
+          throw new Error(`Saldo insuficiente! Você precisa de ${totalCost} moedas.`);
         }
 
-        const receiverAura = (receiverData.aura || 0) + gift.aura;
+        const receiverAura = (receiverData.aura || 0) + totalAuraGained;
         const auraLevelInfo = getAuraLevelInfo(receiverAura);
         const receiverAuraLevel = auraLevelInfo.level;
 
-        const newSenderCoins = currentCoins - gift.price;
+        const newSenderCoins = currentCoins - totalCost;
+        const newReceiverCoins = (receiverData.coins || 0) + totalCoinsGained;
 
         // Deduct coins from sender
         transaction.update(senderRef, {
@@ -457,10 +466,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           updatedAt: serverTimestamp()
         });
 
-        // Add aura points to receiver
+        // Add aura points and random coins to receiver
         transaction.update(receiverRef, {
           aura: receiverAura,
           auraLevel: receiverAuraLevel,
+          coins: newReceiverCoins,
           updatedAt: serverTimestamp()
         });
 
@@ -486,7 +496,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         giftName: gift.name,
         giftIcon: gift.icon,
         price: gift.price,
-        auraGained: gift.aura,
+        quantity,
+        totalPrice: totalCost,
+        auraGained: totalAuraGained,
+        coinsGained: totalCoinsGained,
         createdAt: serverTimestamp(),
         roomId: roomId || null,
         chatId: chatId || null
@@ -494,7 +507,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return {
         success: true,
-        auraGained: gift.aura,
+        quantity,
+        auraGained: totalAuraGained,
+        coinsGained: totalCoinsGained,
         giftName: gift.name,
         giftIcon: gift.icon
       };

@@ -34,6 +34,7 @@ export default function Profile() {
   const [receivedGifts, setReceivedGifts] = useState<any[]>([]);
   const [isGiftBoxOpen, setIsGiftBoxOpen] = useState(false);
   const [isSendingGift, setIsSendingGift] = useState(false);
+  const [giftQuantity, setGiftQuantity] = useState<number>(1);
   const [activeAnimation, setActiveAnimation] = useState<any | null>(null);
 
   useEffect(() => {
@@ -657,10 +658,48 @@ export default function Profile() {
                     </button>
                   </div>
 
+                  {/* Quantity Selector */}
+                  <div className="mb-6 bg-white/[0.02] border border-white/[0.04] p-4 rounded-[24px] flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.25em] italic">
+                      Selecione a Quantidade de Envio:
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {[1, 5, 10, 50, 100].map((q) => (
+                        <button
+                          key={q}
+                          onClick={() => setGiftQuantity(q)}
+                          className={`px-3 py-1.5 rounded-2xl text-xs font-black transition-all ${
+                            giftQuantity === q
+                              ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-lg shadow-pink-500/25'
+                              : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10'
+                          }`}
+                        >
+                          x{q}
+                        </button>
+                      ))}
+                      {/* Custom Input */}
+                      <div className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-2xl border border-white/5">
+                        <span className="text-[9px] font-black text-white/20 uppercase">Custom</span>
+                        <input
+                          type="number"
+                          min="1"
+                          max="999"
+                          value={giftQuantity}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value);
+                            setGiftQuantity(isNaN(val) || val < 1 ? 1 : val);
+                          }}
+                          className="w-12 bg-transparent text-center text-xs font-black text-pink-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Gifts Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                     {GIFTS.map((gift) => {
-                      const hasEnough = (myProfile?.coins || 0) >= gift.price;
+                      const totalCost = gift.price * giftQuantity;
+                      const hasEnough = (myProfile?.coins || 0) >= totalCost;
                       return (
                         <button
                           key={gift.id}
@@ -668,7 +707,7 @@ export default function Profile() {
                           onClick={async () => {
                             setIsSendingGift(true);
                             try {
-                              const result = await sendGift(displayProfile.uid, gift.id);
+                              const result = await sendGift(displayProfile.uid, gift.id, undefined, undefined, giftQuantity);
                               if (result.success) {
                                 setIsGiftBoxOpen(false);
                                 // Set local animation trigger
@@ -678,7 +717,9 @@ export default function Profile() {
                                   receiverName: displayProfile.displayName,
                                   giftName: result.giftName,
                                   giftIcon: result.giftIcon,
-                                  auraGained: result.auraGained
+                                  auraGained: result.auraGained,
+                                  quantity: result.quantity,
+                                  coinsGained: result.coinsGained
                                 });
                                 // Reload gift shelf
                                 const q = query(collection(db, 'gift_transactions'), where('receiverId', '==', displayProfile.uid), limit(24));
@@ -701,9 +742,9 @@ export default function Profile() {
                         >
                           <span className="text-5xl mb-3 filter drop-shadow-[0_5px_12px_rgba(0,0,0,0.5)]">{gift.icon}</span>
                           <span className="font-extrabold text-sm text-white uppercase tracking-wide">{gift.name}</span>
-                          <span className="text-xs font-black text-yellow-400 mt-2">🪙 {gift.price} moedas</span>
+                          <span className="text-xs font-black text-yellow-400 mt-2">🪙 {totalCost} moedas</span>
                           <span className="text-[9px] font-bold text-pink-400 mt-1 uppercase tracking-widest bg-pink-500/10 border border-pink-500/20 px-2 py-0.5 rounded-lg">
-                            +{gift.aura} Aura
+                            +{gift.aura * giftQuantity} Aura
                           </span>
                         </button>
                       );
