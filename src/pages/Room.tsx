@@ -18,9 +18,9 @@ import {
   Users, MessageSquare, Volume2, X, Star, Heart, Flame, Trophy,
   Smile, ThumbsUp, PartyPopper, Ghost as GhostIcon,
   Music, Lock, Plus, LayoutGrid, ShoppingBag, VolumeX, MessageCircle,
-  Settings, Shield, Camera, Palette, UserMinus, BellOff, Crown, Eye, EyeOff,
+  Settings, Shield, Camera, Palette, UserMinus, UserPlus, BellOff, Crown, Eye, EyeOff,
   Trash2, LogOut, AlertCircle, Sparkles, Rocket, Gem, Coins, Zap, HelpCircle,
-  Activity, Wifi, WifiOff
+  Activity, Wifi, WifiOff, Hand
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -62,6 +62,10 @@ interface RoomData {
   coverURL?: string;
   voicePeerIds?: { [userId: string]: string };
   giftRank?: { [userId: string]: { displayName: string, photoURL: string, totalSpent: number } };
+  allowFreeMic?: boolean;
+  stageLayout?: string;
+  allowGuestsNextToHost?: boolean;
+  speakRequests?: string[];
 }
 
 const nameCache: { [uid: string]: string } = {};
@@ -119,7 +123,7 @@ export default function Room() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { profile, user, updateProfile, updateCoins, gainXp, sendGift: authSendGift } = useAuth();
+  const { profile, user, updateProfile, updateCoins, gainXp, sendGift: authSendGift, gainAura } = useAuth();
   const [room, setRoom] = useState<RoomData | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [reactions, setReactions] = useState<Reaction[]>([]);
@@ -314,6 +318,11 @@ export default function Room() {
   const [showSettings, setShowSettings] = useState(false);
   const [showUserActions, setShowUserActions] = useState<string | null>(null);
   
+  // Interactive Live Features
+  const [showSpeakRequestsQueue, setShowSpeakRequestsQueue] = useState(false);
+  const [showRoomRank, setShowRoomRank] = useState(false);
+  const [entranceAnnouncements, setEntranceAnnouncements] = useState<{ id: string, uid: string, name: string, photoURL: string, role?: string, isVip?: boolean, vipPlan?: string | null }[]>([]);
+  
   // Settings Panel State
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
@@ -325,6 +334,7 @@ export default function Room() {
   const [editCover, setEditCover] = useState('');
   const [editFreeMic, setEditFreeMic] = useState(true);
   const [editLayout, setEditLayout] = useState('standard');
+  const [editAllowGuestsNextToHost, setEditAllowGuestsNextToHost] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const roomRefData = useRef<RoomData | null>(null);
@@ -343,6 +353,7 @@ export default function Room() {
       setEditNeon(room.neonColor || '#a855f7');
       setEditTheme(room.theme || 'aura');
       setEditCover(room.coverURL || '');
+      setEditAllowGuestsNextToHost(room.allowGuestsNextToHost !== false);
     }
   }, [showSettings, room]);
 
@@ -486,6 +497,10 @@ export default function Room() {
     // Join room
     updateDoc(roomRef, {
       members: arrayUnion(user.uid)
+    }).then(() => {
+      if (gainAura) {
+        gainAura(10).catch((e) => console.warn("Erro ao ganhar Aura ao participar da sala:", e));
+      }
     }).catch(() => {});
 
     // Listen for room updates
@@ -512,7 +527,11 @@ export default function Room() {
           allowFreeMic: data.allowFreeMic !== false,
           stageLayout: data.stageLayout || 'standard',
           voicePeerIds: data.voicePeerIds || {},
-          giftRank: data.giftRank || {}
+          giftRank: data.giftRank || {},
+          moderators: data.moderators || [],
+          mutedUsers: data.mutedUsers || [],
+          speakRequests: data.speakRequests || [],
+          allowGuestsNextToHost: data.allowGuestsNextToHost !== false
         });
       } else {
         // Room deleted
@@ -672,6 +691,73 @@ export default function Room() {
     };
   }, [id, user?.uid]);
 
+  // Synchronize server-side muting
+  useEffect(() => {
+    if (!room || !user) return;
+    const userIsMutedByModerator = room.mutedUsers?.includes(user.uid);
+    if (userIsMutedByModerator && isMicOn) {
+      setIsMicOn(false);
+      const roomRef = doc(db, 'rooms', id || '');
+      updateDoc(roomRef, { activeSpeakers: arrayRemove(user.uid) }).catch(() => {});
+    }
+  }, [room?.mutedUsers, user?.uid, isMicOn, id]);
+
+  // Seating the owner automatically in slot 0 if they join and are not seated anywhere
+  useEffect(() => {
+    if (!room || !user || !id) return;
+    const isOwner = room.ownerId === user.uid;
+    if (isOwner) {
+      // Check if user is in any slot
+      const currentSlotEntry = Object.entries(room.slots || {}).find(([_, uid]) => uid === user.uid);
+      if (!currentSlotEntry && !room.slots?.[0]) {
+        const roomRef = doc(db, 'rooms', id);
+        updateDoc(roomRef, { 'slots.0': user.uid }).catch((e) => {
+          console.warn("[Room] Error seating host automatically:", e);
+        });
+      }
+    }
+  }, [room?.slots, user?.uid, id]);
+
+  // Entrance Announcements Effect
+  const prevMembersRef = useRef<string[]>([]);
+  useEffect(() => {
+    if (!room?.members || !user) return;
+    const currentMembers = room.members;
+    const oldMembers = prevMembersRef.current;
+    
+    if (oldMembers.length > 0) {
+      const newJoined = currentMembers.filter(m => !oldMembers.includes(m) && m !== user.uid);
+      newJoined.forEach(async (uid) => {
+        try {
+          const userSnap = await getDoc(doc(db, 'users', uid));
+          if (userSnap.exists()) {
+            const data = userSnap.data();
+            const ann = {
+              id: Math.random().toString(),
+              uid: uid,
+              name: data.displayName || 'Voz do Espaço',
+              photoURL: data.photoURL || '',
+              role: data.role || 'user',
+              isVip: data.isVip || false,
+              vipPlan: data.vipPlan || null
+            };
+            setEntranceAnnouncements(prev => {
+              // Avoid duplicates
+              if (prev.some(p => p.uid === ann.uid)) return prev;
+              return [...prev, ann];
+            });
+            setTimeout(() => {
+              setEntranceAnnouncements(prev => prev.filter(item => item.id !== ann.id));
+            }, 6000);
+          }
+        } catch (err) {
+          console.warn("Error triggering entrance announcement:", err);
+        }
+      });
+    }
+    prevMembersRef.current = currentMembers;
+  }, [room?.members, user?.uid]);
+
   const sendReaction = async (emoji: string) => {
     if (!id || !user) return;
     await addDoc(collection(db, 'rooms', id, 'reactions'), {
@@ -679,6 +765,9 @@ export default function Room() {
       userId: user.uid,
       timestamp: serverTimestamp()
     });
+    if (gainAura) {
+      gainAura(2).catch((e) => console.warn("Erro ao ganhar Aura ao reagir na sala:", e));
+    }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -695,6 +784,9 @@ export default function Room() {
 
     // Award XP optimistically
     gainXp(5).catch((e) => console.warn("Erro ao acumular XP:", e));
+    if (gainAura) {
+      gainAura(2).catch((e) => console.warn("Erro ao ganhar Aura ao conversar na sala:", e));
+    }
 
     try {
       const authorId = user.uid;
@@ -723,7 +815,12 @@ export default function Room() {
     // Check if user is in a slot
     const userSlot = Object.entries(room.slots || {}).find(([_, uid]) => uid === user.uid);
     if (!userSlot) {
-      alert("Você precisa estar em um assento para falar.");
+      alert("Você precisa estar em um assento de voz para falar.");
+      return;
+    }
+
+    if (room.mutedUsers?.includes(user.uid)) {
+      alert("Você está silenciado pelos moderadores desta sala.");
       return;
     }
 
@@ -750,6 +847,28 @@ export default function Room() {
     // Check if slot is taken and the occupant is actually still inside the room
     const occupant = room.slots?.[slotId];
     if (occupant && occupant !== user.uid && room.members.includes(occupant)) return;
+
+    // Stage/Seats verification
+    const isOwner = room.ownerId === user.uid;
+    const isModerator = isOwner || room.moderators?.includes(user.uid);
+    const isStageSlot = slotId <= 2;
+
+    // Center Primary Host Slot is strictly reserved for the Host
+    if (slotId === 0 && !isOwner) {
+      alert("Apenas o Dono (Host) da sala pode se sentar no assento principal!");
+      return;
+    }
+
+    // Slots 1 and 2 next to host might be blocked by the host
+    if ((slotId === 1 || slotId === 2) && room.allowGuestsNextToHost === false && !isOwner) {
+      alert("O Dono (Host) desativou ou bloqueou os assentos ao seu lado!");
+      return;
+    }
+
+    if (isStageSlot && !isOwner && !isModerator && !room.allowFreeMic) {
+      alert("Apenas o Dono, Moderadores ou Oradores autorizados podem sentar no Palco (assentos 0, 1, 2) quando o palco está moderado. Use o botão de mãozinha para pedir voz.");
+      return;
+    }
 
     // Check if user is already in a slot
     const currentSlotEntry = Object.entries(room.slots || {}).find(([_, uid]) => uid === user.uid);
@@ -870,7 +989,7 @@ export default function Room() {
     setIsSaving(true);
     try {
       const roomRef = doc(db, 'rooms', id);
-      await updateDoc(roomRef, {
+      const updates: any = {
         name: editName || room.name,
         description: editDescription,
         category: editCategory || room.category,
@@ -882,7 +1001,20 @@ export default function Room() {
         allowFreeMic: editFreeMic,
         stageLayout: editLayout,
         isLocked: !!editPassword,
-      });
+        allowGuestsNextToHost: editAllowGuestsNextToHost,
+      };
+
+      // If disabling co-hosts next to host, automatically eject any non-host occupant from slot 1 and 2
+      if (!editAllowGuestsNextToHost) {
+        if (room.slots?.[1] && room.slots?.[1] !== room.ownerId) {
+          updates['slots.1'] = null;
+        }
+        if (room.slots?.[2] && room.slots?.[2] !== room.ownerId) {
+          updates['slots.2'] = null;
+        }
+      }
+
+      await updateDoc(roomRef, updates);
       setShowSettings(false);
     } catch (err) {
       console.error(err);
@@ -908,8 +1040,12 @@ export default function Room() {
   };
 
   const kickUser = async (uid: string) => {
-    if (!id || !room || room.ownerId !== user?.uid) return;
+    if (!id || !room || !user) return;
+    const isOwner = room.ownerId === user.uid;
+    const isMod = room.moderators?.includes(user.uid);
+    if (!isOwner && !isMod) return;
     if (uid === user.uid) return;
+    if (uid === room.ownerId) return;
     
     try {
       const roomRef = doc(db, 'rooms', id);
@@ -929,13 +1065,32 @@ export default function Room() {
   };
 
   const toggleMuteUser = async (uid: string) => {
-    if (!id || !room || room.ownerId !== user?.uid) return;
+    if (!id || !room || !user) return;
+    const isOwner = room.ownerId === user.uid;
+    const isMod = room.moderators?.includes(user.uid);
+    if (!isOwner && !isMod) return;
+    if (uid === room.ownerId) return;
+    
     const isMuted = room.mutedUsers?.includes(uid);
     const roomRef = doc(db, 'rooms', id);
     if (isMuted) {
       await updateDoc(roomRef, { mutedUsers: arrayRemove(uid) });
     } else {
       await updateDoc(roomRef, { mutedUsers: arrayUnion(uid) });
+    }
+    setShowUserActions(null);
+  };
+
+  const toggleModeratorUser = async (uid: string) => {
+    if (!id || !room || room.ownerId !== user?.uid) return;
+    if (uid === user.uid) return;
+    
+    const isMod = room.moderators?.includes(uid);
+    const roomRef = doc(db, 'rooms', id);
+    if (isMod) {
+      await updateDoc(roomRef, { moderators: arrayRemove(uid) });
+    } else {
+      await updateDoc(roomRef, { moderators: arrayUnion(uid) });
     }
     setShowUserActions(null);
   };
@@ -1118,6 +1273,8 @@ export default function Room() {
   }
 
   const currentTheme = ROOM_THEMES.find(t => t.id === (room.theme || 'aura')) || ROOM_THEMES[0];
+  const isMeOwner = room.ownerId === user?.uid;
+  const isMeMod = isMeOwner || room.moderators?.includes(user?.uid || '');
 
   return (
     <div 
@@ -1187,6 +1344,32 @@ export default function Room() {
         </div>
         
         <div className="flex items-center gap-3">
+          {isMeMod && (
+            <button 
+              onClick={() => setShowSettings(true)}
+              className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-purple-400 hover:text-purple-300 hover:border-purple-500/20 transition-all active:scale-90 animate-pulse"
+              title="Configurações da Sala"
+            >
+              <Settings size={22} style={{ color: currentTheme.primary }} />
+            </button>
+          )}
+          
+          {(() => {
+            const pendingCount = room.speakRequests?.length || 0;
+            if (!isMeMod || pendingCount === 0) return null;
+            
+            return (
+              <button 
+                onClick={() => setShowSpeakRequestsQueue(true)}
+                className="w-12 h-12 flex items-center justify-center rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 transition-all active:scale-90 relative"
+                title="Fila de Oradores"
+              >
+                <Hand size={18} className="animate-bounce" />
+                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white font-mono font-black text-[9px] w-4.5 h-4.5 rounded-full flex items-center justify-center border border-[#0c0c0c]">{pendingCount}</span>
+              </button>
+            );
+          })()}
+
           <button 
             onClick={() => setForceShowTour(true)}
             className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-white/30 hover:text-white hover:border-white/20 transition-all active:scale-90"
@@ -1194,14 +1377,6 @@ export default function Room() {
           >
             <HelpCircle size={22} />
           </button>
-          {room.ownerId === user?.uid && (
-            <button 
-              onClick={() => setShowSettings(true)}
-              className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-white/30 hover:text-white hover:border-white/20 transition-all active:scale-90"
-            >
-              <Settings size={22} />
-            </button>
-          )}
           <button 
             onClick={handleLeaveRoom}
             className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white text-black hover:bg-red-500 hover:text-white transition-all active:scale-90 shadow-[0_10px_20px_rgba(255,255,255,0.1)]"
@@ -1270,99 +1445,273 @@ export default function Room() {
           )}
         </div>
 
-        {/* Host Area - The "Stage" */}
-        {(() => {
-          const hostUid = room.slots?.[0] && room.members.includes(room.slots?.[0]) ? room.slots?.[0] : null;
-          return (
-            <div className="relative mb-16">
-                <div className="flex flex-col items-center relative z-10">
-                    <div className="relative">
-                      {/* Premium Specialist Tool Ring */}
-                      <div 
-                        id="tour-host-seat"
-                        className={`p-1.5 rounded-full transition-all duration-1000 relative ${
-                          (hostUid && (room.activeSpeakers.includes(hostUid) || (volumes[hostUid] > 5)))
-                            ? 'shadow-[0_0_60px_rgba(168,85,247,0.3)]' 
-                            : 'bg-white/5 border border-white/5'
-                        }`}
-                        style={{ 
-                          background: (hostUid && (room.activeSpeakers.includes(hostUid) || (volumes[hostUid] > 5)))
-                            ? `linear-gradient(to tr, ${currentTheme.primary}, ${currentTheme.secondary}, #fb923c)` 
-                            : undefined 
-                        }}
-                      >
-                        {/* Inner Hardware Ring */}
-                        <div className="absolute inset-1 rounded-full border border-white/10 border-dashed animate-[spin_20s_linear_infinite] opacity-30 pointer-events-none" />
-                        
-                        <VoiceSeat 
-                          slotId={0} 
-                          userId={hostUid} 
-                          size="large" 
-                          isActive={!!(hostUid && (room.activeSpeakers.includes(hostUid) || (volumes[hostUid] > 5)))}
-                          isOwner={hostUid === room.ownerId}
-                          volumeLevel={hostUid ? volumes[hostUid] : 0}
-                          activeColor={currentTheme.primary}
-                          onTake={takeSlot}
-                          onUserClick={setShowUserActions}
-                        />
-                      </div>
-                      
-                      {/* Luxury Badge */}
-                      <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-zinc-900 px-4 py-1 rounded-full border border-white/20 shadow-2xl z-20">
-                         <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse" />
-                         <span className="text-[9px] font-black uppercase text-white tracking-[0.15em] whitespace-nowrap">HOST PRINCIPAL</span>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-8 text-center">
-                      <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2 justify-center">
-                        <UserDisplayName uid={hostUid} fallback="Esperando Host" />
-                        {hostUid && hostUid === room.ownerId && <Crown size={14} className="text-yellow-500 fill-yellow-500/20" />}
-                        {hostUid && <UserPremiumTag uid={hostUid} size="xs" />}
-                      </h3>
-                      <div className="flex items-center justify-center gap-1.5 mt-1 bg-white/5 px-3 py-1 rounded-full border border-white/5 w-fit mx-auto">
-                        <Flame size={10} className="text-orange-500" />
-                        <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Ativo Agora</span>
-                      </div>
-                    </div>
-                </div>
-            </div>
-          );
-        })()}
+        {/* El Palco de Voz ✨ (The Voice Stage) */}
+        <div id="tour-voice-stage" className="relative mb-10 bg-white/[0.02] border border-white/[0.04] p-6 rounded-[36px] backdrop-blur-md max-w-md mx-auto shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+          {/* Header title for Stage */}
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#0c0c0c] px-4 py-1.5 rounded-full border border-purple-500/30 flex items-center gap-1.5 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
+            <Sparkles size={11} className="text-purple-400 animate-pulse" />
+            <span className="text-[9px] font-black uppercase text-white tracking-[0.2em] whitespace-nowrap">PALCO PRINCIPAL ✨</span>
+          </div>
 
-        {/* Audience Seats - Perfectly Circular Grid */}
-        <div id="tour-audience-seats" className="grid grid-cols-4 gap-y-10 gap-x-4 mb-20 max-w-sm mx-auto bg-white/[0.02] p-8 rounded-[40px] border border-white/[0.03] backdrop-blur-sm">
-          {Array.from({ length: 8 }).map((_, i) => {
-            const slotId = i + 1;
-            const rawUid = room.slots?.[slotId];
-            const uid = rawUid && room.members.includes(rawUid) ? rawUid : null;
-            return (
-              <motion.div 
-                key={slotId} 
-                initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ delay: i * 0.05 + 0.5, duration: 0.5 }}
-                className="flex flex-col items-center"
+          <div className="flex items-center justify-between gap-2 pt-4">
+            {/* Slot 1: Left Co-Host */}
+            {(() => {
+              const uid1 = room.slots?.[1] && room.members.includes(room.slots?.[1]) ? room.slots?.[1] : null;
+              const isLockedByHost = room.allowGuestsNextToHost === false;
+              return (
+                <div className="flex flex-col items-center flex-1">
+                  <VoiceSeat 
+                    slotId={1} 
+                    userId={uid1} 
+                    isActive={!!(uid1 && (room.activeSpeakers.includes(uid1) || (volumes[uid1] > 5)))}
+                    isOwner={uid1 === room.ownerId}
+                    volumeLevel={uid1 ? volumes[uid1] : 0}
+                    activeColor={currentTheme.primary}
+                    onTake={takeSlot}
+                    onUserClick={setShowUserActions}
+                    isLocked={isLockedByHost}
+                  />
+                  <span className="text-[9px] font-black tracking-wider text-center mt-2 leading-none block">
+                    {isLockedByHost && !uid1 ? (
+                      <span className="text-red-500/60 flex items-center justify-center gap-1 font-black">
+                        <Lock size={9} /> FECHADO
+                      </span>
+                    ) : (
+                      <span className="text-white/50 truncate w-16 block"><UserDisplayName uid={uid1} fallback="Convidado L" /></span>
+                    )}
+                  </span>
+                </div>
+              );
+            })()}
+
+            {/* Slot 0: Center Primary Host */}
+            {(() => {
+              const hostUid = room.slots?.[0] && room.members.includes(room.slots?.[0]) ? room.slots?.[0] : null;
+              return (
+                <div className="flex flex-col items-center flex-1 relative -top-3">
+                  <div className={`p-1.5 rounded-full transition-all duration-1000 relative ${
+                    (hostUid && (room.activeSpeakers.includes(hostUid) || (volumes[hostUid] > 5)))
+                      ? 'shadow-[0_0_60px_rgba(168,85,247,0.4)]' 
+                      : 'bg-white/5 border border-white/5 shadow-2xl'
+                  }`}
+                  style={{ 
+                    background: (hostUid && (room.activeSpeakers.includes(hostUid) || (volumes[hostUid] > 5)))
+                      ? `linear-gradient(to tr, ${currentTheme.primary}, ${currentTheme.secondary}, #fb923c)` 
+                      : undefined 
+                  }}>
+                    {/* Rotating Dashed Border */}
+                    <div className="absolute inset-1 rounded-full border border-white/10 border-dashed animate-[spin_20s_linear_infinite] opacity-30 pointer-events-none" />
+                    
+                    <VoiceSeat 
+                      slotId={0} 
+                      userId={hostUid} 
+                      size="large" 
+                      isActive={!!(hostUid && (room.activeSpeakers.includes(hostUid) || (volumes[hostUid] > 5)))}
+                      isOwner={hostUid === room.ownerId}
+                      volumeLevel={hostUid ? volumes[hostUid] : 0}
+                      activeColor={currentTheme.primary}
+                      onTake={takeSlot}
+                      onUserClick={setShowUserActions}
+                    />
+                  </div>
+                  <span className="text-[10px] font-black text-yellow-400 truncate w-20 text-center mt-2 flex items-center justify-center gap-1 leading-none">
+                    <Crown size={10} className="fill-yellow-400/20" />
+                    <UserDisplayName uid={hostUid} fallback="Cantinho Host" />
+                  </span>
+                </div>
+              );
+            })()}
+
+            {/* Slot 2: Right Co-Host */}
+            {(() => {
+              const uid2 = room.slots?.[2] && room.members.includes(room.slots?.[2]) ? room.slots?.[2] : null;
+              const isLockedByHost = room.allowGuestsNextToHost === false;
+              return (
+                <div className="flex flex-col items-center flex-1">
+                  <VoiceSeat 
+                    slotId={2} 
+                    userId={uid2} 
+                    isActive={!!(uid2 && (room.activeSpeakers.includes(uid2) || (volumes[uid2] > 5)))}
+                    isOwner={uid2 === room.ownerId}
+                    volumeLevel={uid2 ? volumes[uid2] : 0}
+                    activeColor={currentTheme.primary}
+                    onTake={takeSlot}
+                    onUserClick={setShowUserActions}
+                    isLocked={isLockedByHost}
+                  />
+                  <span className="text-[9px] font-black tracking-wider text-center mt-2 leading-none block">
+                    {isLockedByHost && !uid2 ? (
+                      <span className="text-red-500/60 flex items-center justify-center gap-1 font-black">
+                        <Lock size={9} /> FECHADO
+                      </span>
+                    ) : (
+                      <span className="text-white/50 truncate w-16 block"><UserDisplayName uid={uid2} fallback="Convidado R" /></span>
+                    )}
+                  </span>
+                </div>
+              );
+            })()}
+          </div>
+
+          {isMeMod && (
+            <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-white/5">
+              <div className="flex items-center justify-between px-2">
+                <span className="text-[10px] font-black uppercase text-white/30 tracking-wider">Configuração do Palco</span>
+                <span className="text-[9px] font-medium text-white/20 italic">Apenas Mod / Dono</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {/* Free Mic Toggle Button */}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const roomRef = doc(db, 'rooms', id || '');
+                      const newVal = room.allowFreeMic !== false ? false : true;
+                      await updateDoc(roomRef, { allowFreeMic: newVal });
+                    } catch (e) {
+                      console.error(e);
+                    }
+                  }}
+                  className={`py-2.5 px-3 rounded-2xl text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 border transition-all active:scale-95 ${
+                    room.allowFreeMic !== false
+                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                      : 'bg-[#a855f7]/10 border-[#a855f7]/20 text-[#a855f7]'
+                  }`}
+                >
+                  <Mic size={11} /> {room.allowFreeMic !== false ? "Microfone Livre" : "Palco Moderado"}
+                </button>
+
+                {/* Co-host Allowed Toggle Button */}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const roomRef = doc(db, 'rooms', id || '');
+                      const newVal = room.allowGuestsNextToHost !== false ? false : true;
+                      const updates: any = { allowGuestsNextToHost: newVal };
+                      if (!newVal) {
+                        if (room.slots?.[1] && room.slots?.[1] !== room.ownerId) updates['slots.1'] = null;
+                        if (room.slots?.[2] && room.slots?.[2] !== room.ownerId) updates['slots.2'] = null;
+                      }
+                      await updateDoc(roomRef, updates);
+                    } catch (e) {
+                      console.error(e);
+                    }
+                  }}
+                  className={`py-2.5 px-3 rounded-2xl text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 border transition-all active:scale-95 ${
+                    room.allowGuestsNextToHost !== false
+                      ? 'bg-pink-500/10 border-pink-500/20 text-pink-400'
+                      : 'bg-red-500/10 border-red-500/20 text-red-400'
+                  }`}
+                >
+                  {room.allowGuestsNextToHost !== false ? <UserMinus size={11} /> : <UserPlus size={11} />}
+                  {room.allowGuestsNextToHost !== false ? "Pessoas ao Lado: ON" : "Pessoas ao Lado: OFF"}
+                </button>
+
+                {/* General Settings Button */}
+                <button
+                  type="button"
+                  onClick={() => setShowSettings(true)}
+                  className="col-span-2 py-3 px-4 rounded-2xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 mt-1 transition-all active:scale-95 cursor-pointer"
+                >
+                  <Settings size={12} /> Configurações Gerais da Sala
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Assentos da Plateia de Voz 🎙️ (Audience Seats) */}
+        <div id="tour-audience-seats" className="mb-20 max-w-md mx-auto bg-white/[0.01] p-6 rounded-[36px] border border-white/[0.02] backdrop-blur-sm">
+          {/* Section subtitle */}
+          <div className="flex items-center gap-1.5 mb-6 justify-center">
+            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
+            <span className="text-[8px] font-black uppercase text-white/20 tracking-widest">Assentos de Voz ({Array.from({ length: 7 }).filter((_, i) => room.slots?.[i + 3]).length}/7)</span>
+          </div>
+
+          <div className="grid grid-cols-4 gap-y-8 gap-x-4">
+            {Array.from({ length: 7 }).map((_, i) => {
+              const slotId = i + 3; // Slots 3 to 9
+              const rawUid = room.slots?.[slotId];
+              const uid = rawUid && room.members.includes(rawUid) ? rawUid : null;
+              return (
+                <motion.div 
+                  key={slotId} 
+                  initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 + 0.1, duration: 0.4 }}
+                  className="flex flex-col items-center"
+                >
+                  <VoiceSeat 
+                    slotId={slotId} 
+                    userId={uid} 
+                    isActive={!!(uid && (room.activeSpeakers.includes(uid) || (volumes[uid] > 5)))}
+                    isOwner={uid === room.ownerId}
+                    volumeLevel={uid ? volumes[uid] : 0}
+                    activeColor={currentTheme.primary}
+                    onTake={takeSlot}
+                    onUserClick={setShowUserActions}
+                  />
+                  <div className="mt-2 w-14 text-center">
+                     <p className="text-[9px] font-bold text-white/30 truncate leading-none overflow-hidden block">
+                       <UserDisplayName uid={uid} fallback={`${slotId}º`} />
+                     </p>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* VIP & Member Entrance Announcements Floating Layer */}
+        <div className="fixed top-24 left-4 right-4 z-40 pointer-events-none flex flex-col items-center gap-3">
+          <AnimatePresence>
+            {entranceAnnouncements.map((ann) => (
+              <motion.div
+                key={ann.id}
+                initial={{ opacity: 0, y: -40, scale: 0.8 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9, y: -20, transition: { duration: 0.2 } }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                className={`pointer-events-auto px-5 py-3.5 rounded-2xl flex items-center gap-3 shadow-2xl backdrop-blur-xl border select-none ${
+                  ann.isVip
+                    ? (ann.vipPlan === 'Bronze' ? 'bg-amber-950/80 border-amber-500/30 text-amber-200' :
+                       ann.vipPlan === 'Prata' ? 'bg-slate-900/80 border-slate-400/30 text-slate-200' :
+                       ann.vipPlan === 'Ouro' ? 'bg-yellow-950/85 border-yellow-500/40 text-yellow-105 shadow-[0_0_15px_rgba(234,179,8,0.2)]' :
+                       'bg-gradient-to-r from-cyan-950/90 to-purple-950/90 border-cyan-400/50 text-cyan-200 shadow-[0_0_20px_rgba(34,211,238,0.25)]')
+                    : 'bg-black/85 border-white/5 text-white shadow-black/80'
+                }`}
               >
-                <VoiceSeat 
-                  slotId={slotId} 
-                  userId={uid} 
-                  size="medium"
-                  isActive={!!(uid && (room.activeSpeakers.includes(uid) || (volumes[uid] > 5)))}
-                  isOwner={uid === room.ownerId}
-                  volumeLevel={uid ? volumes[uid] : 0}
-                  activeColor={currentTheme.primary}
-                  onTake={takeSlot}
-                  onUserClick={setShowUserActions}
-                />
-                <div className="mt-2.5 w-16 text-center">
-                   <p className="text-[9px] font-bold text-white/30 truncate leading-none overflow-hidden">
-                     <UserDisplayName uid={uid} fallback={`${slotId}`} />
-                   </p>
+                <div className="relative shrink-0 w-9 h-9">
+                  <UserAvatar uid={ann.uid} className="w-full h-full object-cover rounded-full" showFrame={true} />
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-1.5 font-black text-xs uppercase tracking-wide">
+                    <span className={
+                      ann.isVip
+                        ? (ann.vipPlan === 'Bronze' ? 'text-amber-400' :
+                           ann.vipPlan === 'Prata' ? 'text-slate-300' :
+                           ann.vipPlan === 'Ouro' ? 'text-yellow-400' :
+                           'text-cyan-400 bg-gradient-to-r from-cyan-400 to-fuchsia-400 bg-clip-text text-transparent')
+                        : 'text-purple-400'
+                    }>
+                      {ann.name}
+                    </span>
+                    {ann.isVip && (
+                      <span className="text-[8px] font-black tracking-widest px-1.5 py-0.5 rounded-full bg-white/10 shrink-0">
+                        👑 VIP {ann.vipPlan}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-white/50 leading-tight">
+                    {ann.isVip 
+                      ? `entrou espalhando sua Aura Divina ${ann.vipPlan}! ✨`
+                      : 'entrou na sala.'}
+                  </span>
                 </div>
               </motion.div>
-            );
-          })}
+            ))}
+          </AnimatePresence>
         </div>
 
         {/* Chat Feed - Floating style on top of stage area */}
@@ -1466,15 +1815,51 @@ export default function Room() {
             </button>
           </form>
 
-          {room?.slots && Object.entries(room.slots).some(([_, uid]) => uid === user?.uid) && (
-            <button 
-              onClick={leaveSlot}
-              className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl sm:rounded-[28px] flex items-center justify-center bg-white/5 border border-white/5 text-white/10 hover:text-red-500 transition-all active:scale-90 flex-shrink-0"
-              title="Descer"
-            >
-              <LogOut size={18} className="rotate-180 sm:size-[22px]" />
-            </button>
-          )}
+          {(() => {
+            const isSeated = room?.slots && Object.values(room.slots).includes(user?.uid || '');
+            const hasRequestedSpeak = room?.speakRequests?.includes(user?.uid || '');
+
+            if (isSeated) {
+              return (
+                <button 
+                  onClick={leaveSlot}
+                  className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl sm:rounded-[28px] flex items-center justify-center bg-red-500/10 border border-red-500/20 text-red-400 hover:text-red-300 transition-all active:scale-90 flex-shrink-0"
+                  title="Descer do Palco/Assento"
+                >
+                  <LogOut size={18} className="rotate-180 sm:size-[22px]" />
+                </button>
+              );
+            }
+
+            return (
+              <button 
+                onClick={async () => {
+                  if (!id || !user) return;
+                  const roomRef = doc(db, 'rooms', id);
+                  if (hasRequestedSpeak) {
+                    await updateDoc(roomRef, {
+                      speakRequests: arrayRemove(user.uid)
+                    });
+                  } else {
+                    await updateDoc(roomRef, {
+                      speakRequests: arrayUnion(user.uid)
+                    });
+                  }
+                }}
+                className={`w-11 h-11 sm:w-14 sm:h-14 rounded-2xl sm:rounded-[28px] flex items-center justify-center border transition-all active:scale-90 flex-shrink-0 relative ${
+                  hasRequestedSpeak 
+                    ? 'bg-amber-600/20 border-amber-500/40 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.25)]' 
+                    : 'bg-white/5 border-white/5 text-white/40 hover:text-white hover:bg-white/10'
+                }`}
+                title={hasRequestedSpeak ? "Cancelar pedido para falar" : "Solicitar para falar / subir ao palco"}
+              >
+                <Hand size={18} className={hasRequestedSpeak ? "animate-pulse text-amber-400" : "sm:size-[22px] text-white/50"} />
+                {hasRequestedSpeak && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-yellow-400 rounded-full border border-[#0c0c0c]" />
+                )}
+              </button>
+            );
+          })()}
 
           <button 
             id="tour-mic-button"
@@ -1610,22 +1995,43 @@ export default function Room() {
                 </div>
               )}
 
-              {room.ownerId === user?.uid && showUserActions !== user.uid && (
-                <div className="grid grid-cols-2 gap-3 mt-6 pt-6 border-t border-white/5">
-                  <button 
-                    onClick={() => toggleMuteUser(showUserActions!)}
-                    className="flex items-center justify-center gap-2 p-4 bg-yellow-500/10 border border-yellow-500/10 rounded-2xl text-xs font-bold text-yellow-500 active:scale-95 transition-all"
-                  >
-                    <BellOff size={16} /> {room.mutedUsers?.includes(showUserActions!) ? 'Unmute' : 'Silenciar'}
-                  </button>
-                  <button 
-                    onClick={() => kickUser(showUserActions!)}
-                    className="flex items-center justify-center gap-2 p-4 bg-red-500/10 border border-red-500/10 rounded-2xl text-xs font-bold text-red-500 active:scale-95 transition-all"
-                  >
-                    <UserMinus size={16} /> Expulsar
-                  </button>
-                </div>
-              )}
+              {(() => {
+                const isMeOwner = room?.ownerId === user?.uid;
+                const isMeMod = isMeOwner || room?.moderators?.includes(user?.uid || '');
+                const isTargetOwner = showUserActions === room?.ownerId;
+                const isTargetMod = room?.moderators?.includes(showUserActions || '');
+
+                if (showUserActions === user?.uid || isTargetOwner) return null;
+                if (!isMeMod) return null;
+
+                return (
+                  <div className="space-y-3 mt-6 pt-6 border-t border-white/5">
+                    <div className="grid grid-cols-2 gap-3">
+                      <button 
+                        onClick={() => toggleMuteUser(showUserActions!)}
+                        className="flex items-center justify-center gap-2 p-4 bg-yellow-500/10 border border-yellow-500/10 rounded-2xl text-xs font-bold text-yellow-500 active:scale-95 transition-all"
+                      >
+                        <BellOff size={16} /> {room.mutedUsers?.includes(showUserActions!) ? 'Desmutar' : 'Silenciar'}
+                      </button>
+                      <button 
+                        onClick={() => kickUser(showUserActions!)}
+                        className="flex items-center justify-center gap-2 p-4 bg-red-500/10 border border-red-500/10 rounded-2xl text-xs font-bold text-red-500 active:scale-95 transition-all"
+                      >
+                        <UserMinus size={16} /> Expulsar
+                      </button>
+                    </div>
+
+                    {isMeOwner && (
+                      <button 
+                        onClick={() => toggleModeratorUser(showUserActions!)}
+                        className="w-full flex items-center justify-center gap-2 p-4 bg-purple-500/10 border border-purple-500/15 rounded-2xl text-xs font-black uppercase text-purple-400 active:scale-95 transition-all"
+                      >
+                        <Shield size={16} /> {isTargetMod ? 'Remover Moderador' : 'Tornar Moderador'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
             </motion.div>
           </motion.div>
         )}
@@ -1652,18 +2058,9 @@ export default function Room() {
               
               <div className="flex justify-between items-center mb-8">
                 <div className="flex gap-4">
-                  <button 
-                    onClick={() => setGiftActiveTab('gifts')}
-                    className={`text-lg font-black tracking-tight uppercase ${giftActiveTab === 'gifts' ? 'text-white border-b-2 border-pink-500 pb-1' : 'text-white/40'}`}
-                  >
+                  <span className="text-lg font-black tracking-tight uppercase text-white border-b-2 border-pink-500 pb-1">
                     Mimos
-                  </button>
-                  <button 
-                    onClick={() => setGiftActiveTab('ranking')}
-                    className={`text-lg font-black tracking-tight uppercase flex items-center gap-2 ${giftActiveTab === 'ranking' ? 'text-white border-b-2 border-purple-500 pb-1' : 'text-white/40'}`}
-                  >
-                    <Crown size={14} className="text-purple-400" /> Rank Doadores
-                  </button>
+                  </span>
                 </div>
                 
                 <div className="bg-pink-500/10 px-4 py-2 rounded-2xl border border-pink-500/20 flex items-center gap-2 transition-transform active:scale-95 cursor-pointer">
@@ -1672,8 +2069,7 @@ export default function Room() {
                 </div>
               </div>
               
-              {giftActiveTab === 'gifts' ? (
-                <div>
+              <div>
                   {/* Recipient Selection Bar */}
                   <div className="mb-6 bg-white/[0.02] border border-white/[0.04] p-4 rounded-3xl">
                     <span className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] block mb-3 italic">
@@ -1771,48 +2167,6 @@ export default function Room() {
                     ))}
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
-                  {sortedContributors.length === 0 ? (
-                    <div className="text-center py-12 text-white/20 text-sm font-medium italic">
-                      Nenhum presente enviado ainda nesta sala.<br/>Seja o primeiro a enviar!
-                    </div>
-                  ) : (
-                    sortedContributors.slice(0, 20).map((c, idx) => {
-                      let medalColor = "text-white/40";
-                      let borderGlow = "border-white/5";
-                      if (idx === 0) {
-                        medalColor = "text-yellow-400 drop-shadow-[0_0_8px_#f59e0b]";
-                        borderGlow = "border-yellow-400/30 bg-yellow-500/5";
-                      } else if (idx === 1) {
-                        medalColor = "text-slate-300 drop-shadow-[0_0_8px_#cbd5e1]";
-                        borderGlow = "border-slate-300/20 bg-slate-400/5";
-                      } else if (idx === 2) {
-                        medalColor = "text-amber-600 drop-shadow-[0_0_8px_#b45309]";
-                        borderGlow = "border-amber-600/20 bg-amber-700/5";
-                      }
-                      return (
-                        <div key={c.uid} className={`flex items-center justify-between p-3 rounded-2xl border ${borderGlow} transition-all`}>
-                          <div className="flex items-center gap-3">
-                            <span className={`font-black text-sm w-5 text-center ${medalColor}`}>{idx + 1}º</span>
-                            <div className="w-10 h-10 rounded-full overflow-hidden border border-white/10">
-                              <UserAvatar uid={c.uid} className="w-full h-full object-cover" showFrame={false} />
-                            </div>
-                            <div>
-                              <span className="block text-sm font-bold text-white leading-tight">{c.displayName}</span>
-                              <span className="text-[10px] uppercase font-black tracking-widest text-[#a855f7] italic">DOADOR ROYAL</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1.5 bg-pink-500/5 px-3 py-1.5 rounded-xl border border-pink-500/10">
-                            <span className="text-xs font-black text-pink-400 tabular-nums">{c.totalSpent}</span>
-                            <span className="text-[9px] uppercase font-black text-pink-400/40">EGO</span>
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-              )}
             </motion.div>
           </motion.div>
         )}
@@ -1927,6 +2281,39 @@ export default function Room() {
                   >
                     <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${editFreeMic ? 'left-7' : 'left-1'}`} />
                   </button>
+                </div>
+
+                <div className="p-4 bg-white/5 rounded-2xl border border-white/5 flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-white">Convidados ao Lado do Host</h4>
+                    <p className="text-[10px] text-white/20 font-medium">Permitir assentos de co-host (1 e 2)</p>
+                  </div>
+                  <button 
+                    onClick={() => setEditAllowGuestsNextToHost(!editAllowGuestsNextToHost)}
+                    className={`w-12 h-6 rounded-full relative transition-all ${editAllowGuestsNextToHost ? 'bg-purple-600 shadow-lg shadow-purple-500/20' : 'bg-white/10'}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${editAllowGuestsNextToHost ? 'left-7' : 'left-1'}`} />
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-white/20 pl-1">Layout do Palco</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { id: 'standard', name: 'Padrão Grid', desc: 'Mesa de assentos clássicos lateralizados' },
+                      { id: 'focus', name: 'Foco Host', desc: 'Destaca radialmente o anfitrião no circuito' }
+                    ].map((l) => (
+                      <button
+                        key={l.id}
+                        type="button"
+                        onClick={() => setEditLayout(l.id)}
+                        className={`p-4 rounded-3xl border transition-all flex flex-col gap-1.5 text-left ${editLayout === l.id ? 'bg-white/10 border-white/20' : 'bg-white/5 border-white/5'}`}
+                      >
+                         <h5 className={`text-xs font-bold leading-none ${editLayout === l.id ? 'text-white' : 'text-[#a855f7]/60'}`}>{l.name}</h5>
+                         <span className="text-[9px] text-white/20 font-medium leading-[1.3]">{l.desc}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="space-y-3">
@@ -2098,7 +2485,8 @@ function VoiceSeat({
   onUserClick,
   volumeLevel = 0,
   activeColor = '#a855f7',
-  size = 'medium' 
+  size = 'medium',
+  isLocked = false
 }: { 
   slotId: number, 
   userId?: string | null, 
@@ -2108,7 +2496,8 @@ function VoiceSeat({
   onUserClick?: (uid: string) => void,
   volumeLevel?: number,
   activeColor?: string,
-  size?: 'medium' | 'large'
+  size?: 'medium' | 'large',
+  isLocked?: boolean
 }) {
   const sizeClasses = size === 'large' ? 'w-24 h-24' : 'w-16 h-16';
 
@@ -2148,16 +2537,25 @@ function VoiceSeat({
       </AnimatePresence>
       
       <button 
-        onClick={() => userId ? onUserClick?.(userId) : onTake(slotId)}
+        onClick={() => {
+          if (isLocked && !userId) {
+            alert("Este assento está temporariamente desativado ou bloqueado pelo Host!");
+            return;
+          }
+          userId ? onUserClick?.(userId) : onTake(slotId);
+        }}
         className={`
           ${sizeClasses} rounded-full flex items-center justify-center relative z-10 transition-all duration-500
           ${userId 
             ? 'p-1 bg-[#0c0c0c] border-[3px] shadow-[0_0_40px_rgba(0,0,0,0.8)]' 
-            : 'bg-white/5 border-2 border-dashed border-white/10 hover:bg-white/10 hover:border-white/20 hover:scale-105'
+            : isLocked 
+              ? 'bg-red-500/10 border-2 border-dashed border-red-500/20 opacity-40 cursor-not-allowed'
+              : 'bg-white/5 border-2 border-dashed border-white/10 hover:bg-white/10 hover:border-white/20 hover:scale-105'
           }
           active:scale-95
         `}
         style={{ borderColor: userId && isActive ? activeColor : 'rgba(255,255,255,0.08)' }}
+        disabled={isLocked && !userId}
       >
         {userId ? (
           <div className="w-full h-full rounded-full overflow-visible relative group shadow-inner">
@@ -2196,7 +2594,11 @@ function VoiceSeat({
           </div>
         ) : (
           <div className="flex flex-col items-center gap-1">
-             <Plus size={size === 'large' ? 26 : 20} className="text-white/20 group-hover:text-purple-400 transition-colors" />
+             {isLocked ? (
+               <Lock size={16} className="text-red-500/40" />
+             ) : (
+               <Plus size={size === 'large' ? 26 : 20} className="text-white/20 group-hover:text-purple-400 transition-colors" />
+             )}
              <span className="text-[7px] font-black text-white/5 uppercase tracking-widest group-hover:text-white/20 transition-colors">{slotId}</span>
           </div>
         )}

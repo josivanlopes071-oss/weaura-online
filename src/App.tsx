@@ -8,6 +8,7 @@ import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'reac
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { ToastProvider } from './contexts/ToastContext';
 import Navigation from './components/Navigation';
 import Header from './components/Header';
 import { AnimatePresence, motion } from 'motion/react';
@@ -175,8 +176,30 @@ function AppContent() {
     return <Suspense fallback={<PageLoading />}><Login /></Suspense>;
   }
 
+  // Custom Dynamic Theme Styling
+  const customTheme = profile?.equippedTheme || '';
+  let themeBgClass = '';
+
+  if (theme === 'dark') {
+    if (customTheme === 'theme_cyberpunk') {
+      themeBgClass = 'bg-gradient-to-br from-[#0c051a] via-[#04020a] to-[#010103] text-zinc-100 theme-cyberpunk shadow-inner transition-all duration-700';
+    } else if (customTheme === 'theme_royal_gold') {
+      themeBgClass = 'bg-gradient-to-br from-[#120b02] via-[#040301] to-[#010100] text-zinc-100 theme-royal-gold shadow-inner transition-all duration-700';
+    } else if (customTheme === 'theme_emerald') {
+      themeBgClass = 'bg-gradient-to-br from-[#021307] via-[#010603] to-[#000100] text-zinc-150 theme-emerald shadow-inner transition-all duration-700';
+    } else if (customTheme === 'theme_amethyst') {
+      themeBgClass = 'bg-gradient-to-br from-[#0c0316] via-[#030107] to-[#010002] text-[#e9e3f5] theme-amethyst shadow-inner transition-all duration-700';
+    } else if (customTheme === 'theme_sakura') {
+      themeBgClass = 'bg-gradient-to-br from-[#1c0410] via-[#060105] to-[#010001] text-pink-100 theme-sakura shadow-inner transition-all duration-700';
+    } else {
+      themeBgClass = 'bg-[#050505] text-white dark transition-all duration-700';
+    }
+  } else {
+    themeBgClass = 'bg-[#f4f4f7] text-zinc-900 light transition-all duration-700';
+  }
+
   return (
-    <div className={`min-h-screen flex flex-col ${theme === 'light' ? 'bg-[#f4f4f7] text-zinc-900 light' : 'bg-[#050505] text-white dark'} ${!isRoomPage ? 'pt-6' : ''}`}>
+    <div className={`min-h-screen flex flex-col ${themeBgClass} ${!isRoomPage ? 'pt-6' : ''}`}>
       {/* Real-time Admin Announcement Overlay */}
       <AnimatePresence>
         {showAnnouncement && latestAnnouncement && (
@@ -259,11 +282,13 @@ export default function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <NotificationProvider>
-          <Router>
-            <AppContent />
-          </Router>
-        </NotificationProvider>
+        <ToastProvider>
+          <NotificationProvider>
+            <Router>
+              <AppContent />
+            </Router>
+          </NotificationProvider>
+        </ToastProvider>
       </ThemeProvider>
     </AuthProvider>
   );

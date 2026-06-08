@@ -21,6 +21,14 @@ interface UserProfile {
   email?: string;
   equippedFrame?: string;
   purchasedFrames?: string[];
+  purchasedEffects?: string[];
+  equippedEffect?: string;
+  purchasedBalloons?: string[];
+  equippedBalloon?: string;
+  purchasedAvatars?: string[];
+  purchasedThemes?: string[];
+  equippedTheme?: string;
+  purchasedGifts?: { [giftId: string]: number };
   aura?: number;
   auraLevel?: number;
 }
@@ -47,6 +55,7 @@ interface AuthContextType {
   followUser: (targetId: string) => Promise<void>;
   refreshConnection: () => Promise<void>;
   sendGift: (targetUserId: string, giftId: string, roomId?: string, chatId?: string, quantity?: number) => Promise<{ success: boolean; quantity: number; auraGained: number; coinsGained: number; giftName: string; giftIcon: string }>;
+  gainAura: (amount: number) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -402,17 +411,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (isFollowing) {
           transaction.update(userRef, { following: arrayRemove(targetId), updatedAt: serverTimestamp() });
-          transaction.update(targetRef, { followers: arrayRemove(user.uid), updatedAt: serverTimestamp() });
+          transaction.update(targetRef, { followers: arrayRemove(user.uid) });
           setProfile(prev => prev ? { ...prev, following: (prev.following || []).filter(id => id !== targetId) } : null);
         } else {
           transaction.update(userRef, { following: arrayUnion(targetId), updatedAt: serverTimestamp() });
-          transaction.update(targetRef, { followers: arrayUnion(user.uid), updatedAt: serverTimestamp() });
+          transaction.update(targetRef, { followers: arrayUnion(user.uid) });
           setProfile(prev => prev ? { ...prev, following: [...(prev.following || []), targetId] } : null);
         }
       });
     } catch (error: any) {
       handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
       throw error;
+    }
+  };
+
+  const gainAura = async (amount: number) => {
+    if (!user || !profile) return;
+    
+    try {
+      const { getAuraLevelInfo } = await import('../lib/aura');
+      const userRef = doc(db, 'users', user.uid);
+      
+      // Calculate VIP Aura multiplier
+      let vipMultiplier = 1;
+      if (profile.isVip) {
+        if (profile.vipPlan === 'Bronze') vipMultiplier = 1.10;
+        else if (profile.vipPlan === 'Prata') vipMultiplier = 1.25;
+        else if (profile.vipPlan === 'Ouro') vipMultiplier = 1.50;
+        else if (profile.vipPlan === 'Diamante') vipMultiplier = 2.00;
+      }
+      
+      const finalAmount = Math.max(1, Math.round(amount * vipMultiplier));
+      console.log(`[VIP Bonus] Ganho de Aura base: ${amount}, Multiplicador VIP (${profile.vipPlan || 'Nenhum'}): x${vipMultiplier}. Aura final: ${finalAmount}`);
+
+      await runTransaction(db, async (transaction) => {
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists()) throw new Error("Usuário não encontrado!");
+        
+        const userData = userSnap.data();
+        const currentAura = (userData.aura || 0) + finalAmount;
+        const auraLevelInfo = getAuraLevelInfo(currentAura);
+        const currentAuraLevel = auraLevelInfo.level;
+        
+        transaction.update(userRef, { 
+          aura: currentAura, 
+          auraLevel: currentAuraLevel,
+          updatedAt: serverTimestamp() 
+        });
+        
+        setProfile(prev => prev ? { 
+          ...prev, 
+          aura: currentAura, 
+          auraLevel: currentAuraLevel 
+        } : null);
+      });
+    } catch (error: any) {
+      console.warn("FALHA AO ATUALIZAR AURA:", error);
     }
   };
 
@@ -524,7 +578,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user, profile, loading, isOnline, connectionError, 
       loginAnonymously, loginWithEmail, loginWithGoogle, logout, 
       updateProfile, updateCoins, gainXp, followUser, refreshConnection,
-      sendGift
+      sendGift, gainAura
     }}>
       {children}
     </AuthContext.Provider>

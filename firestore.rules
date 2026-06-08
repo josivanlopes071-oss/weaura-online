@@ -12,10 +12,11 @@ service cloud.firestore {
     }
 
     function isSuperAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email.matches('(?i)^josivanlopes071@gmail\\.com$') ||
-        request.auth.token.email.matches('(?i)^manoeldasilva631kejr@gmail\\.com$')
-      );
+      return isSignedIn() && 
+             'email' in request.auth.token && (
+               request.auth.token.email.matches('(?i)^josivanlopes071@gmail\\.com$') ||
+               request.auth.token.email.matches('(?i)^manoeldasilva631kejr@gmail\\.com$')
+             );
     }
 
     // Helper to check for admin role
@@ -32,8 +33,7 @@ service cloud.firestore {
       return isSignedIn() && (
         isSuperAdmin() ||
         !exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isBanned', false) == false ||
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('bannedUntil', request.time) < request.time)
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isBanned', false) == false
       );
     }
 
@@ -50,9 +50,9 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isSignedIn();
       allow create: if isOwner(userId);
-      allow update: if (isOwner(userId) && (!resource.data.get('isBanned', false) || isSuperAdmin())) || 
+      allow update: if (isOwner(userId) && (isNotBanned() || isSuperAdmin())) || 
                     isAdmin() ||
-                    (isSignedIn() && isNotBanned() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers'])) ||
+                    (isSignedIn() && isNotBanned() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers', 'updatedAt'])) ||
                     (isSignedIn() && isNotBanned() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['aura', 'auraLevel', 'coins', 'updatedAt']));
 
       match /notifications/{notifId} {
@@ -83,13 +83,13 @@ service cloud.firestore {
       );
 
       allow update: if isNotBanned() && (
-        // Owner/Admin can update everything
-        (request.auth.uid == resource.data.ownerId || isAdmin()) ||
-        // Members can join/leave or update speakers
-        (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'activeSpeakers', 'slots', 'lastActive']))
+        // Owner/Admin/Moderator can update everything
+        (request.auth.uid == resource.data.get('ownerId', '') || (resource.data.get('moderators', []) != null && request.auth.uid in resource.data.get('moderators', [])) || isAdmin()) ||
+        // Members can join/leave, update speakers, update donor gift rankings, or request speech
+        (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'activeSpeakers', 'slots', 'lastActive', 'giftRank', 'voicePeerIds', 'speakRequests']))
       );
 
-      allow delete: if isAdmin() || (isSignedIn() && request.auth.uid == resource.data.ownerId);
+      allow delete: if isAdmin() || (isSignedIn() && request.auth.uid == resource.data.get('ownerId', ''));
 
       match /messages/{messageId} {
         allow read: if isSignedIn();
@@ -103,11 +103,13 @@ service cloud.firestore {
     }
 
     match /private_chats/{chatId} {
-      allow read, update: if isSignedIn() && (request.auth.uid in resource.data.participants);
+      allow read, update: if isSignedIn() && (request.auth.uid in resource.data.get('participants', []));
       allow create: if isNotBanned();
 
       match /messages/{messageId} {
-        allow read, create: if isSignedIn() && isNotBanned();
+        allow read: if isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/private_chats/$(chatId)).data.get('participants', []));
+        allow create: if isNotBanned() && (request.auth.uid in get(/databases/$(database)/documents/private_chats/$(chatId)).data.get('participants', []));
+        allow update: if isNotBanned() && (request.auth.uid in get(/databases/$(database)/documents/private_chats/$(chatId)).data.get('participants', []));
       }
     }
 
@@ -139,40 +141,40 @@ service cloud.firestore {
                     isValidCheckersMatch(request.resource.data) && (
                       // Action 1: Joiner joining the match
                       (
-                        resource.data.player2 == null && 
-                        request.resource.data.player2 == request.auth.uid &&
-                        request.resource.data.status == 'playing' &&
+                        resource.data.get('player2', null) == null && 
+                        request.resource.data.get('player2', '') == request.auth.uid &&
+                        request.resource.data.get('status', '') == 'playing' &&
                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['player2', 'player2Name', 'player2Photo', 'status', 'turn', 'board', 'lastMoveAt'])
                       ) ||
                       // Action 2: Active player taking a move turn or forfeiting
                       (
-                        resource.data.status == 'playing' &&
+                        resource.data.get('status', '') == 'playing' &&
                         (
                           // Option A: Active player taking a move turn (must be their turn)
                           (
-                            resource.data.turn == (resource.data.player1 == request.auth.uid ? 'player1' : 'player2') &&
+                            resource.data.get('turn', '') == (resource.data.get('player1', '') == request.auth.uid ? 'player1' : 'player2') &&
                             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['board', 'turn', 'status', 'winnerId', 'winnerName', 'reason', 'lastMoveAt'])
                           ) ||
                           // Option B: Any of the playing players forfeiting at any point
                           (
-                            (request.auth.uid == resource.data.player1 || request.auth.uid == resource.data.player2) &&
-                            request.resource.data.status == 'ended' &&
-                            request.resource.data.reason == 'abandoned' &&
+                            (request.auth.uid == resource.data.get('player1', '') || request.auth.uid == resource.data.get('player2', '')) &&
+                            request.resource.data.get('status', '') == 'ended' &&
+                            request.resource.data.get('reason', '') == 'abandoned' &&
                             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'winnerId', 'winnerName', 'reason', 'lastMoveAt'])
                           )
                         )
                       ) ||
                       // Action 3: Winner claiming their pot
                       (
-                        resource.data.status == 'ended' &&
-                        resource.data.winnerId == request.auth.uid &&
-                        resource.data.potClaimed == false &&
-                        request.resource.data.potClaimed == true &&
+                        resource.data.get('status', '') == 'ended' &&
+                        resource.data.get('winnerId', '') == request.auth.uid &&
+                        resource.data.get('potClaimed', false) == false &&
+                        request.resource.data.get('potClaimed', false) == true &&
                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['potClaimed'])
                       )
                     );
 
-      allow delete: if isSignedIn() && resource.data.creatorId == request.auth.uid && resource.data.status == 'waiting_peer';
+      allow delete: if isSignedIn() && resource.data.get('creatorId', '') == request.auth.uid && resource.data.get('status', '') == 'waiting_peer';
     }
 
     // 4.5 Tic-Tac-Toe Game System
@@ -200,52 +202,64 @@ service cloud.firestore {
                     isValidTictactoeMatch(request.resource.data) && (
                       // Action 1: Joiner joining the match
                       (
-                        resource.data.player2 == null && 
-                        request.resource.data.player2 == request.auth.uid &&
-                        request.resource.data.status == 'playing' &&
+                        resource.data.get('player2', null) == null && 
+                        request.resource.data.get('player2', '') == request.auth.uid &&
+                        request.resource.data.get('status', '') == 'playing' &&
                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['player2', 'player2Name', 'player2Photo', 'status', 'updatedAt'])
                       ) ||
                       // Action 2: Player taking a move turn
                       (
-                        resource.data.status == 'playing' &&
-                        resource.data.turn == request.auth.uid &&
-                        request.resource.data.status == 'playing' &&
+                        resource.data.get('status', '') == 'playing' &&
+                        resource.data.get('turn', '') == request.auth.uid &&
+                        request.resource.data.get('status', '') == 'playing' &&
                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['board', 'turn', 'updatedAt'])
                       ) ||
                       // Action 3: Ending/concluding game (win/draw/forfeit)
                       (
-                        (request.auth.uid == resource.data.player1 || request.auth.uid == resource.data.player2) &&
-                        request.resource.data.status == 'ended' &&
+                        (request.auth.uid == resource.data.get('player1', '') || request.auth.uid == resource.data.get('player2', '')) &&
+                        request.resource.data.get('status', '') == 'ended' &&
                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['board', 'winner', 'winningLine', 'status', 'updatedAt'])
                       ) ||
                       // Action 4: Claiming pot or refunding
                       (
                         // If winner is claiming
                         (
-                          resource.data.status == 'ended' &&
-                          resource.data.winner == request.auth.uid &&
-                          resource.data.potClaimedByWinner == false &&
-                          request.resource.data.potClaimedByWinner == true &&
+                          resource.data.get('status', '') == 'ended' &&
+                          resource.data.get('winner', '') == request.auth.uid &&
+                          resource.data.get('potClaimedByWinner', false) == false &&
+                          request.resource.data.get('potClaimedByWinner', false) == true &&
                           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['potClaimedByWinner'])
                         ) ||
                         // If refunding in case of raw draw
                         (
-                          resource.data.status == 'ended' &&
-                          resource.data.winner == 'Draw' &&
-                          !(request.auth.uid in resource.data.refundedUsers) &&
-                          (request.auth.uid in request.resource.data.refundedUsers) &&
+                          resource.data.get('status', '') == 'ended' &&
+                          resource.data.get('winner', '') == 'Draw' &&
+                          !(request.auth.uid in resource.data.get('refundedUsers', [])) &&
+                          (request.auth.uid in request.resource.data.get('refundedUsers', [])) &&
                           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['refundedUsers'])
                         )
                       )
                     );
 
-      allow delete: if isSignedIn() && resource.data.player1 == request.auth.uid && resource.data.status == 'waiting';
+      allow delete: if isSignedIn() && resource.data.get('player1', '') == request.auth.uid && resource.data.get('status', '') == 'waiting';
     }
 
     // Gift Transactions History
     match /gift_transactions/{transactionId} {
       allow read: if isSignedIn();
-      allow create: if isNotBanned() && request.resource.data.senderId == request.auth.uid;
+      allow create: if isNotBanned() && request.resource.data.get('senderId', '') == request.auth.uid;
+    }
+
+    // Profile Visits Track
+    match /profile_visits/{visitId} {
+      allow read: if isSignedIn();
+      allow create: if isNotBanned() && request.resource.data.get('visitorId', '') == request.auth.uid;
+    }
+
+    // Feedback Contributions Track
+    match /contributions/{contribId} {
+      allow read: if isAdmin();
+      allow create: if isNotBanned() && request.resource.data.get('userId', '') == request.auth.uid;
     }
 
     // 5. Admin system & audit tables
@@ -257,6 +271,22 @@ service cloud.firestore {
     match /admin_audit_logs/{logId} {
       allow read, create: if isAdmin() && isNotBanned();
       allow update, delete: if false;
+    }
+
+    // 4.6 Posts (Momentos / Cantinho) Rules
+    match /posts/{postId} {
+      allow read: if isSignedIn();
+      allow create: if isNotBanned() && request.resource.data.userId == request.auth.uid;
+      allow update: if isNotBanned();
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // 4.7 Stories (Momentos) Rules
+    match /stories/{storyId} {
+      allow read: if isSignedIn();
+      allow create: if isNotBanned() && request.resource.data.userId == request.auth.uid;
+      allow update: if isNotBanned();
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
 
     // 5. Default Deny

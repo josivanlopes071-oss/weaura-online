@@ -209,7 +209,7 @@ export default function Games() {
 
   // Subscribe to open matches
   useEffect(() => {
-    if (ticMode !== 'online' || activeModal !== 'ticTac') {
+    if (ticMode !== 'online' || activeModal !== 'ticTac' || !user) {
       setOnlineMatches([]);
       return;
     }

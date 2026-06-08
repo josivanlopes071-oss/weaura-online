@@ -3,14 +3,16 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { PREMIUM_FRAMES, getDirectDriveUrl } from '../lib/frames';
-import { getTransparentFrame } from '../lib/transparentFrameProcessor';
 import { AURA_LEVELS } from '../lib/aura';
+import ProfileFrame from './ProfileFrame';
 
 const avatarPhotoCache: { [uid: string]: string } = {};
 const avatarNameCache: { [uid: string]: string } = {};
 const avatarLevelCache: { [uid: string]: number } = {};
 const avatarFrameCache: { [uid: string]: string | null } = {};
 const avatarAuraLevelCache: { [uid: string]: number } = {};
+const avatarVipCache: { [uid: string]: boolean } = {};
+const avatarVipPlanCache: { [uid: string]: string | null } = {};
 const profileFetchPromises: { [uid: string]: Promise<any> | null } = {};
 
 interface UserAvatarProps {
@@ -37,17 +39,16 @@ export default function UserAvatar({
   const [userLevel, setUserLevel] = useState<number>(1);
   const [equippedFrame, setEquippedFrame] = useState<string | null>(null);
   const [userAuraLevel, setUserAuraLevel] = useState<number>(1);
-
-  // States to hold the processed high-quality PNG with alpha channel transparency
-  const [processedFrameUrl, setProcessedFrameUrl] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [errorOccurred, setErrorOccurred] = useState(false);
+  const [isVip, setIsVip] = useState<boolean>(false);
+  const [vipPlan, setVipPlan] = useState<string | null>(null);
 
   useEffect(() => {
     if (!uid) {
       setPhoto(null);
       setUserLevel(1);
       setEquippedFrame(null);
+      setIsVip(false);
+      setVipPlan(null);
       return;
     }
 
@@ -61,6 +62,8 @@ export default function UserAvatar({
       setUserLevel(forceLevel);
       if (user && uid === user.uid && profile?.photoURL) {
         setPhoto(profile.photoURL);
+        setIsVip(profile?.isVip || false);
+        setVipPlan(profile?.vipPlan || null);
       }
       return;
     }
@@ -69,6 +72,8 @@ export default function UserAvatar({
       setPhoto(profile?.photoURL || null);
       setUserLevel(profile?.level || 1);
       setUserAuraLevel(profile?.auraLevel || 1);
+      setIsVip(profile?.isVip || false);
+      setVipPlan(profile?.vipPlan || null);
       return;
     }
 
@@ -77,6 +82,8 @@ export default function UserAvatar({
       setPhoto(avatarPhotoCache[uid]);
       setUserLevel(avatarLevelCache[uid] || 1);
       setUserAuraLevel(avatarAuraLevelCache[uid] || 1);
+      setIsVip(avatarVipCache[uid] || false);
+      setVipPlan(avatarVipPlanCache[uid] || null);
       if (forceFrameId === undefined) {
         setEquippedFrame(avatarFrameCache[uid] || null);
       }
@@ -95,19 +102,23 @@ export default function UserAvatar({
             const fetchedLevel = data.level || 1;
             const fetchedFrame = data.equippedFrame || null;
             const fetchedAuraLevel = data.auraLevel || 1;
+            const fetchedVip = data.isVip || false;
+            const fetchedVipPlan = data.vipPlan || null;
 
             avatarPhotoCache[uid] = fetchedPhoto;
             avatarNameCache[uid] = fetchedName;
             avatarLevelCache[uid] = fetchedLevel;
             avatarFrameCache[uid] = fetchedFrame;
             avatarAuraLevelCache[uid] = fetchedAuraLevel;
+            avatarVipCache[uid] = fetchedVip;
+            avatarVipPlanCache[uid] = fetchedVipPlan;
 
-            return { fetchedPhoto, fetchedLevel, fetchedFrame, fetchedAuraLevel };
+            return { fetchedPhoto, fetchedLevel, fetchedFrame, fetchedAuraLevel, fetchedVip, fetchedVipPlan };
           }
-          return { fetchedPhoto: '', fetchedLevel: 1, fetchedFrame: null, fetchedAuraLevel: 1 };
+          return { fetchedPhoto: '', fetchedLevel: 1, fetchedFrame: null, fetchedAuraLevel: 1, fetchedVip: false, fetchedVipPlan: null };
         }).catch((err) => {
           console.warn("[UserAvatar Cache] Sync Error:", err);
-          return { fetchedPhoto: '', fetchedLevel: 1, fetchedFrame: null, fetchedAuraLevel: 1 };
+          return { fetchedPhoto: '', fetchedLevel: 1, fetchedFrame: null, fetchedAuraLevel: 1, fetchedVip: false, fetchedVipPlan: null };
         });
       }
 
@@ -115,38 +126,15 @@ export default function UserAvatar({
       setPhoto(res.fetchedPhoto);
       setUserLevel(res.fetchedLevel);
       setUserAuraLevel(res.fetchedAuraLevel || 1);
+      setIsVip(res.fetchedVip || false);
+      setVipPlan(res.fetchedVipPlan || null);
       if (forceFrameId === undefined) {
         setEquippedFrame(res.fetchedFrame);
       }
     };
 
     fetchUserMeta();
-  }, [uid, user?.uid, profile?.photoURL, profile?.equippedFrame, forceFrameId, forceLevel]);
-
-  // Match the equipped frame item
-  const currentFrameObj = showFrame && equippedFrame ? PREMIUM_FRAMES.find(f => f.id === equippedFrame) : null;
-
-  // Process the frame image to remove background and convert it to transparent alpha PNG
-  useEffect(() => {
-    if (currentFrameObj?.imageUrl) {
-      setIsProcessing(true);
-      setErrorOccurred(false);
-      getTransparentFrame(currentFrameObj.imageUrl)
-        .then((alphaTransparentUrl) => {
-          setProcessedFrameUrl(alphaTransparentUrl);
-          setIsProcessing(false);
-        })
-        .catch((err) => {
-          console.warn("[UserAvatar] Falha na conversão de transparência. Usando fallback.", err);
-          // Fallback to direct raw url (blended using mix-blend-mode inside CSS)
-          setProcessedFrameUrl(currentFrameObj.imageUrl);
-          setIsProcessing(false);
-        });
-    } else {
-      setProcessedFrameUrl(null);
-      setIsProcessing(false);
-    }
-  }, [currentFrameObj?.imageUrl]);
+  }, [uid, user?.uid, profile?.photoURL, profile?.equippedFrame, profile?.level, profile?.auraLevel, profile?.isVip, profile?.vipPlan, forceFrameId, forceLevel]);
 
   const isMe = user && uid === user.uid;
   const activePhoto = isMe ? (profile?.photoURL || null) : photo;
@@ -154,68 +142,125 @@ export default function UserAvatar({
   const src = getDirectDriveUrl(rawSrc);
   const activeLevel = forceLevel !== undefined ? forceLevel : (isMe ? (profile?.level || 1) : userLevel);
 
+  const activeIsVip = isMe ? (profile?.isVip || false) : isVip;
+  const activeVipPlan = isMe ? (profile?.vipPlan || null) : vipPlan;
+
+  // Auto-equipped VIP frame fallback if user hasn't chosen one
+  const matchedFrameId = forceFrameId !== undefined ? forceFrameId : (equippedFrame || (activeIsVip && activeVipPlan ? `fr_vip_${activeVipPlan.toLowerCase()}` : null));
+
+  // Match the equipped frame item
+  const currentFrameObj = showFrame && matchedFrameId ? PREMIUM_FRAMES.find(f => f.id === matchedFrameId) : null;
+
   const activeAuraLevel = isMe ? (profile?.auraLevel || 1) : userAuraLevel;
   const hasAuraFrame = !currentFrameObj && activeAuraLevel >= 2;
   const imageSize = currentFrameObj ? '74%' : (hasAuraFrame ? '84%' : '100%');
 
+  // Check if they are explicitly using another non-VIP frame. Avoid cluttering if another frame is equipped.
+  const isUsingSelfVipFrame = !equippedFrame || (activeVipPlan && equippedFrame === `fr_vip_${activeVipPlan.toLowerCase()}`);
+
   return (
-    <div id="user-avatar-root" className={`relative flex-shrink-0 ${className} overflow-visible group flex items-center justify-center bg-transparent`}>
-      
-      {/* Background Aura glow - WePlay theme aura */}
-      {(currentFrameObj || hasAuraFrame) && (
+    <div id="user-avatar-root" className={`relative flex-shrink-0 ${className} aspect-square overflow-visible group flex items-center justify-center bg-transparent`}>
+           {/* Background Aura glow - WePlay theme aura or custom VIP pulse gradient */}
+      {(currentFrameObj || hasAuraFrame || activeIsVip) && (
         <div 
-          className="absolute rounded-full pointer-events-none transition-all duration-1000 opacity-80 group-hover:opacity-100 weplay-aura-glow animate-pulse"
+          className="absolute rounded-full pointer-events-none transition-all duration-1000 opacity-80 group-hover:opacity-100 animate-pulse"
           style={{
-            width: '130%',
-            height: '130%',
-            background: `radial-gradient(circle, ${
-              currentFrameObj ? currentFrameObj.glowColor : 
-              activeAuraLevel === 2 ? '#10b981' :
-              activeAuraLevel === 3 ? '#3b82f6' :
-              activeAuraLevel === 4 ? '#a855f7' :
-              activeAuraLevel === 5 ? '#f59e0b' : '#ff4d9d'
-            }25 0%, transparent 70%)`,
+            width: '135%',
+            height: '135%',
+            background: (activeIsVip && isUsingSelfVipFrame)
+              ? (activeVipPlan === 'Bronze' ? 'radial-gradient(circle, rgba(217,119,6,0.3) 0%, transparent 70%)' :
+                 activeVipPlan === 'Prata' ? 'radial-gradient(circle, rgba(148,163,184,0.3) 0%, transparent 70%)' :
+                 activeVipPlan === 'Ouro' ? 'radial-gradient(circle, rgba(234,179,8,0.4) 0%, transparent 72%)' :
+                 'radial-gradient(circle, rgba(6,182,212,0.5) 0%, rgba(168,85,247,0.15) 40%, transparent 75%)')
+              : `radial-gradient(circle, ${
+                  currentFrameObj ? currentFrameObj.glowColor : 
+                  activeAuraLevel === 2 ? '#10b981' :
+                  activeAuraLevel === 3 ? '#3b82f6' :
+                  activeAuraLevel === 4 ? '#a855f7' :
+                  activeAuraLevel === 5 ? '#f59e0b' : '#ff4d9d'
+                }25 0%, transparent 70%)`,
             zIndex: 1
           }}
         />
       )}
 
       {/* Rotating holograph loop for VIP / Premium style */}
-      {(currentFrameObj?.isVip || (hasAuraFrame && activeAuraLevel >= 4)) && (
-        <div 
-          className="absolute rounded-full pointer-events-none opacity-40 mix-blend-screen scale-[1.08] animate-angle-rotate holographic-gradient block"
-          style={{
-            width: '100%',
-            height: '100%',
-            padding: '2px',
-            maskImage: 'radial-gradient(circle, transparent 58%, black 60%)',
-            WebkitMaskImage: 'radial-gradient(circle, transparent 58%, black 60%)',
-            zIndex: 2
-          }}
-        />
+      {(currentFrameObj?.isVip || (hasAuraFrame && activeAuraLevel >= 4) || (activeIsVip && isUsingSelfVipFrame)) && (
+        <>
+          {/* Default Rotating Hologram */}
+          <div 
+            className="absolute rounded-full pointer-events-none opacity-40 mix-blend-screen scale-[1.08] animate-angle-rotate holographic-gradient block"
+            style={{
+              width: '100%',
+              height: '100%',
+              padding: '2px',
+              maskImage: 'radial-gradient(circle, transparent 58%, black 60%)',
+              WebkitMaskImage: 'radial-gradient(circle, transparent 58%, black 60%)',
+              zIndex: 2
+            }}
+          />
+
+          {/* Level Specific Specialized Moving Orbits */}
+          {activeIsVip && isUsingSelfVipFrame && activeVipPlan === 'Bronze' && (
+            <div className="absolute rounded-full pointer-events-none scale-[1.12] border border-amber-500/30 border-dashed animate-spin" style={{ width: '105%', height: '105%', zIndex: 1 }} />
+          )}
+          {activeIsVip && isUsingSelfVipFrame && activeVipPlan === 'Prata' && (
+            <>
+              <div className="absolute rounded-full pointer-events-none scale-[1.12] border border-slate-300/40 animate-spin" style={{ width: '105%', height: '105%', zIndex: 1 }} />
+              <div className="absolute rounded-full pointer-events-none scale-[1.15] border border-dotted border-slate-400/30 animate-spin-slow" style={{ width: '110%', height: '110%', zIndex: 1 }} />
+            </>
+          )}
+          {activeIsVip && isUsingSelfVipFrame && activeVipPlan === 'Ouro' && (
+            <>
+              <div className="absolute rounded-full pointer-events-none scale-[1.15] border-2 border-double border-yellow-400/50 shadow-[0_0_12px_#fbbf24] animate-pulse" style={{ width: '108%', height: '108%', zIndex: 1 }} />
+              <div className="absolute rounded-full pointer-events-none scale-[1.20] border border-dashed border-amber-400/30 animate-spin" style={{ width: '114%', height: '114%', zIndex: 1 }} />
+            </>
+          )}
+          {activeIsVip && isUsingSelfVipFrame && activeVipPlan === 'Diamante' && (
+            <>
+              <div className="absolute rounded-full pointer-events-none scale-[1.20] bg-gradient-to-tr from-cyan-400 via-fuchsia-500 to-pink-500 p-[1.5px] animate-spin shadow-[0_0_20px_rgba(6,182,212,0.4)]" style={{ width: '112%', height: '112%', zIndex: 1, maskImage: 'radial-gradient(circle, transparent 55%, black 60%)', WebkitMaskImage: 'radial-gradient(circle, transparent 55%, black 60%)' }} />
+              <div className="absolute rounded-full pointer-events-none scale-[1.25] border border-dashed border-cyan-400/45 animate-spin-slow" style={{ width: '118%', height: '118%', zIndex: 1 }} />
+            </>
+          )}
+        </>
       )}
 
-      {/* Core Avatar Image Container (Centered, nested, scaled to leave precise space for outer frame) */}
-      <div 
-        className="rounded-full overflow-hidden flex items-center justify-center bg-zinc-950 border border-white/10 absolute transition-all duration-500"
-        style={{
-          width: imageSize,
-          height: imageSize,
-          boxShadow: currentFrameObj ? `0 0 16px ${currentFrameObj.glowColor}30` : 'none',
-          zIndex: 10,
-          background: 'transparent'
-        }}
-      >
-        <img
-          src={src}
-          className="w-full h-full rounded-full object-cover"
-          alt={alt}
-          referrerPolicy="no-referrer"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid || 'default'}`;
+      {/* Core Avatar Image / Profile Frame Container Layout */}
+      {currentFrameObj ? (
+        <ProfileFrame frameObj={currentFrameObj} zIndex={20}>
+          <img
+            src={src}
+            className="w-full h-full rounded-full object-cover"
+            alt={alt}
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid || 'default'}`;
+            }}
+          />
+        </ProfileFrame>
+      ) : (
+        /* Standard Avatar Image Container when no Custom Frame is equipped */
+        <div 
+          className="rounded-full overflow-hidden flex items-center justify-center bg-zinc-950 border border-white/10 absolute transition-all duration-500"
+          style={{
+            width: imageSize,
+            height: imageSize,
+            boxShadow: 'none',
+            zIndex: 10,
+            background: 'transparent'
           }}
-        />
-      </div>
+        >
+          <img
+            src={src}
+            className="w-full h-full rounded-full object-cover"
+            alt={alt}
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${uid || 'default'}`;
+            }}
+          />
+        </div>
+      )}
 
       {/* Dynamic CSS Aura Level Frames */}
       {hasAuraFrame && (
@@ -237,63 +282,6 @@ export default function UserAvatar({
             borderImage: activeAuraLevel >= 6 ? 'linear-gradient(to right, #FF4D9D, #8A2EFF, #00F0FF) 1' : undefined
           }}
         />
-      )}
-
-      {/* Frame image layer. Positioned exactly centered around the photo container with zero clipping */}
-      {currentFrameObj && (currentFrameObj.imageUrl || processedFrameUrl) && (
-        <div 
-          className="absolute pointer-events-none select-none flex items-center justify-center bg-transparent"
-          style={{
-            width: '124%',
-            height: '124%',
-            left: '50%',
-            top: '50%',
-            transform: 'translate(-50%, -50%)',
-            zIndex: 20
-          }}
-        >
-          {/* Real-time spinner animation before rendering frame texture */}
-          {isProcessing && !processedFrameUrl && (
-            <div 
-              className={`absolute w-[78%] h-[78%] rounded-full border-2 border-dashed ${
-                currentFrameObj.id === 'weplay_aura_guardiao' ? 'border-purple-500 animate-spin' : 'border-cyan-500 animate-pulse'
-              } opacity-70`}
-            />
-          )}
-
-          {/* Transparent PNG Frame rendering layer */}
-          {(processedFrameUrl || currentFrameObj.imageUrl) && (
-            <img 
-              src={processedFrameUrl || currentFrameObj.imageUrl} 
-              className="w-full h-full object-contain pointer-events-none transition-all duration-300 drop-shadow-[0_0_12px_rgba(0,0,0,0.85)] bg-transparent"
-              style={{
-                // Auto screen blending mode is set if we load raw imageUrl (unprocessed backup) or if canvas had failure,
-                // otherwise it renders pure transparente PNG raw data.
-                mixBlendMode: (!processedFrameUrl || processedFrameUrl === currentFrameObj.imageUrl) ? 'screen' : 'normal',
-                objectFit: 'contain',
-                background: 'transparent',
-                imageRendering: 'auto'
-              }}
-              alt={currentFrameObj.name}
-              onError={() => {
-                console.warn("[UserAvatar] Falhou ao carregar componente da moldura.");
-                setErrorOccurred(true);
-              }}
-            />
-          )}
-
-          {/* Premium Ambient Pulsing Particle Glow effect */}
-          {!isProcessing && (processedFrameUrl || currentFrameObj.imageUrl) && (
-            <div 
-              className="absolute inset-[4%] rounded-full pointer-events-none opacity-40 mix-blend-screen animate-pulse scale-[1.01]"
-              style={{
-                boxShadow: `0 0 18px ${currentFrameObj.glowColor}40, inset 0 0 18px ${currentFrameObj.glowColor}30`,
-                border: `1px solid ${currentFrameObj.glowColor}15`,
-                background: 'transparent'
-              }}
-            />
-          )}
-        </div>
       )}
 
       {/* Level Tag (glowing match if frame is equipped) */}

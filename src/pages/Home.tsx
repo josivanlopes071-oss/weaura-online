@@ -59,13 +59,14 @@ export default function Home() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { theme } = useTheme();
-  const [showPatchNotes, setShowPatchNotes] = useState(() => !sessionStorage.getItem('dismissed_patch_notes_lightmode'));
+  const [showPatchNotes, setShowPatchNotes] = useState(false);
 
   useEffect(() => {
+    if (!user) return;
     // 1. We remove orderBy from snapshot to prevent rooms from temporarily disappearing 
     // when created inside the local cache during the serverTimestamp() resolved phase.
     const q = query(collection(db, 'rooms'), limit(100));
-    return onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const roomList = snapshot.docs.map(doc => {
         const data = doc.data();
         let createdAtMs = Date.now();
@@ -103,7 +104,9 @@ export default function Home() {
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'rooms');
     });
-  }, []);
+
+    return () => unsubscribe();
+  }, [user]);
 
   const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault();
