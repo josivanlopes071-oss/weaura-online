@@ -44,22 +44,22 @@ const translateAuthError = (err: any): string => {
       lowercaseMsg.includes('invalid-credential') || 
       lowercaseMsg.includes('wrong-password') || 
       lowercaseMsg.includes('auth/invalid-email')) {
-    return "E-mail ou Código Aura incorretos. Verifique seus dados do WeAura e tente de novo.";
+    return "E-mail ou senha incorretos. Verifique seus dados e tente novamente.";
   }
 
   if (code === 'auth/user-not-found' || 
       lowercaseMsg.includes('user-not-found')) {
-    return "Nenhum iniciado encontrado com este e-mail. Ative 'Novo Iniciado? Registrar' para se cadastrar.";
+    return "Nenhum usuário encontrado com este e-mail. Altere para 'Registrar' para se cadastrar.";
   }
 
   if (code === 'auth/email-already-in-use' || 
       lowercaseMsg.includes('email-already-in-use')) {
-    return "Este e-mail de elite já está cadastrado. Altere para 'Entrar' e use o seu Código Aura.";
+    return "Este e-mail já está cadastrado. Altere para 'Entrar' e use a sua senha cadastrada.";
   }
 
   if (code === 'auth/weak-password' || 
       lowercaseMsg.includes('weak-password')) {
-    return "Código Aura fraco. Escolha uma senha segura de pelo menos 6 dígitos.";
+    return "Senha muito fraca. Digite uma senha com pelo menos 6 caracteres.";
   }
 
   if (code === 'auth/too-many-requests' || 
@@ -178,35 +178,35 @@ export default function Login() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="E-mail de Elite"
+                    placeholder="Seu E-mail"
                     className="w-full bg-black/60 border border-white/[0.08] rounded-[24px] py-5 pl-16 pr-8 text-white text-[15px] font-bold outline-none focus:border-purple-500/30 focus:shadow-[0_0_20px_rgba(168,85,247,0.1)] transition-all italic placeholder:text-white/10"
                     required
                   />
                 </div>
-
-                <div className="relative group">
-                  <div className="absolute left-6 top-1/2 -translate-y-1/2 text-white/5 group-focus-within:text-purple-500 transition-all duration-500">
-                    <Lock size={20} className="drop-shadow-[0_0_8px_currentColor]" />
-                  </div>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Código Aura"
-                    className="w-full bg-black/60 border border-white/[0.08] rounded-[24px] py-5 pl-16 pr-8 text-white text-[15px] font-bold outline-none focus:border-purple-500/30 focus:shadow-[0_0_20px_rgba(168,85,247,0.1)] transition-all italic placeholder:text-white/10"
-                    required
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full h-16 bg-white text-[#020202] rounded-[24px] font-black uppercase tracking-[0.25em] text-[12px] flex items-center justify-center gap-4 shadow-[0_20px_40px_rgba(255,255,255,0.15)] active:scale-95 disabled:opacity-50 transition-all hover:scale-[1.02] italic card-shine"
-              >
-                {loading ? <Loader2 className="animate-spin" size={22} /> : (isRegister ? 'Criar Identidade' : 'Acessar Aura')}
-              </button>
-            </form>
+ 
+                 <div className="relative group">
+                   <div className="absolute left-6 top-1/2 -translate-y-1/2 text-white/5 group-focus-within:text-purple-500 transition-all duration-500">
+                     <Lock size={20} className="drop-shadow-[0_0_8px_currentColor]" />
+                   </div>
+                   <input
+                     type="password"
+                     value={password}
+                     onChange={(e) => setPassword(e.target.value)}
+                     placeholder={isRegister ? "Escolha uma Senha (mín. 6 dígitos)" : "Digite sua Senha"}
+                     className="w-full bg-black/60 border border-white/[0.08] rounded-[24px] py-5 pl-16 pr-8 text-white text-[15px] font-bold outline-none focus:border-purple-500/30 focus:shadow-[0_0_20px_rgba(168,85,247,0.1)] transition-all italic placeholder:text-white/10"
+                     required
+                   />
+                 </div>
+               </div>
+ 
+               <button
+                 type="submit"
+                 disabled={loading}
+                 className="w-full h-16 bg-white text-[#020202] rounded-[24px] font-black uppercase tracking-[0.25em] text-[12px] flex items-center justify-center gap-4 shadow-[0_20px_40px_rgba(255,255,255,0.15)] active:scale-95 disabled:opacity-50 transition-all hover:scale-[1.02] italic card-shine"
+               >
+                 {loading ? <Loader2 className="animate-spin" size={22} /> : (isRegister ? 'Criar Minha Conta' : 'Entrar com E-mail')}
+               </button>
+             </form>
 
             <div className="flex items-center gap-6 py-2 opacity-10">
                <div className="flex-1 h-px bg-white"></div>
@@ -254,7 +254,7 @@ export default function Login() {
             onClick={() => setIsRegister(!isRegister)}
             className="w-full text-[11px] font-black uppercase text-white/20 hover:text-white transition-all tracking-[0.3em] italic"
           >
-            {isRegister ? 'Aura Existente? Entrar' : 'Novo Iniciado? Registrar'}
+            {isRegister ? 'Já tem uma conta? Entrar' : 'Não tem conta? Cadastrar-se'}
           </button>
         </div>
         
