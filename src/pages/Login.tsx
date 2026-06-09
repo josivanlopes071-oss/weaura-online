@@ -158,6 +158,38 @@ export default function Login() {
 
         <div className="space-y-8">
           <div className="glass-dark border border-white/[0.08] rounded-[50px] p-10 shadow-premium space-y-8 relative card-shine overflow-hidden">
+            {/* Elegant Tab Switcher - Super Visible at the top of the card */}
+            <div className="grid grid-cols-2 p-1 bg-black/40 border border-white/[0.05] rounded-[20px]">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsRegister(false);
+                  setError(null);
+                }}
+                className={`py-3.5 rounded-[16px] text-[11px] font-black uppercase tracking-wider transition-all duration-300 italic flex items-center justify-center gap-2 ${
+                  !isRegister 
+                    ? 'bg-white text-[#020202] shadow-[0_4px_12px_rgba(255,255,255,0.15)] scale-[1.02]' 
+                    : 'text-white/40 hover:text-white/80 hover:bg-white/5 active:scale-95'
+                }`}
+              >
+                Entrar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsRegister(true);
+                  setError(null);
+                }}
+                className={`py-3.5 rounded-[16px] text-[11px] font-black uppercase tracking-wider transition-all duration-300 italic flex items-center justify-center gap-2 ${
+                  isRegister 
+                    ? 'bg-white text-[#020202] shadow-[0_4px_12px_rgba(255,255,255,0.15)] scale-[1.02]' 
+                    : 'text-white/40 hover:text-white/80 hover:bg-white/5 active:scale-95'
+                }`}
+              >
+                Cadastrar-se
+              </button>
+            </div>
+
             {error && (
               <motion.div 
                 initial={{ opacity: 0, x: -10 }}
@@ -248,14 +280,8 @@ export default function Login() {
                 </p>
               </motion.div>
             )}
+          {/* The switch button is now at the top of the card as a high-visibility selector */}
           </div>
-
-          <button
-            onClick={() => setIsRegister(!isRegister)}
-            className="w-full text-[11px] font-black uppercase text-white/20 hover:text-white transition-all tracking-[0.3em] italic"
-          >
-            {isRegister ? 'Já tem uma conta? Entrar' : 'Não tem conta? Cadastrar-se'}
-          </button>
         </div>
         
         <div className="mt-20 text-center space-y-4">
