@@ -3,6 +3,78 @@ import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'motion/react';
 import { Mail, Lock, UserPlus, LogIn, Ghost, Loader2 } from 'lucide-react';
 
+const translateAuthError = (err: any): string => {
+  if (!err) return "";
+  const code = err.code || "";
+  const message = err.message || "";
+  const lowercaseMsg = message.toLowerCase();
+
+  // Domain unauthorized
+  if (code === 'auth/unauthorized-domain' || 
+      lowercaseMsg.includes('unauthorized-domain') || 
+      lowercaseMsg.includes('authorized-domain') || 
+      lowercaseMsg.includes('domain')) {
+    return `Erro de Domínio: O domínio "${window.location.hostname}" precisa ser adicionado aos "Domínios Autorizados" no Console Firebase (Authentication > Configurações > Domínios Autorizados) do projeto "weaura-390c7" para que o login funcione.`;
+  }
+
+  // Popup blocked
+  if (code === 'auth/popup-blocked' || 
+      lowercaseMsg.includes('popup-blocked') || 
+      lowercaseMsg.includes('popup blocked')) {
+    return "Janela Bloqueada: O navegador bloqueou o popup do Google. Clique para abrir WeAura em uma nova aba fora do editor para fazer login.";
+  }
+
+  // Popup closed
+  if (code === 'auth/popup-closed-by-user' || 
+      lowercaseMsg.includes('popup-closed-by-user') || 
+      lowercaseMsg.includes('closed by user')) {
+    return "Tentativa de login cancelada. A janela de autenticação foi fechada antes da conclusão.";
+  }
+
+  // Operation not allowed
+  if (code === 'auth/operation-not-allowed' || 
+      lowercaseMsg.includes('operation-not-allowed') || 
+      lowercaseMsg.includes('restricted-operation')) {
+    return "Serviço Inativo: O login com Google ou E-mail não está ativo no Console do Firebase. Ative em 'Authentication > Sign-in method'.";
+  }
+
+  // Credentials
+  if (code === 'auth/wrong-password' || 
+      code === 'auth/invalid-credential' || 
+      lowercaseMsg.includes('invalid-credential') || 
+      lowercaseMsg.includes('wrong-password') || 
+      lowercaseMsg.includes('auth/invalid-email')) {
+    return "E-mail ou Código Aura incorretos. Verifique seus dados do WeAura e tente de novo.";
+  }
+
+  if (code === 'auth/user-not-found' || 
+      lowercaseMsg.includes('user-not-found')) {
+    return "Nenhum iniciado encontrado com este e-mail. Ative 'Novo Iniciado? Registrar' para se cadastrar.";
+  }
+
+  if (code === 'auth/email-already-in-use' || 
+      lowercaseMsg.includes('email-already-in-use')) {
+    return "Este e-mail de elite já está cadastrado. Altere para 'Entrar' e use o seu Código Aura.";
+  }
+
+  if (code === 'auth/weak-password' || 
+      lowercaseMsg.includes('weak-password')) {
+    return "Código Aura fraco. Escolha uma senha segura de pelo menos 6 dígitos.";
+  }
+
+  if (code === 'auth/too-many-requests' || 
+      lowercaseMsg.includes('too-many-requests')) {
+    return "Muitas tentativas. Acesso bloqueado temporariamente por segurança. Aguarde um momento e tente de novo.";
+  }
+
+  if (code === 'auth/network-request-failed' || 
+      lowercaseMsg.includes('network-request-failed')) {
+    return "Erro de Rede: Conexão instável. Verifique sua internet.";
+  }
+
+  return message || "Ocorreu um erro ao realizar a autenticação.";
+};
+
 export default function Login() {
   const { loginAnonymously, loginWithEmail, loginWithGoogle } = useAuth();
   const [email, setEmail] = useState('');
@@ -15,35 +87,40 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    try { await loginWithEmail(email, password, isRegister); } 
-    catch (err: any) { setError(err.message || "Erro na autenticação"); } 
-    finally { setLoading(false); }
+    try { 
+      await loginWithEmail(email, password, isRegister); 
+    } catch (err: any) { 
+      console.error("Login email error:", err);
+      setError(translateAuthError(err)); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleGoogle = async () => {
     setLoading(true);
     setError(null);
-    try { await loginWithGoogle(); } 
-    catch (err: any) { 
+    try { 
+      await loginWithGoogle(); 
+    } catch (err: any) { 
       console.error("Google Auth error:", err);
-      if (err.code === 'auth/unauthorized-domain' || 
-          (err.message && err.message.toLowerCase().includes('unauthorized-domain')) ||
-          (err.message && err.message.toLowerCase().includes('authorized-domain')) ||
-          (err.message && err.message.toLowerCase().includes('domain'))) {
-        setError(`Erro de Domínio: O domínio "${window.location.hostname}" deve ser adicionado aos "Domínios Autorizados" no Console Firebase (Authentication > Configurações > Domínios Autorizados) do projeto "weaura-390c7".`);
-      } else {
-        setError(err.message || "Erro no login com Google");
-      }
-    } 
-    finally { setLoading(false); }
+      setError(translateAuthError(err));
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleGuest = async () => {
     setLoading(true);
     setError(null);
-    try { await loginAnonymously(); } 
-    catch (err: any) { setError(err.message || "Erro no modo visitante"); } 
-    finally { setLoading(false); }
+    try { 
+      await loginAnonymously(); 
+    } catch (err: any) { 
+      console.error("Guest Auth error:", err);
+      setError(translateAuthError(err)); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   return (
@@ -156,6 +233,21 @@ export default function Login() {
                 Furtivo
               </button>
             </div>
+
+            {window.self !== window.top && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-center"
+              >
+                <p className="text-[9px] font-black uppercase tracking-wider text-amber-400">
+                  ℹ️ DICA DO EDITOR
+                </p>
+                <p className="text-[8px] font-medium text-white/50 leading-relaxed mt-1">
+                  Se você estiver usando o Google/Gmail dentro do visualizador do AI Studio, use o botão <strong className="text-white">"Abrir em nova guia"</strong> acima para permitir que o navegador abra o popup com segurança.
+                </p>
+              </motion.div>
+            )}
           </div>
 
           <button
