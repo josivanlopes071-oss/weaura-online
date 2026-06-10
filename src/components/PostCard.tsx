@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, MessageSquare, Share2, Bookmark, Flag, Pin, Volume2, VolumeX, Eye, Globe, Languages, Trash2, Edit3, Check, Loader2 } from 'lucide-react';
+import { Heart, MessageSquare, Share2, Bookmark, Flag, Pin, Volume2, VolumeX, Eye, Globe, Languages, Trash2, Edit3, Check, Loader2, ZoomIn, ZoomOut, RotateCcw, X, Maximize2 } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { doc, updateDoc, arrayUnion, arrayRemove, increment, deleteDoc, getDoc } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
@@ -54,6 +54,9 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
   const [showReportConfirm, setShowReportConfirm] = useState(false);
   const [showPhotoDeleteConfirm, setShowPhotoDeleteConfirm] = useState(false);
   const [showVideoDeleteConfirm, setShowVideoDeleteConfirm] = useState(false);
+  const [isZoomedOpen, setIsZoomedOpen] = useState(false);
+  const [zoomScale, setZoomScale] = useState(1);
+  const [resetKey, setResetKey] = useState(0);
 
   // References
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -318,7 +321,7 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`bg-[#0b0b0b] border border-white/[0.05] p-5 md:p-6 rounded-[36px] space-y-4 hover:border-purple-500/10 transition-colors relative ${
+      className={`bg-[#0b0b0b] border border-white/[0.05] p-4 md:p-4 rounded-[24px] space-y-3 hover:border-purple-500/10 transition-colors relative ${
         post.isPinned ? 'border-indigo-500/30 bg-indigo-950/5' : ''
       }`}
     >
@@ -593,19 +596,23 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
       {/* Post Image Attachment Media block (with full-screen capability & double click like) */}
       {post.imageUrl && !isReportedByMe && (
         <div 
+          onClick={() => {
+            setIsZoomedOpen(true);
+            setZoomScale(1);
+          }}
           onDoubleClick={handleImageDoubleClick}
-          className="rounded-2xl overflow-hidden border border-white/5 max-h-[350px] mb-1 cursor-zoom-in group relative select-none flex items-center justify-center bg-zinc-950 text-white"
+          className="w-full h-52 sm:h-60 rounded-2xl overflow-hidden border border-white/5 cursor-zoom-in group relative select-none flex items-center justify-center bg-[#070707] text-white"
         >
           <img 
             src={post.imageUrl} 
-            className="w-full object-contain rounded-2xl group-hover:scale-[1.01] transition-transform duration-500 max-h-[350px]" 
+            className="w-full h-full object-cover rounded-2xl group-hover:scale-[1.02] transition-transform duration-500" 
             alt="Anexo do Cantinho" 
             referrerPolicy="no-referrer"
           />
 
           {/* Delete Photo Button directly on the image for the owner */}
           {isOwner && (
-            <div className="absolute top-3 left-3 z-30">
+            <div className="absolute top-3 left-3 z-30" onClick={(e) => e.stopPropagation()}>
               {showPhotoDeleteConfirm ? (
                 <div className="flex items-center gap-1.5 bg-black/80 backdrop-blur-md p-1.5 px-2.5 rounded-xl border border-red-500/30 shadow-lg">
                   <span className="text-[8px] font-black text-red-400 uppercase tracking-wider">Remover foto?</span>
@@ -673,9 +680,14 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
             )}
           </AnimatePresence>
 
+          {/* Expand Icon Overlay */}
+          <div className="absolute bottom-3 right-3 p-2 bg-black/60 backdrop-blur-md text-white/70 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <Maximize2 size={13} className="text-white" />
+          </div>
+
           {/* Hint Overlay information info */}
           <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded-xl pointer-events-none text-[8.5px] font-black text-white/50 border border-white/5 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
-            Toque duplo para apoiar ❤️
+            Toque para ampliar 🔍
           </div>
         </div>
       )}
@@ -867,6 +879,77 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
         </div>
 
       </div>
+
+      {/* Full-Screen Zoom Interactive Viewer modal */}
+      <AnimatePresence>
+        {isZoomedOpen && post.imageUrl && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/95 backdrop-blur-md z-[9999] flex flex-col items-center justify-center p-4 select-none"
+            onClick={() => setIsZoomedOpen(false)}
+          >
+             {/* Modal Header controls */}
+             <div className="absolute top-4 right-4 flex items-center gap-2.5 z-50 animate-fade-in" onClick={e => e.stopPropagation()}>
+                <button 
+                  onClick={() => setZoomScale(prev => Math.min(4, prev + 0.5))}
+                  className="p-3 bg-white/5 hover:bg-white/15 border border-white/10 hover:border-white/20 text-white rounded-2xl transition-all cursor-pointer hover:scale-105 active:scale-95"
+                  title="Aproximar Zoom (In)"
+                >
+                  <ZoomIn size={16} />
+                </button>
+                <button 
+                  onClick={() => setZoomScale(prev => Math.max(1, prev - 0.5))}
+                  className="p-3 bg-white/5 hover:bg-white/15 border border-white/10 hover:border-white/20 text-white rounded-2xl transition-all cursor-pointer hover:scale-105 active:scale-95"
+                  title="Afastar Zoom (Out)"
+                >
+                  <ZoomOut size={16} />
+                </button>
+                <button 
+                  onClick={() => { setZoomScale(1); setResetKey(prev => prev + 1); }}
+                  className="p-3 bg-white/5 hover:bg-white/15 border border-white/10 hover:border-white/20 text-white rounded-2xl transition-all cursor-pointer hover:scale-105 active:scale-95"
+                  title="Resetar Posição e Zoom"
+                >
+                  <RotateCcw size={16} />
+                </button>
+                <button 
+                  onClick={() => setIsZoomedOpen(false)}
+                  className="p-3 bg-red-600/90 hover:bg-red-700/95 border border-red-500/30 text-white rounded-2xl transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-lg shadow-red-950/40"
+                  title="Fechar"
+                >
+                  <X size={16} />
+                </button>
+             </div>
+
+             {/* Zoom/Pan image display area wrapper */}
+             <div className="relative w-full h-full flex items-center justify-center overflow-hidden" onClick={e => e.stopPropagation()}>
+                <motion.img 
+                  key={resetKey}
+                  drag={zoomScale > 1}
+                  dragConstraints={{
+                    left: -200 * (zoomScale - 1),
+                    right: 200 * (zoomScale - 1),
+                    top: -200 * (zoomScale - 1),
+                    bottom: 200 * (zoomScale - 1),
+                  }}
+                  dragElastic={0.1}
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: zoomScale, opacity: 1 }}
+                  transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+                  src={post.imageUrl}
+                  className={`max-w-full max-h-[85vh] object-contain rounded-xl select-none shadow-2xl ${zoomScale > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
+                  referrerPolicy="no-referrer"
+                />
+             </div>
+
+             {/* Dynamic tooltip details overlay */}
+             <div className="absolute bottom-6 bg-black/70 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/5 text-[9px] font-black uppercase tracking-widest text-white/50 pointer-events-none">
+                Zoom Ativo: {zoomScale.toFixed(1)}x {zoomScale > 1 ? '• Arraste a imagem para navegar' : '• Use os botões no topo para focar'}
+             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </motion.div>
   );

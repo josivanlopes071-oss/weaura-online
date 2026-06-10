@@ -40,12 +40,9 @@ export default function Header() {
         <motion.div 
           whileTap={{ scale: 0.95 }}
           onClick={() => navigate('/profile')}
-          className="relative cursor-pointer"
+          className="relative cursor-pointer flex items-center justify-center"
         >
           <UserAvatar uid={profile?.uid} className="w-12 h-12" />
-          <div className={`absolute -bottom-1 -right-1 bg-yellow-500 text-[9px] px-2 py-0.5 rounded-lg font-black border-2 ${theme === 'light' ? 'border-white' : 'border-[#020202]'} shadow-[0_4px_10px_rgba(0,0,0,0.5)] z-20`}>
-            {profile?.level || 1}
-          </div>
         </motion.div>
         
         <div className="flex flex-col">

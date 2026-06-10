@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Users, UserPlus, MessageCircle, Star, Search, ChevronRight, X, UserCheck, Loader2, Send, Trophy, Heart, Share2, MessageSquare, Video, Image, Smile, Clock, Gift, AlertCircle, Sparkles, Award } from 'lucide-react';
+import { Users, UserPlus, MessageCircle, Star, Search, ChevronRight, X, UserCheck, Loader2, Send, Trophy, Heart, Share2, MessageSquare, Video, Image, Smile, Clock, Gift, AlertCircle, Sparkles, Award, LayoutGrid, List } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { compressImage } from '../lib/imageCompressor';
 import { collection, query, where, getDocs, getDoc, doc, limit, onSnapshot, orderBy, addDoc, updateDoc, arrayUnion, arrayRemove, increment } from 'firebase/firestore';
@@ -53,6 +53,7 @@ export default function Social() {
   const [newCommentText, setNewCommentText] = useState('');
   const [feedSort, setFeedSort] = useState<'recent' | 'recommended'>('recent');
   const [hashtagFilter, setHashtagFilter] = useState('');
+  const [feedLayout, setFeedLayout] = useState<'grid' | 'list'>('grid');
 
   // AI Hashtag suggestions match based on entered text
   const getHashtagSuggestions = () => {
@@ -637,28 +638,48 @@ export default function Social() {
 
           {/* Feed sort toggles and badge filters */}
           <div className="flex flex-col gap-3 py-2">
-            <div className="flex items-center justify-between">
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setFeedSort('recent')}
-                  className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all border ${
-                    feedSort === 'recent'
-                      ? 'bg-white text-black border-white'
-                      : 'bg-white/5 border-white/5 text-white/40 hover:text-white'
-                  }`}
-                >
-                  Recentes
-                </button>
-                <button
-                  onClick={() => setFeedSort('recommended')}
-                  className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all border flex items-center gap-1.5 ${
-                    feedSort === 'recommended'
-                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white border-transparent shadow-[0_0_15px_rgba(168,85,247,0.3)]'
-                      : 'bg-white/5 border-white/5 text-white/40 hover:text-white'
-                  }`}
-                >
-                  ✨ AI Recomendados
-                </button>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setFeedSort('recent')}
+                    className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all border ${
+                      feedSort === 'recent'
+                        ? 'bg-white text-black border-white'
+                        : 'bg-white/5 border-white/5 text-white/40 hover:text-white'
+                    }`}
+                  >
+                    Recentes
+                  </button>
+                  <button
+                    onClick={() => setFeedSort('recommended')}
+                    className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider transition-all border flex items-center gap-1.5 ${
+                      feedSort === 'recommended'
+                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white border-transparent shadow-[0_0_15px_rgba(168,85,247,0.3)]'
+                        : 'bg-white/5 border-white/5 text-white/40 hover:text-white'
+                    }`}
+                  >
+                    ✨ AI Recomendados
+                  </button>
+                </div>
+
+                {/* Grid vs List layout switchers */}
+                <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5 items-center shrink-0">
+                  <button 
+                    onClick={() => setFeedLayout('grid')} 
+                    className={`p-1.5 rounded-xl transition-all cursor-pointer ${feedLayout === 'grid' ? 'bg-white text-black shadow-md' : 'text-white/40 hover:text-white'}`}
+                    title="Visualizar em Mosaico (Grade)"
+                  >
+                    <LayoutGrid size={13} />
+                  </button>
+                  <button 
+                    onClick={() => setFeedLayout('list')} 
+                    className={`p-1.5 rounded-xl transition-all cursor-pointer ${feedLayout === 'list' ? 'bg-white text-black shadow-md' : 'text-white/40 hover:text-white'}`}
+                    title="Visualizar em Lista"
+                  >
+                    <List size={13} />
+                  </button>
+                </div>
               </div>
 
               {hashtagFilter && (
@@ -680,7 +701,7 @@ export default function Social() {
               <p className="text-[10px] text-white/20 mt-1 max-w-[190px] mx-auto leading-relaxed">Seja a primeira lenda a inaugurar o feed do clã hoje!</p>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className={feedLayout === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5" : "space-y-4 max-w-2xl mx-auto"}>
               {getFilteredAndSortedPosts().map((post) => (
                 <PostCard
                   key={post.id}

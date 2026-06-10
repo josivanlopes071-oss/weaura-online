@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PREMIUM_FRAMES, FrameItem, getDirectDriveUrl } from '../lib/frames';
+import { PREMIUM_FRAMES, FrameItem, getDirectDriveUrl, getFrameById } from '../lib/frames';
 import { getTransparentFrame } from '../lib/transparentFrameProcessor';
 
 interface ProfileFrameProps {
@@ -24,7 +24,7 @@ export default function ProfileFrame({
   children
 }: ProfileFrameProps) {
   // Find frame item based on frameId or use direct frameObj
-  const frame = frameObj || (frameId ? PREMIUM_FRAMES.find(f => f.id === frameId) : null);
+  const frame = frameObj || (frameId ? getFrameById(frameId) : null);
   
   // Resolve resources falling back to direct props
   const resolvedStaticUrl = staticUrl || frame?.imageUrl || null;
@@ -73,6 +73,13 @@ export default function ProfileFrame({
       return;
     }
 
+    // Bypass canvas pixel filtering for local assets or explicitly marked frames to preserve 100% vector design and transparency
+    if (frame?.noProcessing) {
+      setProcessedFrameUrl(resolvedStaticUrl);
+      setIsProcessing(false);
+      return;
+    }
+
     setIsProcessing(true);
     
     getTransparentFrame(resolvedStaticUrl)
@@ -91,7 +98,7 @@ export default function ProfileFrame({
     return () => {
       active = false;
     };
-  }, [resolvedStaticUrl]);
+  }, [resolvedStaticUrl, frame?.noProcessing]);
 
   // 2. Playback routine - ensure loops work on mobile with dual action: auto-play + guesture-triggered fallback
   useEffect(() => {
@@ -171,19 +178,19 @@ export default function ProfileFrame({
     >
       {/* 
         Avatar photo wrapper container. Positioned inside the frame with matching 1:1 circles.
-        Width & height computed proportionally to align exactly with standard premium border templates.
+        Width & height computed proportionally based on the frame's specific avatarScale to center perfectly.
       */}
       {children && (
         <div 
-          className="absolute rounded-full overflow-hidden flex items-center justify-center transition-all duration-300 pointer-events-auto"
+          className="absolute rounded-full overflow-hidden flex items-center justify-center pointer-events-auto"
           style={{
             position: 'absolute',
-            width: '75.5%', 
-            height: '75.5%', // Perfect circular scale inside the parent 1:1 layout
+            width: `${(frame?.avatarScale || 0.755) * 100}%`, 
+            height: `${(frame?.avatarScale || 0.755) * 100}%`, // Custom circular scale to dodge frame borders
             left: '50%',
-            top: '50%',
+            top: `calc(50% + ${frame?.avatarOffsetY || '0%'})`,
             transform: 'translate(-50%, -50%)',
-            zIndex: 1,
+            zIndex: 5, // Sits safely below the premium frame image
             background: 'transparent'
           }}
         >
@@ -195,12 +202,15 @@ export default function ProfileFrame({
       {isProcessing && !processedFrameUrl && (
         <div 
           className="absolute w-[76%] h-[76%] rounded-full border border-dashed border-purple-500 animate-spin opacity-50"
-          style={{ zIndex: 5 }}
+          style={{ zIndex: 6 }}
         />
       )}
 
       {/* Frame Composition Layer */}
-      <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-transparent pointer-events-none">
+      <div 
+        className="absolute inset-0 w-full h-full flex items-center justify-center bg-transparent pointer-events-none"
+        style={{ zIndex: 10 }} // Placed as a higher-layer canvas overlay to perfectly contain the avatar
+      >
         
         {/*
           1. Base static crisp overlay.
@@ -210,14 +220,13 @@ export default function ProfileFrame({
         {processedFrameUrl || resolvedStaticUrl ? (
           <img 
             src={processedFrameUrl || resolvedStaticUrl} 
-            className={`absolute pointer-events-none transition-opacity duration-500 bg-transparent object-contain w-full h-full`}
+            className="absolute pointer-events-none bg-transparent object-contain w-full h-full"
             style={{
               position: 'absolute',
               top: 0,
               left: 0,
               mixBlendMode: isVideoFrame ? 'screen' : 'normal', // Blend video frame borders smoothly
               imageRendering: 'auto',
-              zIndex: 10,
               opacity: isVideoFrame && videoLoaded ? 0.8 : 1 // Gently fade static background once video takes over
             }}
             alt=""
@@ -277,7 +286,7 @@ export default function ProfileFrame({
       </div>
 
       {/* Frame Pulsing Ambient Glow overlay - rendered for both static and video to unify the styling */}
-      {(processedFrameUrl || resolvedStaticUrl) && (
+      {(processedFrameUrl || resolvedStaticUrl) && !frame?.noProcessing && (
         <div 
           className="absolute inset-[3%] rounded-full pointer-events-none opacity-40 mix-blend-screen animate-pulse scale-[1.01]"
           style={{

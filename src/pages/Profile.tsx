@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, EXCLUSIVE_TITLES, getXpNeededForLevel } from '../contexts/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Settings, Shield, Trophy, MapPin, Calendar, LogOut, Edit2, X, Check, Camera, RefreshCw, UserMinus, Search, ChevronRight, UserPlus, MessageCircle, Star, Flame, Gamepad2, Gift, Play, Unlock, Sparkles, Smile, Clock, Users, ShieldAlert, Lock, MessageSquareText, HelpCircle, HeartHandshake, Crown, TrendingUp, Eye, Trash2 } from 'lucide-react';
+import { Settings, Shield, Trophy, MapPin, Calendar, LogOut, Edit2, X, Check, Camera, RefreshCw, UserMinus, Search, ChevronRight, ChevronDown, UserPlus, MessageCircle, Star, Flame, Gamepad2, Gift, Play, Unlock, Sparkles, Smile, Clock, Users, ShieldAlert, Lock, MessageSquareText, HelpCircle, HeartHandshake, Crown, TrendingUp, Eye, Trash2, Activity } from 'lucide-react';
 import { db } from '../lib/firebase';
 import { compressImage } from '../lib/imageCompressor';
 import { doc, getDoc, updateDoc, onSnapshot, collection, query, where, getDocs, limit, serverTimestamp, orderBy } from 'firebase/firestore';
@@ -80,6 +80,87 @@ export default function Profile() {
   const [parentalPin, setParentalPin] = useState('');
   const [parentalEnabled, setParentalEnabled] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+
+  // New Tab & Expandable Accordion Card states
+  const [activeTab, setActiveTab] = useState<'perfil' | 'aura' | 'medalhas' | 'atividades'>('perfil');
+  const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({
+    bio: true,
+    nivel: true,
+    conquistas: false,
+    auraTotal: true,
+    ranking: false,
+    presentes: false,
+    historicoAura: false,
+    todasMedalhas: true,
+    titulos: false,
+    distintivos: false,
+    visitantes: true,
+    eventos: false,
+    historicoAtividades: false
+  });
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const renderCollapsibleCard = (
+    sectionId: string,
+    title: string,
+    subtitle: string,
+    icon: any,
+    badgeContent: React.ReactNode,
+    children: React.ReactNode
+  ) => {
+    const IconComponent = icon;
+    const isOpen = !!expandedSections[sectionId];
+    return (
+      <div className="w-full space-y-4 mb-4">
+        <button
+          onClick={() => setExpandedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }))}
+          className="w-full h-18 bg-[#0c0c0c] border border-white/[0.04] hover:border-purple-500/20 rounded-[24px] px-6 flex items-center justify-between cursor-pointer group transition-all"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center shrink-0">
+              <IconComponent size={14} className="text-purple-400 group-hover:scale-110 transition-transform" />
+            </div>
+            <div className="text-left">
+              <h3 className="text-sm font-black text-white uppercase italic tracking-wide group-hover:text-purple-400 transition-colors">{title}</h3>
+              <p className="text-[9px] text-white/30 uppercase tracking-widest leading-none mt-1">{subtitle}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            {badgeContent !== undefined && badgeContent !== null && badgeContent !== '' && (
+              <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 rounded-lg">
+                {badgeContent}
+              </span>
+            )}
+            <motion.div
+              animate={{ rotate: isOpen ? 180 : 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <ChevronDown size={16} className="text-white/40" />
+            </motion.div>
+          </div>
+        </button>
+
+        <AnimatePresence initial={false}>
+          {isOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="overflow-hidden animate-fade-in"
+            >
+              <div className="pt-2 pb-4">
+                {children}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
 
   useEffect(() => {
     if (!user || !myProfile) return;
@@ -810,45 +891,24 @@ export default function Profile() {
       {/* Profile Main Section */}
       <div className="px-6 -mt-28 relative z-20">
         <div className="flex flex-col items-center">
-          <div className="relative mb-8">
-            {/* Ultra Premium Avatar Ring with Premium Frame Support */}
-            <UserAvatar uid={displayProfile.uid} className="w-40 h-40" />
-            
-            <div className="absolute top-2 right-2 bg-yellow-500 text-black text-[10px] font-black px-3 py-1 rounded-full shadow-[0_0_15px_rgba(234,179,8,0.5)] border-4 border-[#0c0c0c] z-30">
-              LV.{displayProfile.level || 1}
-            </div>
+          <div className="relative mb-6">
+            {/* Ultra Premium Avatar Ring with Premium Frame Support - slightly scaled down from w-40 to w-32 for better balance & name focus */}
+            <UserAvatar uid={displayProfile.uid} className="w-32 h-32" />
 
             {isMyProfile && (
                <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute bottom-2 right-2 bg-purple-600 text-white p-3 rounded-full border-4 border-[#0c0c0c] shadow-lg active:scale-110 transition-all z-30"
+                className="absolute bottom-1 right-1 bg-purple-600 text-white p-2.5 rounded-full border-4 border-[#020202] shadow-lg active:scale-110 transition-all z-30 cursor-pointer"
+                title="Editar Foto"
                >
-                <Camera size={18} />
-               </button>
-            )}
-
-            {isMyProfile && myProfile?.photoURL && (
-               <button 
-                onClick={async () => {
-                  if (window.confirm("Deseja realmente excluir sua foto de perfil e voltar ao padrão?")) {
-                    try {
-                      await updateProfile({ photoURL: "" });
-                      success("Foto de perfil excluída!");
-                    } catch (e) {
-                      toastError("Erro ao excluir a foto de perfil.");
-                    }
-                  }
-                }}
-                className="absolute bottom-2 left-2 bg-red-600 text-white p-3 rounded-full border-4 border-[#0c0c0c] shadow-lg active:scale-110 transition-all z-30 hover:bg-red-500"
-                title="Excluir Foto"
-               >
-                <Trash2 size={18} />
+                <Camera size={15} />
                </button>
             )}
           </div>
 
-          <div className="text-center space-y-2 mb-8 flex flex-col items-center">
-            <h2 className="text-4xl font-black italic tracking-tighter uppercase flex items-center justify-center gap-2.5 flex-wrap">
+          <div className="text-center flex flex-col items-center max-w-sm mx-auto mb-6 w-full">
+            {/* Title / Name & VIP inline */}
+            <h2 className="text-3xl sm:text-4xl font-black italic tracking-tighter uppercase flex items-center justify-center gap-2 flex-wrap text-white">
               {displayProfile.isVip ? (
                 <span className={`
                   ${displayProfile.vipPlan === 'Bronze' ? 'text-amber-500 drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]' : ''}
@@ -859,31 +919,73 @@ export default function Profile() {
                   {displayProfile.displayName}
                 </span>
               ) : (
-                <span className="text-white">{displayProfile.displayName}</span>
+                <span>{displayProfile.displayName}</span>
               )}
               {displayProfile.isVip && (
                 <button
                   onClick={() => setIsVipOpen(true)}
-                  className="bg-gradient-to-r from-yellow-400 via-amber-500 to-rose-500 text-black text-[8.5px] font-black px-2.5 py-1 rounded-full hover:scale-105 active:scale-95 transition-all shadow-[0_0_15px_rgba(234,179,8,0.5)] cursor-pointer tracking-wider"
+                  className="bg-gradient-to-r from-yellow-400 via-amber-500 to-rose-500 text-black text-[8.5px] font-black px-2.5 py-1 rounded-full hover:scale-105 active:scale-95 transition-all shadow-[0_0_15px_rgba(234,179,8,0.5)] cursor-pointer tracking-wider shrink-0"
                   title="Benefícios VIP Ativos"
                 >
                   👑 VIP {displayProfile.vipPlan || 'Membro'}
                 </button>
               )}
             </h2>
-            <div className="flex justify-center py-1">
+
+            {/* Premium Tag & Role text section with improved compact margins */}
+            <div className="flex flex-col items-center mt-3 gap-1">
               <PremiumTag email={displayProfile.email} role={displayProfile.role} size="md" />
+              <p className="text-[9px] font-extrabold text-white/35 uppercase tracking-[0.3em] italic">
+                {displayProfile.role === 'admin' ? 'ADM + AURA + EGO' : 'AURORA • EXPLORADOR'}
+              </p>
             </div>
-            <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.4em] italic mb-4">
-              {displayProfile.role === 'admin' ? 'ADM + AURA + EGO' : 'AURORA • EXPLORADOR'}
-            </p>
+
+            {/* Elegant spacing and biography text as inline quote block */}
+            {displayProfile.bio ? (
+              <p className="text-xs text-white/60 mt-3.5 px-6 italic leading-relaxed text-center font-medium max-w-xs break-words">
+                “{displayProfile.bio}”
+              </p>
+            ) : (
+              <p className="text-xs text-white/25 mt-3.5 px-6 italic text-center max-w-xs">
+                Nenhuma biografia informada ainda.
+              </p>
+            )}
             
-            <div className="flex items-center justify-center gap-3">
-               <div 
-                  className="bg-white/5 px-4 py-2 rounded-2xl flex items-center gap-3 border border-white/5"
-               >
-                 <span className="text-[10px] font-black text-white/40 tracking-widest uppercase">ID: {displayProfile.displayId}</span>
-                 <div className="w-1 h-1 bg-green-500 rounded-full glow-green"></div>
+            <div className="flex flex-col items-center gap-3 w-full mt-4">
+               {/* ID and Aura synchronized on the exact SAME line to save screen space and look extra modern */}
+               <div className="flex items-center justify-center gap-4 py-2 px-5 bg-white/[0.02] border border-white/[0.04] rounded-2xl text-[10px] font-black uppercase tracking-wider w-full max-w-xs">
+                 <div className="flex items-center gap-1.5 shrink-0">
+                   <span className="text-white/30 text-[8.5px]">ID</span>
+                   <span className="font-mono text-white">#{displayProfile.displayId}</span>
+                 </div>
+                 <div className="w-[1px] h-3 bg-white/10" />
+                 <div className="flex items-center gap-1.5 shrink-0">
+                   <span className="text-[#8A2EFF] text-[8.5px]">AURA</span>
+                   <span className="font-mono text-purple-400 flex items-center gap-0.5">✨ {(displayProfile.aura || 0).toLocaleString()}</span>
+                 </div>
+               </div>
+
+               {/* Followers / Following Counters - Ultra Premium Minimalist Layout */}
+               <div className="flex items-center justify-center gap-6 p-1 bg-white/[0.01] border border-white/[0.04] backdrop-blur-md rounded-2xl w-full max-w-xs mx-auto">
+                 <button 
+                   onClick={() => { setNetworkInitialTab('followers'); setIsNetworkOpen(true); }}
+                   className="flex-1 py-1.5 px-3 hover:bg-white/[0.03] rounded-xl transition-all flex flex-col items-center group active:scale-95 cursor-pointer"
+                 >
+                   <span className="text-base font-black font-mono text-white tracking-tight group-hover:text-purple-400 transition-colors">
+                     {displayProfile.followers?.length || 0}
+                   </span>
+                   <span className="text-[9px] font-bold tracking-widest text-white/40 uppercase mt-0.5">Seguidores</span>
+                 </button>
+                 <div className="w-[1px] h-6 bg-white/[0.08]" />
+                 <button 
+                   onClick={() => { setNetworkInitialTab('following'); setIsNetworkOpen(true); }}
+                   className="flex-1 py-1.5 px-3 hover:bg-white/[0.03] rounded-xl transition-all flex flex-col items-center group active:scale-95 cursor-pointer"
+                 >
+                   <span className="text-base font-black font-mono text-white tracking-tight group-hover:text-purple-400 transition-colors">
+                     {displayProfile.following?.length || 0}
+                   </span>
+                   <span className="text-[9px] font-bold tracking-widest text-white/40 uppercase mt-0.5">Seguindo</span>
+                 </button>
                </div>
             </div>
           </div>
@@ -1005,31 +1107,630 @@ export default function Profile() {
             </motion.div>
           )}
 
-          {/* Stats Bar Grid */}
-          <div className="w-full grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
-            {stats.map((stat) => {
-              const hasAction = !!stat.action;
+          {/* Tab Navigation Menu */}
+          <div className="w-full border-b border-white/[0.04] mb-8 mt-4 overflow-x-auto scrollbar-none flex gap-2 justify-start md:justify-center px-1 py-1.5 scroll-smooth">
+            {[
+              { id: 'perfil', label: 'Perfil', icon: Smile, count: null },
+              { id: 'aura', label: 'Aura', icon: Sparkles, count: displayProfile.aura || 0 },
+              { id: 'medalhas', label: 'Medalhas', icon: Shield, count: calculateMedals().filter(m => m.unlocked).length },
+              { id: 'atividades', label: 'Atividades', icon: Clock, count: recentVisitors.length + getActivityTimeline().length }
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
               return (
-                <div 
-                  key={stat.label} 
-                  onClick={stat.action}
-                  className={`premium-card p-6 flex flex-col items-center justify-center text-center ${
-                    hasAction ? 'cursor-pointer active:scale-95 hover:border-purple-500/30 shadow-[0_0_15px_rgba(168,85,247,0.04)]' : ''
-                  } transition-all`}
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`relative px-4 py-2.5 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 shrink-0 ${
+                    isActive 
+                      ? 'text-white bg-white/5 border border-white/10 shadow-[0_4px_12px_rgba(255,255,255,0.03)]' 
+                      : 'text-white/40 hover:text-white/80 border border-transparent'
+                  }`}
                 >
-                   <div className={`text-3xl font-black italic tracking-tighter mb-1 ${stat.color} filter drop-shadow-[0_0_10px_currentColor]`}>
-                     {stat.value}
-                   </div>
-                   <div className="text-[10px] text-white/20 font-black uppercase tracking-widest italic flex items-center justify-center gap-1 leading-none select-none">
-                     {stat.label} {hasAction && <span className="text-[8px] text-purple-400">➔</span>}
-                   </div>
-                </div>
+                  <Icon size={12} className={isActive ? 'text-purple-400' : 'text-white/40'} />
+                  <span>{tab.label}</span>
+                  {tab.count !== null && (
+                    <span className={`text-[8.5px] font-bold font-mono px-1.5 py-0.5 rounded ${isActive ? 'bg-purple-500/20 text-purple-300' : 'bg-white/5 text-white/30'}`}>
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
               );
             })}
           </div>
 
-          {/* Real-time Aura Cards - Grid layout */}
-          <section className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+          {/* Active Tab contents */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.15 }}
+              className="w-full"
+            >
+              {/* Tab 1 - Perfil */}
+              {activeTab === 'perfil' && (
+                <div className="w-full space-y-4">
+                  {renderCollapsibleCard(
+                    'bio',
+                    'Biografia do Explorador',
+                    'Sua apresentação pessoal',
+                    Edit2,
+                    null,
+                    <div className="premium-card p-6 bg-[#0c0c0c] border border-white/[0.04] rounded-[28px] text-left">
+                      <p className="text-xs text-white/70 font-semibold leading-relaxed whitespace-pre-line text-left">
+                        {displayProfile.bio || "O explorador prefere o mistério e ainda não preencheu sua biografia."}
+                      </p>
+                    </div>
+                  )}
+
+                  {renderCollapsibleCard(
+                    'nivel',
+                    'Nível e XP Progresso',
+                    'Seu progresso geral na rede',
+                    Smile,
+                    `Nível ${displayProfile.level || 1}`,
+                    (() => {
+                      const currentLvl = displayProfile.level || 1;
+                      const currentXp = displayProfile.xp || 0;
+                      const xpNeeded = getXpNeededForLevel(currentLvl);
+                      const pct = Math.min(100, Math.floor((currentXp / xpNeeded) * 100));
+
+                      return (
+                        <div className="premium-card p-6 bg-[#0c0c0c] border border-white/[0.04] rounded-[28px] space-y-4 text-left">
+                          <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider text-left">
+                            <span className="text-white/40">Progresso do Nível {currentLvl}</span>
+                            <span className="text-purple-400 font-mono">{currentXp} / {xpNeeded} XP ({pct}%)</span>
+                          </div>
+                          <div className="w-full h-2.5 bg-black rounded-full overflow-hidden p-0.5 border border-white/5 pink-inner">
+                            <div 
+                              className="h-full bg-gradient-to-r from-[#8A2EFF] to-pink-500 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(138,46,255,0.4)]"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <p className="text-[10px] text-white/30 font-semibold uppercase tracking-wider italic text-left">
+                            Adquira moedas, complete partidas e ganhe destaque no clã para acelerar seu avanço de classe.
+                          </p>
+                        </div>
+                      );
+                    })()
+                  )}
+
+                  {renderCollapsibleCard(
+                    'conquistas',
+                    'Conquistas Principais',
+                    'Missões e Emblemas WeAura',
+                    Trophy,
+                    `${calculateAchievements().filter(a => a.unlocked).length} / ${calculateAchievements().length} Desbl.`,
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1">
+                      {calculateAchievements().map((badge) => (
+                        <button 
+                          key={badge.id} 
+                          onClick={() => setSelectedAchievement(badge)}
+                          className={`flex flex-col items-center p-4 bg-[#080808] border rounded-[28px] transition-all hover:scale-105 cursor-pointer outline-none select-none text-center ${
+                            badge.unlocked 
+                              ? 'border-[#8A2EFF]/25 shadow-[0_5px_15px_rgba(138,46,255,0.06)] opacity-100' 
+                              : 'border-white/[0.03] opacity-45 hover:opacity-75'
+                          }`}
+                        >
+                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl mb-3 ${badge.bgIconColor} border border-white/[0.04]`}>
+                            {badge.icon}
+                          </div>
+                          <span className="text-xs font-black text-white uppercase italic tracking-tighter truncate max-w-full px-1">{badge.name}</span>
+                          
+                          <div className="w-full h-1 bg-black rounded-full overflow-hidden mt-3 max-w-[80px] mx-auto">
+                            <div 
+                              className={`h-full rounded-full ${badge.unlocked ? 'bg-gradient-to-r from-purple-500 to-pink-500' : 'bg-white/10'}`} 
+                              style={{ width: `${Math.min(100, Math.floor((badge.progress / badge.maxProgress) * 100))}%` }}
+                            />
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tab 2 - Aura */}
+              {activeTab === 'aura' && (
+                <div className="w-full space-y-4">
+                  {renderCollapsibleCard(
+                    'auraTotal',
+                    'Aura Total e Prestígio',
+                    'Insígnias e Atributos de Aura',
+                    Sparkles,
+                    `✨ ${(displayProfile.aura || 0).toLocaleString()}`,
+                    <div className="w-full space-y-6">
+                      {(() => {
+                        const auraPoints = displayProfile.aura || 0;
+                        const auraInfo = getAuraLevelInfo(auraPoints);
+                        const currentAuraLevel = auraInfo.level;
+                        
+                        const minPoints = auraInfo.minAura;
+                        const maxPoints = auraInfo.maxAura || 50000;
+                        const targetDiff = maxPoints - minPoints;
+                        const earnedInLevel = auraPoints - minPoints;
+                        const auraProgressPct = Math.max(0, Math.min(100, targetDiff > 0 ? Math.floor((earnedInLevel / targetDiff) * 100) : 100));
+
+                        return (
+                          <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Certificado */}
+                            <div className="premium-card p-6 relative flex flex-col justify-between overflow-hidden group border border-purple-500/10 min-h-[220px] text-left">
+                               <div className="absolute -top-12 -right-12 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+                               <div className="relative z-10">
+                                  <span className="text-[10px] font-black uppercase tracking-[0.3em] text-purple-400 italic mb-2 block flex items-center gap-1.5">
+                                     <Sparkles size={11} className="text-pink-500/80" /> Certificado de Aura
+                                  </span>
+                                  <h3 className="text-2xl font-black text-white italic uppercase tracking-tight leading-tight mt-1">
+                                     {auraInfo.name}
+                                  </h3>
+                                  <p className="text-[11px] font-semibold text-white/40 mt-2 uppercase tracking-wider italic">
+                                     Insígnia: <span className="text-purple-400 font-extrabold">{auraInfo.insignia}</span>
+                                  </p>
+                               </div>
+                               <div className="relative z-10 flex items-end justify-between mt-6">
+                                  <div className="text-left">
+                                     <span className="text-[9px] font-black uppercase tracking-widest text-white/30 block">Valor Acumulado</span>
+                                     <span className="text-xl font-black italic tracking-tighter text-white">
+                                        ✨ {auraPoints.toLocaleString('pt-BR')}
+                                     </span>
+                                  </div>
+                                  <div className={`p-3 rounded-[16px] border ${auraInfo.badgeBorder} ${auraInfo.badgeBg} flex items-center justify-center`}>
+                                     <span className="text-xs font-mono font-black text-white">Classe {currentAuraLevel}</span>
+                                  </div>
+                               </div>
+                            </div>
+
+                            {/* Progresso / Prerrogativas */}
+                            <div className="premium-card p-6 relative flex flex-col justify-between overflow-hidden border border-white/[0.04] min-h-[220px] text-left">
+                               <div className="space-y-3">
+                                  <div className="flex justify-between items-center">
+                                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 italic">Progresso de Brilho</span>
+                                     <span className="text-xs font-black text-purple-400 font-mono italic">
+                                        {auraProgressPct}%
+                                     </span>
+                                  </div>
+                                  <div className="w-full h-3 bg-black rounded-full overflow-hidden p-0.5 border border-white/5">
+                                     <div 
+                                        className="h-full bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded-full shadow-[0_0_15px_rgba(168,85,247,0.5)]"
+                                        style={{ width: `${auraProgressPct}%` }}
+                                     />
+                                  </div>
+                               </div>
+
+                               <div className="bg-black/40 border border-white/[0.03] p-4 rounded-2xl space-y-1.5 mt-4">
+                                  <h4 className="text-[9px] font-black text-white/30 uppercase tracking-widest italic flex items-center gap-1.5">
+                                     <Unlock size={11} className="text-emerald-400" /> Prerrogativas do Nível
+                                  </h4>
+                                  <div className="grid grid-cols-2 gap-2 text-[9.5px] font-black text-white/60 text-left">
+                                     {auraInfo.benefits.slice(0, 4).map((b, idx) => (
+                                        <div key={idx} className="flex items-center gap-1.5 truncate">
+                                           <span className="text-emerald-400">✓</span> {b}
+                                        </div>
+                                     ))}
+                                     {auraInfo.benefits.length === 0 && (
+                                        <div className="col-span-2 text-white/35 italic">Benefícios de Prestígio Base</div>
+                                     )}
+                                  </div>
+                               </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {renderCollapsibleCard(
+                    'historicoAura',
+                    'Histórico de Presentes e Transações',
+                    'Aura de Presentes Recebidos',
+                    Clock,
+                    `${receivedGifts.length} Transações`,
+                    <div className="space-y-3 text-left">
+                      {receivedGifts.slice(0, 10).map((t, idx) => {
+                        const giftTime = t.createdAt?.toMillis ? t.createdAt.toMillis() : (t.createdAt?.seconds ? t.createdAt.seconds * 1000 : Date.now());
+                        return (
+                          <div key={idx} className="flex items-center justify-between p-4 bg-[#080808] border border-white/[0.03] rounded-2xl text-left">
+                            <div className="flex items-center gap-3">
+                              <span className="text-2xl">{t.giftIcon || '🎁'}</span>
+                              <div>
+                                <span className="text-xs font-black text-white uppercase block leading-none">{t.giftName}</span>
+                                <span className="text-[9px] text-white/40 block mt-1 font-semibold uppercase">De {t.senderName || 'Amigo'}</span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-[10px] font-black text-emerald-400 font-mono block">+{t.auraGained || t.aura || 0} AURA</span>
+                              <span className="text-[8px] text-white/20 block mt-1 font-semibold">{new Date(giftTime).toLocaleDateString('pt-BR')}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {receivedGifts.length === 0 && (
+                        <div className="text-center p-8 text-xs text-white/30 italic">
+                          Sem transações recentes de Aura.
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {renderCollapsibleCard(
+                    'ranking',
+                    'Ranking Global',
+                    'Sua colocação no servidor',
+                    TrendingUp,
+                    (() => {
+                      const rankPos = leaderboard.findIndex(u => u.id === displayProfile.uid) + 1;
+                      return rankPos > 0 ? `#${rankPos}` : '100+';
+                    })(),
+                    <div className="premium-card p-6 border border-white/[0.04] bg-[#0c0c0c] rounded-[28px] text-left">
+                      {(() => {
+                        const rankPos = leaderboard.findIndex(u => u.id === displayProfile.uid) + 1;
+                        return (
+                          <div className="text-left mb-6 font-semibold">
+                             <span className="text-[9px] font-black uppercase tracking-widest text-[#8A2EFF] italic block text-left">Ranking Geral</span>
+                             <h2 className="text-3xl font-black italic tracking-tighter text-amber-500 leading-none mt-1 flex items-baseline gap-1.5 flex-wrap text-left">
+                                #{rankPos > 0 ? rankPos : '100+'} 
+                                <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest italic text-left">entre {leaderboard.length || 100} membros</span>
+                             </h2>
+                          </div>
+                        );
+                      })()}
+
+                      <div className="border-t border-white/[0.04] pt-4 space-y-2 text-left">
+                         <span className="text-[9px] font-black text-white/20 uppercase tracking-widest block mb-2 text-left">Líderes Atuais:</span>
+                         {leaderboard.slice(0, 3).map((leadUser, idx) => (
+                            <div key={leadUser.id || idx} className="flex items-center justify-between bg-white/[0.01] p-3 rounded-2xl border border-white/[0.02]">
+                               <div className="flex items-center gap-2">
+                                  <span className="text-xs font-black italic text-amber-400 w-4">{idx + 1}º</span>
+                                  <img 
+                                     src={leadUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${leadUser.displayName}`} 
+                                     alt="" 
+                                     className="w-8 h-8 rounded-xl object-cover border border-white/5" 
+                                  />
+                                  <span className="text-xs font-black text-white/85 max-w-[130px] truncate">{leadUser.displayName}</span>
+                               </div>
+                               <span className="text-xs font-black text-[#8A2EFF] italic">✨ {leadUser.aura || 0}</span>
+                            </div>
+                         ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {renderCollapsibleCard(
+                    'presentes',
+                    'Estojo de Presentes Recebidos',
+                    'Vitrine de mimos e presentes',
+                    Gift,
+                    `${receivedGifts.reduce((acc: number, t: any) => acc + (t.quantity || 1), 0)} Recebidos`,
+                    <div>
+                      {receivedGifts.length === 0 ? (
+                        <div className="premium-card p-12 text-center text-white/20 italic text-sm border-dashed rounded-[24px]">
+                          <Gift className="mx-auto mb-4 opacity-10 animate-pulse" size={32} />
+                          Nenhum presente recebido ainda. Seja o primeiro a animar o perfil!
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                          {(() => {
+                            const giftCounts = receivedGifts.reduce((acc: any, t: any) => {
+                              acc[t.giftId] = (acc[t.giftId] || 0) + (t.quantity || 1);
+                              return acc;
+                              }, {});
+
+                              return GIFTS.map((gift) => {
+                                const count = giftCounts[gift.id] || 0;
+                                return (
+                                  <div 
+                                    key={gift.id} 
+                                    className={`relative p-5 rounded-[28px] border bg-[#060606] flex flex-col items-center justify-center transition-all ${
+                                      count > 0 ? 'border-pink-500/25 shadow-[0_5px_15px_rgba(244,63,94,0.05)] opacity-100' : 'border-[#0c0c0c] opacity-35'
+                                    }`}
+                                  >
+                                    {count > 0 && (
+                                      <div className="absolute top-3 right-3 bg-pink-500 text-white text-[9px] font-black leading-none px-2 py-1 rounded-lg">
+                                        x{count}
+                                      </div>
+                                    )}
+                                    <span className="text-4xl mb-2.5 filter drop-shadow-[0_5px_10px_rgba(0,0,0,0.5)]">{gift.icon}</span>
+                                    <span className="text-xs font-bold text-white uppercase tracking-wider text-center">{gift.name}</span>
+                                    <span className="text-[10px] font-semibold text-[#8A2EFF] mt-1 uppercase">+{gift.aura} Aura</span>
+                                  </div>
+                                );
+                              });
+                            })()}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tab 3 - Medalhas */}
+              {activeTab === 'medalhas' && (
+                <div className="w-full space-y-4">
+                  {renderCollapsibleCard(
+                    'todasMedalhas',
+                    'Mural de Medalhas de Honra',
+                    'Suas medalhas recebidas por conquistas no clã',
+                    Shield,
+                    `${calculateMedals().filter(m => m.unlocked).length} / ${calculateMedals().length} Desbl.`,
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 pt-1">
+                      {calculateMedals().map((med) => (
+                        <button 
+                          key={med.id}
+                          onClick={() => setSelectedMedal(med)}
+                          className={'flex flex-col items-center justify-center p-5 rounded-[32px] border transition-all hover:scale-105 cursor-pointer outline-none select-none text-center relative overflow-hidden group hover:brightness-125 ' + (
+                            med.unlocked 
+                              ? 'border-[#8A2EFF]/25 ' + med.glowColor + ' ' + med.borderColor 
+                              : 'border-white/[0.02] bg-[#060606] opacity-35 hover:opacity-100'
+                          )}
+                        >
+                          <div className="w-16 h-16 rounded-[24px] flex items-center justify-center text-4xl mb-4 bg-black/60 border border-white/5 shadow-inner">
+                            {med.icon}
+                          </div>
+                          
+                          <h4 className="text-xs font-black text-white uppercase italic tracking-tighter truncate max-w-full px-1">{med.name}</h4>
+                          
+                          <span className={
+                            med.rarity === 'Lendário' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-[0_0_8px_rgba(245,158,11,0.15)] text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md mt-2' :
+                            med.rarity === 'Épico' ? 'bg-pink-500/10 text-pink-400 border border-pink-500/20 shadow-[0_0_8px_rgba(236,72,153,0.15)] text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md mt-2' :
+                            'bg-[#8A2EFF]/10 text-purple-400 border border-[#8A2EFF]/20 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md mt-2'
+                          }>
+                            {med.rarity}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {renderCollapsibleCard(
+                    'titulos',
+                    'Títulos e Patentes Ativas',
+                    'Seleções honorárias das suas patentes',
+                    Crown,
+                    displayProfile.equippedTitle || 'Nenhum',
+                    <div className="premium-card p-6 bg-[#0c0c0c] border border-white/[0.04] rounded-[28px] text-left space-y-4">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[#8A2EFF] italic block text-left">Mural de Patentes Ativas</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                        {EXCLUSIVE_TITLES.map((titleDef) => {
+                          const hasLevel = (displayProfile.level || 1) >= titleDef.minLevel;
+                          const isEquipped = displayProfile.equippedTitle === titleDef.title;
+                          return (
+                            <div 
+                              key={titleDef.title} 
+                              className={`p-4 rounded-2xl border flex items-center justify-between transition-all text-left ${
+                                isEquipped 
+                                  ? 'border-[#8A2EFF]/30 bg-purple-950/10 shadow-[0_0_12px_rgba(138,46,255,0.08)]' 
+                                  : hasLevel 
+                                    ? 'border-white/5 bg-[#080808]/40' 
+                                    : 'border-white/[0.02] bg-black/60 opacity-30 shadow-none'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className="text-xl">🏆</span>
+                                <div>
+                                  <h4 className={`text-xs font-black uppercase tracking-wider italic ${titleDef.colorClass}`}>{titleDef.title}</h4>
+                                  <p className="text-[9px] text-white/40 block mt-0.5 leading-none">Min. Lvl {titleDef.minLevel}</p>
+                                </div>
+                              </div>
+                              {isEquipped ? (
+                                <span className="text-[8px] font-black text-[#8A2EFF] bg-[#8A2EFF]/10 border border-[#8A2EFF]/25 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0">Equipado</span>
+                              ) : hasLevel ? (
+                                <span className="text-[8px] font-black text-white/40 uppercase tracking-widest shrink-0">Disponível</span>
+                              ) : (
+                                <span className="text-[8px] text-white/20 font-black shrink-0"><Lock size={10} /></span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {renderCollapsibleCard(
+                    'distintivos',
+                    'Patentes e Distintivos Sociais',
+                    'Marcas honorárias e graduações WeAura',
+                    ShieldAlert,
+                    displayProfile.role === 'admin' ? 'Master Admin' : 'Explorador',
+                    <div className="premium-card p-6 bg-[#0c0c0c] border border-white/[0.04] rounded-[28px] text-left space-y-4">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[#8A2EFF] italic block">Insígnias de Influência Social</span>
+                      <div className="flex flex-col gap-3">
+                        <div className="p-4 bg-[#080808]/40 border border-white/5 rounded-2xl flex items-center gap-4 text-left">
+                          <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/25 flex items-center justify-center shrink-0">
+                            <Shield size={18} className="text-purple-400" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-black text-white uppercase italic block leading-none">
+                              {displayProfile.role === 'admin' ? 'Moderador Supremo' : 'Membro Explorador'}
+                            </span>
+                            <span className="text-[9px] text-white/45 uppercase tracking-wide block mt-1.5 leading-relaxed">
+                              {displayProfile.role === 'admin' ? 'Autoridade administrativa com acesso a ferramentas de gestão de chat, denúncia e banimento' : 'Membro civil e explorador ativo na comunidade WeAura'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="p-4 bg-[#080808]/40 border border-white/5 rounded-2xl flex items-center gap-4 text-left">
+                          <div className="w-10 h-10 rounded-xl bg-yellow-500/10 border border-yellow-500/25 flex items-center justify-center shrink-0">
+                            <Crown size={18} className="text-yellow-400" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-black text-white uppercase italic block leading-none">
+                              {displayProfile.isVip ? `Assinante VIP (${displayProfile.vipPlan})` : 'Assinante Standard'}
+                            </span>
+                            <span className="text-[9px] text-white/45 uppercase tracking-wide block mt-1.5 leading-relaxed">
+                              {displayProfile.isVip ? `Nível de prestígio elevado com multiplicador de Aura, cores de chat exclusivas e histórias` : 'Assinatura comum sem privilégios adicionais de nobreza clã'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tab 4 - Atividades */}
+              {activeTab === 'atividades' && (
+                <div className="w-full space-y-4">
+                  {renderCollapsibleCard(
+                    'visitantes',
+                    'Visitantes do Perfil Recentes',
+                    'Membros que visualizaram sua aura',
+                    Eye,
+                    recentVisitors.length,
+                    <div className="premium-card p-6 bg-[#0c0c0c] border border-white/[0.04] rounded-[28px] text-left text-semibold">
+                      {recentVisitors.length === 0 ? (
+                        <div className="bg-black/35 border border-white/[0.02] p-12 rounded-[24px] text-center text-xs text-white/30 italic uppercase tracking-wider text-left">
+                           <Eye className="mx-auto mb-3 opacity-20 animate-pulse" size={28} />
+                           Nenhum visitante recente ainda. Divulgue seu perfil para receber visitas!
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                           {recentVisitors.map((visit) => (
+                              <button 
+                                 key={visit.id}
+                                 onClick={() => {
+                                    if (visit.visitorId) {
+                                       navigate(`/profile/${visit.visitorId}`);
+                                    }
+                                 }}
+                                 className="flex items-center justify-between p-4 bg-white/[0.01] hover:bg-white/[0.04] border border-white/[0.02] hover:border-cyan-500/25 rounded-2xl transition-all cursor-pointer text-left group w-full"
+                              >
+                                 <div className="flex items-center gap-3">
+                                    <img 
+                                       src={visit.visitorPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${visit.visitorName}`} 
+                                       alt="" 
+                                       className="w-10 h-10 rounded-xl object-cover border border-white/10 group-hover:border-purple-500/20 transition-all" 
+                                    />
+                                    <div>
+                                       <span className="text-xs font-black text-white leading-none block group-hover:text-purple-400 transition-colors">{visit.visitorName}</span>
+                                       <span className="text-[9px] font-semibold text-white/25 uppercase tracking-wide block mt-1">Membro Clã</span>
+                                    </div>
+                                 </div>
+                                 <div className="text-right flex flex-col items-end">
+                                   <span className="text-[9px] font-bold text-white/30 italic block leading-none">{formatTimeAgo(visit.visitedAt)}</span>
+                                   <span className="text-[8px] font-mono font-black text-cyan-400 uppercase tracking-widest bg-cyan-400/5 px-1.5 py-0.5 rounded border border-cyan-500/10 mt-1.5 inline-block">VISITOU</span>
+                                 </div>
+                              </button>
+                           ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {isMyProfile && renderCollapsibleCard(
+                    'eventos',
+                    'Central de Utilidades e Painéis',
+                    'Stories, Humores, Segurança e Suporte',
+                    Settings,
+                    'Painel de Controle',
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-left">
+                      {[
+                        { label: 'Momentos', desc: 'Stories temporários de 24h', icon: Clock, color: 'text-purple-400 border-purple-500/20 bg-purple-500/5', action: () => setIsMomentsOpen(true) },
+                        { label: 'Status Ativo', desc: 'Sua mensagem & humor ativo', icon: Smile, color: 'text-rose-400 border-rose-500/20 bg-rose-500/5', action: () => setIsStatusOpen(true) },
+                        { label: 'Visitantes Recentes', desc: 'Quem andou visitando seu perfil', icon: Users, color: 'text-blue-400 border-blue-500/20 bg-blue-500/5', action: () => setIsVisitorsOpen(true) },
+                        { label: 'Convidar Amigos', desc: 'Indique amigos e fature moedas', icon: Gift, color: 'text-pink-400 border-pink-500/20 bg-pink-500/5', action: () => setIsInviteOpen(true) },
+                        { label: 'Grau de Nobreza', desc: 'Confira sua influência no clã', icon: Crown, color: 'text-amber-400 border-amber-500/20 bg-amber-500/5', action: () => setIsNobilityOpen(true) },
+                        { label: 'Centro de Segurança', desc: 'Proteção 2FA, SMS & Aparelhos', icon: ShieldAlert, color: 'text-green-400 border-green-500/20 bg-green-500/5', action: () => setIsSecurityOpen(true) },
+                        { label: 'Tópicos de Contribuição', desc: 'Deixe feedbacks e colabore', icon: MessageSquareText, color: 'text-cyan-400 border-cyan-500/20 bg-[#0c0c0c]', action: () => setIsFeedbackOpen(true) },
+                        { label: 'Controle Parental', desc: 'Limite de chat e bloqueios', icon: HeartHandshake, color: 'text-red-400 border-rose-500/20 bg-red-500/5', action: () => setIsParentalOpen(true) },
+                        { label: 'Central de Ajuda WeAura', desc: 'Guia de XP, Moedas e Regras', icon: HelpCircle, color: 'text-zinc-400 border-zinc-500/20 bg-zinc-500/5', action: () => setIsHelpOpen(true) },
+                      ].map((opt, idx) => {
+                        const IconComponent = opt.icon;
+                        return (
+                          <button
+                            key={idx}
+                            onClick={opt.action}
+                            className="flex items-center justify-between p-5 bg-[#0c0c0c] border border-white/[0.04] hover:border-[#8A2EFF]/30 transition-all rounded-[24px] text-left group cursor-pointer w-full"
+                          >
+                             <div className="flex items-center gap-4 min-w-0">
+                                <div className={`w-12 h-12 rounded-2xl border ${opt.color} flex items-center justify-center shrink-0`}>
+                                   <IconComponent size={20} />
+                                </div>
+                                <div className="truncate">
+                                   <h4 className="text-sm font-black text-white uppercase italic tracking-wide group-hover:text-[#8A2EFF] transition-colors">{opt.label}</h4>
+                                   <p className="text-[9px] font-bold text-white/35 uppercase tracking-widest mt-1 truncate">{opt.desc}</p>
+                                </div>
+                             </div>
+                             <ChevronRight size={16} className="text-white/20 group-hover:text-white transition-colors shrink-0" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {renderCollapsibleCard(
+                    'historicoAtividades',
+                    'Histórico de Atividades Recentes',
+                    'Seu log geral de disputas e conquistas',
+                    Clock,
+                    `${getActivityTimeline().length} Registros`,
+                    <div className="text-left mt-2">
+                      <div className="relative pl-6 border-l-2 border-white/[0.03] space-y-8 ml-6 mt-4">
+                         {getActivityTimeline().length === 0 ? (
+                            <div className="text-center py-8">
+                               <TrendingUp className="mx-auto text-white/10 mb-2" size={24} />
+                               <p className="text-[10px] font-black text-white/30 uppercase tracking-wider">Ainda não há registros de atividade</p>
+                            </div>
+                         ) : (
+                            getActivityTimeline().slice(0, visibleActivitiesCount).map((act: any) => {
+                               const dateString = act.createdAt 
+                                  ? new Date(act.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) 
+                                  : 'Recente';
+                               return (
+                                  <div key={act.id} className="relative group">
+                                     <div className="absolute -left-[31px] top-1.5 w-4 h-4 rounded-full bg-black border-2 border-[#8A2EFF] flex items-center justify-center text-[9px] filter drop-shadow-[0_0_6px_#a855f7]">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-purple-400 group-hover:scale-125 transition-transform" />
+                                     </div>
+                                     
+                                     <div className="premium-card p-4 flex items-start sm:items-center justify-between gap-4 bg-[#080808]/40 border border-white/[0.03] hover:border-purple-500/25 transition-all w-full text-left">
+                                        <div className="flex items-center gap-3.5 min-w-0">
+                                           <div className={'w-11 h-11 rounded-2xl flex items-center justify-center text-xl shrink-0 border border-white/5 ' + act.color}>
+                                              {act.icon}
+                                           </div>
+                                           <div className="min-w-0 text-left">
+                                              <h4 className="text-xs font-black text-white uppercase italic tracking-wide group-hover:text-purple-400 transition-colors text-left">{act.title}</h4>
+                                              <p className="text-[11px] font-semibold text-white/50 leading-relaxed mt-0.5 text-left">{act.desc}</p>
+                                              <span className="text-[9px] font-mono text-white/20 uppercase tracking-widest block mt-1.5 flex items-center gap-1.5">
+                                                 <Calendar size={10} /> {dateString}
+                                              </span>
+                                           </div>
+                                        </div>
+                                        
+                                        {act.xpBadge && (
+                                           <span className="px-3 py-1 bg-[#8A2EFF]/10 border border-[#8A2EFF]/25 text-purple-400 font-mono text-[9px] font-black uppercase rounded-lg tracking-widest shrink-0 self-start sm:self-center">
+                                              {act.xpBadge}
+                                           </span>
+                                        )}
+                                     </div>
+                                  </div>
+                               );
+                            })
+                         )}
+                      </div>
+
+                      {getActivityTimeline().length > visibleActivitiesCount && (
+                         <div className="flex justify-center pt-4">
+                            <button 
+                               type="button"
+                               onClick={() => setVisibleActivitiesCount(prev => prev + 5)}
+                               className="px-6 py-3 bg-[#0a0a0a] border border-white/5 hover:border-purple-500/30 text-white font-black uppercase tracking-widest text-[9px] rounded-xl cursor-pointer active:scale-95 transition-all flex items-center gap-1.5"
+                            >
+                               <RefreshCw size={12} /> Carregar Mais Atividades
+                            </button>
+                         </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+
+          {false && (
+            <div className="w-full space-y-6">
+              {/* Real-time Aura Cards - Grid layout */}
+              <section className="w-full grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
             {/* Card A: Certificado / Prestígio de Aura */}
              {(() => {
                const auraPoints = displayProfile.aura || 0;
@@ -1220,107 +1921,181 @@ export default function Profile() {
              </div>
           </div>
 
+          {/* Vertical Navigation Options List */}
+          {isMyProfile && (
+            <div className="w-full space-y-4 mt-10">
+              <div className="flex items-center gap-3 px-2">
+                 <Settings size={20} className="text-purple-500" />
+                 <h3 className="text-lg font-black text-white italic uppercase tracking-tight">Painel de Utilidades WeAura</h3>
+              </div>
+
+               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[
+                    { label: 'Momentos', desc: 'Stories temporários de 24h', icon: Clock, color: 'text-purple-400 border-purple-500/20 bg-purple-500/5', action: () => setIsMomentsOpen(true) },
+                    { label: 'Status Ativo', desc: 'Sua mensagem & humor ativo', icon: Smile, color: 'text-rose-400 border-rose-500/20 bg-rose-500/5', action: () => setIsStatusOpen(true) },
+                    { label: 'Visitantes Recentes', desc: 'Quem andou visitando seu perfil', icon: Users, color: 'text-blue-400 border-blue-500/20 bg-blue-500/5', action: () => setIsVisitorsOpen(true) },
+                    { label: 'Convidar Amigos', desc: 'Indique amigos e fature moedas', icon: Gift, color: 'text-pink-400 border-pink-500/20 bg-pink-500/5', action: () => setIsInviteOpen(true) },
+                    { label: 'Grau de Nobreza', desc: 'Confira sua influência no clã', icon: Crown, color: 'text-amber-400 border-amber-500/20 bg-amber-500/5', action: () => setIsNobilityOpen(true) },
+                    { label: 'Centro de Segurança', desc: 'Proteção 2FA, SMS & Aparelhos', icon: ShieldAlert, color: 'text-green-400 border-green-500/20 bg-green-500/5', action: () => setIsSecurityOpen(true) },
+                    { label: 'Tópicos de Contribuição', desc: 'Deixe feedbacks e colabore', icon: MessageSquareText, color: 'text-cyan-400 border-cyan-500/20 bg-cyan-500/5', action: () => setIsFeedbackOpen(true) },
+                    { label: 'Controle Parental', desc: 'Limite de chat e bloqueios', icon: HeartHandshake, color: 'text-red-400 border-red-500/20 bg-red-500/5', action: () => setIsParentalOpen(true) },
+                    { label: 'Central de Ajuda WeAura', desc: 'Guia de XP, Moedas e Regras', icon: HelpCircle, color: 'text-zinc-400 border-zinc-500/20 bg-zinc-500/5', action: () => setIsHelpOpen(true) },
+                  ].map((opt, i) => {
+                     const Icon = opt.icon;
+                     return (
+                        <button
+                          key={i}
+                          onClick={opt.action}
+                          className="flex items-center justify-between p-5 bg-[#0c0c0c] border border-white/[0.04] hover:border-purple-500/30 transition-all rounded-[24px] text-left group cursor-pointer"
+                        >
+                           <div className="flex items-center gap-4 min-w-0">
+                              <div className={`w-12 h-12 rounded-2xl border ${opt.color} flex items-center justify-center shrink-0`}>
+                                 <Icon size={20} />
+                              </div>
+                              <div className="truncate">
+                                 <h4 className="text-sm font-black text-white uppercase italic tracking-wide group-hover:text-purple-400 transition-colors">{opt.label}</h4>
+                                 <p className="text-[9px] font-bold text-white/35 uppercase tracking-widest mt-1 truncate">{opt.desc}</p>
+                              </div>
+                           </div>
+                           <ChevronRight size={16} className="text-white/20 group-hover:text-white transition-colors shrink-0" />
+                        </button>
+                     );
+                  })}
+               </div>
+            </div>
+          )}
+        </div>
+      )}
+
           {/* Conquistas (Achievements Live Grid) */}
-          <section className="w-full space-y-6 mb-10">
-             <div className="flex items-center justify-between px-2">
+          {false && (
+            <div className="w-full space-y-4">
+              <button
+                onClick={() => setExpandedSections(prev => ({ ...prev, conquistas: !prev.conquistas }))}
+                className="w-full h-18 bg-[#0c0c0c] border border-white/[0.04] hover:border-purple-500/20 rounded-[24px] px-6 flex items-center justify-between cursor-pointer group"
+              >
                 <div className="flex items-center gap-3">
-                   <Shield size={20} className="text-purple-500" />
-                   <h3 className="text-lg font-black text-white italic uppercase tracking-tight">Conquistas</h3>
+                  <Trophy size={18} className="text-purple-500" />
+                  <div className="text-left">
+                    <h3 className="text-sm font-black text-white uppercase italic tracking-wide">Galeria de Conquistas</h3>
+                    <p className="text-[9px] text-white/30 uppercase tracking-widest">Missões e Emblemas WeAura</p>
+                  </div>
                 </div>
-                <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest italic">
-                   {calculateAchievements().filter(a => a.unlocked).length} / {calculateAchievements().length} DESBLOQUEADAS
-                </span>
-             </div>
-             
-             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {calculateAchievements().map((badge) => (
-                  <button 
-                     key={badge.id} 
-                     onClick={() => setSelectedAchievement(badge)}
-                     className={`flex flex-col items-center p-4 bg-[#080808] border rounded-[28px] transition-all hover:scale-105 cursor-pointer outline-none select-none text-center ${
-                        badge.unlocked 
-                           ? `border-[#8A2EFF]/25 shadow-[0_5px_15px_rgba(138,46,255,0.06)] opacity-100` 
-                           : 'border-white/[0.03] opacity-45 hover:opacity-75'
-                     }`}
+                <div className="flex items-center gap-4">
+                  <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 rounded-lg">
+                    {calculateAchievements().filter(a => a.unlocked).length} / {calculateAchievements().length} DESBL.
+                  </span>
+                  <motion.div
+                    animate={{ rotate: expandedSections.conquistas ? 180 : 0 }}
+                    transition={{ duration: 0.15 }}
                   >
-                     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl mb-3 ${badge.bgIconColor} border border-white/[0.04]`}>
-                        {badge.icon}
-                     </div>
-                     <span className="text-xs font-black text-white uppercase italic tracking-tighter truncate max-w-full px-1">{badge.name}</span>
-                     
-                     {/* Micro progress bar */}
-                     <div className="w-full h-1 bg-black rounded-full overflow-hidden mt-3 max-w-[80px] mx-auto">
-                        <div 
-                           className={`h-full rounded-full ${badge.unlocked ? 'bg-gradient-to-r from-purple-500 to-pink-500' : 'bg-white/10'}`} 
-                           style={{ width: `${Math.min(100, Math.floor((badge.progress / badge.maxProgress) * 100))}%` }}
-                        />
-                     </div>
-                  </button>
-                ))}
-             </div>
-          </section>
+                    <ChevronDown size={16} className="text-white/40" />
+                  </motion.div>
+                </div>
+              </button>
 
-          {/* Dynamic Achievement Details Modal popup */}
-          <AnimatePresence>
-             {selectedAchievement && (
-                <>
-                   <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      onClick={() => setSelectedAchievement(null)}
-                      className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[90]"
-                   />
-                   <motion.div
-                      initial={{ scale: 0.95, opacity: 0, y: 20 }}
-                      animate={{ scale: 1, opacity: 1, y: 0 }}
-                      exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                      className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm p-6 bg-[#0c0c0c] border border-white/5 rounded-[36px] z-[100] outline-none text-center"
-                   >
-                      <button 
-                         onClick={() => setSelectedAchievement(null)}
-                         className="absolute top-4 right-4 p-2 bg-white/5 rounded-full text-white/30 hover:text-white transition-all scale-95"
-                      >
-                         <X size={16} />
-                      </button>
-
-                      <div className="w-20 h-20 mx-auto rounded-[24px] bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-5xl mb-4 animate-pulse">
-                         {selectedAchievement.icon}
-                      </div>
-
-                      <span className={`inline-block text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg italic mb-2 ${
-                         selectedAchievement.unlocked ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-white/5 text-white/30 border border-white/5'
-                      }`}>
-                         {selectedAchievement.unlocked ? '❖ DESBLOQUEADA' : '❖ BLOQUEADA'}
-                      </span>
-
-                      <h3 className="text-xl font-black text-white italic uppercase tracking-tight mt-1">{selectedAchievement.name}</h3>
-                      <p className="text-xs font-semibold text-white/50 mt-3 px-3 leading-relaxed">{selectedAchievement.description}</p>
-
-                      {/* Progression details */}
-                      <div className="mt-6 border-t border-white/[0.04] pt-5 space-y-2">
-                         <div className="flex justify-between items-center text-[10px] font-black text-white/40 uppercase tracking-wide">
-                            <span>Progresso Atual</span>
-                            <span>{selectedAchievement.progress.toLocaleString()} / {selectedAchievement.maxProgress.toLocaleString()}</span>
-                         </div>
-                         <div className="w-full h-2.5 bg-black rounded-full overflow-hidden p-0.5 border border-white/5">
+              <AnimatePresence initial={false}>
+                {expandedSections.conquistas && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1">
+                      {calculateAchievements().map((badge) => (
+                        <button 
+                          key={badge.id} 
+                          onClick={() => setSelectedAchievement(badge)}
+                          className={`flex flex-col items-center p-4 bg-[#080808] border rounded-[28px] transition-all hover:scale-105 cursor-pointer outline-none select-none text-center ${
+                            badge.unlocked 
+                              ? `border-[#8A2EFF]/25 shadow-[0_5px_15px_rgba(138,46,255,0.06)] opacity-100` 
+                              : 'border-white/[0.03] opacity-45 hover:opacity-75'
+                          }`}
+                        >
+                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl mb-3 ${badge.bgIconColor} border border-white/[0.04]`}>
+                            {badge.icon}
+                          </div>
+                          <span className="text-xs font-black text-white uppercase italic tracking-tighter truncate max-w-full px-1">{badge.name}</span>
+                          
+                          {/* Micro progress bar */}
+                          <div className="w-full h-1 bg-black rounded-full overflow-hidden mt-3 max-w-[80px] mx-auto">
                             <div 
-                               className="h-full rounded-full bg-gradient-to-r from-[#8A2EFF] via-[#FF4D9D] to-blue-500"
-                               style={{ width: `${Math.min(100, Math.floor((selectedAchievement.progress / selectedAchievement.maxProgress) * 100))}%` }}
+                              className={`h-full rounded-full ${badge.unlocked ? 'bg-gradient-to-r from-purple-500 to-pink-500' : 'bg-white/10'}`} 
+                              style={{ width: `${Math.min(100, Math.floor((badge.progress / badge.maxProgress) * 100))}%` }}
                             />
-                         </div>
-                      </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-                      <button 
-                         onClick={() => setSelectedAchievement(null)}
-                         className="w-full mt-6 py-3 bg-white/5 border border-white/5 hover:bg-white/10 rounded-2xl text-xs font-black text-white uppercase tracking-wider italic transition-all hover:scale-102"
-                      >
-                         Entendido
-                      </button>
-                   </motion.div>
-                </>
-             )}
-          </AnimatePresence>
+              {/* Dynamic Achievement Details Modal popup */}
+              <AnimatePresence>
+                 {selectedAchievement && (
+                    <>
+                       <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          onClick={() => setSelectedAchievement(null)}
+                          className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[90]"
+                       />
+                       <motion.div
+                          initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                          animate={{ scale: 1, opacity: 1, y: 0 }}
+                          exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm p-6 bg-[#0c0c0c] border border-white/5 rounded-[36px] z-[100] outline-none text-center"
+                       >
+                          <button 
+                             onClick={() => setSelectedAchievement(null)}
+                             className="absolute top-4 right-4 p-2 bg-white/5 rounded-full text-white/30 hover:text-white transition-all scale-95"
+                          >
+                             <X size={16} />
+                          </button>
+
+                          <div className="w-20 h-20 mx-auto rounded-[24px] bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-5xl mb-4 animate-pulse">
+                             {selectedAchievement.icon}
+                          </div>
+
+                          <span className={`inline-block text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg italic mb-2 ${
+                             selectedAchievement.unlocked ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-white/5 text-white/30 border border-white/5'
+                          }`}>
+                             {selectedAchievement.unlocked ? '❖ DESBLOQUEADA' : '❖ BLOQUEADA'}
+                          </span>
+
+                          <h3 className="text-xl font-black text-white italic uppercase tracking-tight mt-1">{selectedAchievement.name}</h3>
+                          <p className="text-xs font-semibold text-white/50 mt-3 px-3 leading-relaxed">{selectedAchievement.description}</p>
+
+                          {/* Progression details */}
+                          <div className="mt-6 border-t border-white/[0.04] pt-5 space-y-2">
+                             <div className="flex justify-between items-center text-[10px] font-black text-white/40 uppercase tracking-wide">
+                                <span>Progresso Atual</span>
+                                <span>{selectedAchievement.progress.toLocaleString()} / {selectedAchievement.maxProgress.toLocaleString()}</span>
+                             </div>
+                             <div className="w-full h-2.5 bg-black rounded-full overflow-hidden p-0.5 border border-white/5">
+                                <div 
+                                   className="h-full rounded-full bg-gradient-to-r from-[#8A2EFF] via-[#FF4D9D] to-blue-500"
+                                   style={{ width: `${Math.min(100, Math.floor((selectedAchievement.progress / selectedAchievement.maxProgress) * 100))}%` }}
+                                />
+                             </div>
+                          </div>
+
+                          <button 
+                             onClick={() => setSelectedAchievement(null)}
+                             className="w-full mt-6 py-3 bg-white/5 border border-white/5 hover:bg-white/10 rounded-2xl text-xs font-black text-white uppercase tracking-wider italic transition-all hover:scale-102"
+                          >
+                             Entendido
+                          </button>
+                       </motion.div>
+                    </>
+                 )}
+              </AnimatePresence>
+            </div>
+          )}
 
           {/* Dynamic Medal Details Modal popup */}
           <AnimatePresence>
@@ -1373,180 +2148,185 @@ export default function Profile() {
                           onClick={() => setSelectedMedal(null)}
                           className="w-full mt-7 py-3.5 bg-white text-black hover:bg-neutral-200 rounded-xl text-xs font-black uppercase tracking-wider italic transition-all active:scale-95 shadow-lg shadow-white/5"
                        >
-                          Retornar ao Mural
-                       </button>
-                    </motion.div>
-                 </>
-              )}
-           </AnimatePresence>
-
-           {/* Vertical Navigation Options List */}
-          {isMyProfile && (
-            <motion.section 
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="w-full space-y-6 mb-10"
-            >
-              <div className="flex items-center gap-3 px-2">
-                 <Settings size={20} className="text-purple-500" />
-                 <h3 className="text-lg font-black text-white italic uppercase tracking-tight">Painel de Utilidades WeAura</h3>
-              </div>
-
-               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[
-                    { label: 'Momentos', desc: 'Stories temporários de 24h', icon: Clock, color: 'text-purple-400 border-purple-500/20 bg-purple-500/5', action: () => setIsMomentsOpen(true) },
-                    { label: 'Status Ativo', desc: 'Sua mensagem & humor ativo', icon: Smile, color: 'text-rose-400 border-rose-500/20 bg-rose-500/5', action: () => setIsStatusOpen(true) },
-                    { label: 'Visitantes Recentes', desc: 'Quem andou visitando seu perfil', icon: Users, color: 'text-blue-400 border-blue-500/20 bg-blue-500/5', action: () => setIsVisitorsOpen(true) },
-                    { label: 'Convidar Amigos', desc: 'Indique amigos e fature moedas', icon: Gift, color: 'text-pink-400 border-pink-500/20 bg-pink-500/5', action: () => setIsInviteOpen(true) },
-                    { label: 'Grau de Nobreza', desc: 'Confira sua influência no clã', icon: Crown, color: 'text-amber-400 border-amber-500/20 bg-amber-500/5', action: () => setIsNobilityOpen(true) },
-                    { label: 'Centro de Segurança', desc: 'Proteção 2FA, SMS & Aparelhos', icon: ShieldAlert, color: 'text-green-400 border-green-500/20 bg-green-500/5', action: () => setIsSecurityOpen(true) },
-                    { label: 'Tópicos de Contribuição', desc: 'Deixe feedbacks e colabore', icon: MessageSquareText, color: 'text-cyan-400 border-cyan-500/20 bg-cyan-500/5', action: () => setIsFeedbackOpen(true) },
-                    { label: 'Controle Parental', desc: 'Limite de chat e bloqueios', icon: HeartHandshake, color: 'text-red-400 border-red-500/20 bg-red-500/5', action: () => setIsParentalOpen(true) },
-                    { label: 'Central de Ajuda WeAura', desc: 'Guia de XP, Moedas e Regras', icon: HelpCircle, color: 'text-zinc-400 border-zinc-500/20 bg-zinc-500/5', action: () => setIsHelpOpen(true) },
-                  ].map((opt, i) => {
-                     const Icon = opt.icon;
-                     return (
-                        <button
-                          key={i}
-                          onClick={opt.action}
-                          className="flex items-center justify-between p-5 bg-[#0c0c0c] border border-white/[0.04] hover:border-purple-500/30 transition-all rounded-[24px] text-left group"
-                        >
-                           <div className="flex items-center gap-4 min-w-0">
-                              <div className={`w-12 h-12 rounded-2xl border ${opt.color} flex items-center justify-center shrink-0`}>
-                                 <Icon size={20} />
-                              </div>
-                              <div className="truncate">
-                                 <h4 className="text-sm font-black text-white uppercase italic tracking-wide group-hover:text-purple-400 transition-colors">{opt.label}</h4>
-                                 <p className="text-[9px] font-bold text-white/35 uppercase tracking-widest mt-1 truncate">{opt.desc}</p>
-                              </div>
-                           </div>
-                           <ChevronRight size={16} className="text-white/20 group-hover:text-white transition-colors shrink-0" />
+                           Retornar ao Mural
                         </button>
-                     );
-                  })}
-               </div>
-            </motion.section>
+                     </motion.div>
+                  </>
+               )}
+            </AnimatePresence>
+
+           {/* Old Medalhas ActiveTab Disabled */}
+           {false && (
+            <div className="w-full space-y-4 mb-10">
+              <button
+                onClick={() => setExpandedSections(prev => ({ ...prev, medalhas: !prev.medalhas }))}
+                className="w-full h-18 bg-[#0c0c0c] border border-white/[0.04] hover:border-purple-500/20 rounded-[24px] px-6 flex items-center justify-between cursor-pointer group"
+              >
+                <div className="flex items-center gap-3">
+                  <Trophy size={18} className="text-amber-500" />
+                  <div className="text-left">
+                    <h3 className="text-sm font-black text-white uppercase italic tracking-wide">Mural de Medalhas</h3>
+                    <p className="text-[9px] text-white/30 uppercase tracking-widest">Medalhas de Honra do Membro</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg">
+                    {calculateMedals().filter(m => m.unlocked).length} / {calculateMedals().length} DESBL.
+                  </span>
+                  <motion.div
+                    animate={{ rotate: expandedSections.medalhas ? 180 : 0 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    <ChevronDown size={16} className="text-white/40" />
+                  </motion.div>
+                </div>
+              </button>
+
+              <AnimatePresence initial={false}>
+                {expandedSections.medalhas && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 pt-1">
+                      {calculateMedals().map((med) => (
+                        <button 
+                          key={med.id}
+                          onClick={() => setSelectedMedal(med)}
+                          className={'flex flex-col items-center justify-center p-5 rounded-[32px] border transition-all hover:scale-105 cursor-pointer outline-none select-none text-center relative overflow-hidden group hover:brightness-125 ' + (
+                            med.unlocked 
+                              ? 'border-white/10 ' + med.glowColor + ' ' + med.borderColor 
+                              : 'border-white/[0.02] bg-[#060606] opacity-35 hover:opacity-60'
+                          )}
+                        >
+                          <div className="w-16 h-16 rounded-[24px] flex items-center justify-center text-4xl mb-4 bg-black/60 border border-white/5 shadow-inner">
+                            {med.icon}
+                          </div>
+                          
+                          <h4 className="text-xs font-black text-white uppercase italic tracking-tighter truncate max-w-full px-1">{med.name}</h4>
+                          
+                          <span className={
+                            med.rarity === 'Lendário' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-[0_0_8px_rgba(245,158,11,0.15)] text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md mt-2' :
+                            med.rarity === 'Épico' ? 'bg-pink-500/10 text-pink-400 border border-pink-500/20 shadow-[0_0_8px_rgba(236,72,153,0.15)] text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md mt-2' :
+                            'bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md mt-2'
+                          }>
+                            {med.rarity}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           )}
 
-          {/* Medalhas de Honra (Gold/Silver Badge Wall) */}
-          <section className="w-full space-y-6 mb-10">
-             <div className="flex items-center justify-between px-2">
-                <div className="flex items-center gap-3">
-                   <Trophy size={20} className="text-amber-500" />
-                   <h3 className="text-lg font-black text-white italic uppercase tracking-tight">Medalhas de Honra</h3>
-                </div>
-                <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest italic animate-pulse">
-                   {calculateMedals().filter(m => m.unlocked).length} / {calculateMedals().length} Desbloqueadas
-                </span>
-             </div>
-
-             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-                {calculateMedals().map((med) => (
-                  <button 
-                     key={med.id}
-                     onClick={() => setSelectedMedal(med)}
-                     className={`flex flex-col items-center justify-center p-5 rounded-[32px] border transition-all hover:scale-105 cursor-pointer outline-none select-none text-center relative overflow-hidden group hover:brightness-125 ${
-                        med.unlocked 
-                           ? `border-white/10 ${med.glowColor} ${med.borderColor}` 
-                           : 'border-white/[0.02] bg-[#060606] opacity-35 hover:opacity-60'
-                     }`}
-                  >
-                     <div className={`w-16 h-16 rounded-[24px] flex items-center justify-center text-4xl mb-4 bg-black/60 border border-white/5 shadow-inner`}>
-                        {med.icon}
-                     </div>
-                     
-                     <h4 className="text-xs font-black text-white uppercase italic tracking-tighter truncate max-w-full px-1">{med.name}</h4>
-                     
-                     <span className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md mt-2 ${
-                        med.rarity === 'Lendário' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-[0_0_8px_rgba(245,158,11,0.15)]' :
-                        med.rarity === 'Épico' ? 'bg-pink-500/10 text-pink-400 border border-pink-500/20 shadow-[0_0_8px_rgba(236,72,153,0.15)]' :
-                        'bg-purple-500/10 text-purple-400 border border-purple-500/20'
-                     }`}>
-                        {med.rarity}
-                     </span>
-                  </button>
-                ))}
-             </div>
-          </section>
-
+          
           {/* Histórico de Atividades (Real-time Timeline) */}
-          <section className="w-full space-y-6 mb-10">
-             <div className="flex items-center justify-between px-2">
+          {false && (
+            <div className="w-full space-y-4 mb-10">
+              <button
+                onClick={() => setExpandedSections(prev => ({ ...prev, historico: !prev.historico }))}
+                className="w-full h-18 bg-[#0c0c0c] border border-white/[0.04] hover:border-purple-500/20 rounded-[24px] px-6 flex items-center justify-between cursor-pointer group"
+              >
                 <div className="flex items-center gap-3">
-                   <Clock size={20} className="text-purple-500" />
-                   <h3 className="text-lg font-black text-white italic uppercase tracking-tight">Histórico de Atividades</h3>
+                  <Activity size={18} className="text-purple-500" />
+                  <div className="text-left">
+                    <h3 className="text-sm font-black text-white uppercase italic tracking-wide">Linha do Tempo</h3>
+                    <p className="text-[9px] text-white/30 uppercase tracking-widest">Histórico de Atividades Recentes</p>
+                  </div>
                 </div>
-                <span className="text-[10px] font-black text-white/30 uppercase tracking-widest leading-none">
-                   Stream de Eventos
-                </span>
-             </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-[10px] font-black text-purple-500 uppercase tracking-widest bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 rounded-lg">
+                    {getActivityTimeline().length} REGISTROS
+                  </span>
+                  <motion.div
+                    animate={{ rotate: expandedSections.historico ? 180 : 0 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    <ChevronDown size={16} className="text-white/40" />
+                  </motion.div>
+                </div>
+              </button>
 
-             {loadingGames ? (
-                <div className="premium-card p-12 text-center flex justify-center items-center gap-2 text-white/40">
-                  <RefreshCw size={20} className="animate-spin text-purple-500" />
-                  <span>Sincronizando atividades do clã...</span>
-                </div>
-             ) : getActivityTimeline().length === 0 ? (
-                <div className="premium-card p-12 text-center text-white/20 italic text-sm">
-                   Nenhum registro de atividade recente encontrado.
-                </div>
-             ) : (
-                <div className="space-y-4">
-                   <div className="relative pl-6 border-l border-white/5 space-y-6 ml-4">
-                      {getActivityTimeline().slice(0, visibleActivitiesCount).map((act) => {
-                         const dateObj = new Date(act.time);
-                         const dateString = dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) + ' às ' + dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                         
-                         return (
-                            <div key={act.id} className="relative group">
-                               {/* Dot Indicator */}
-                               <div className="absolute -left-[31px] top-1.5 w-4 h-4 rounded-full bg-black border-2 border-purple-500 flex items-center justify-center text-[9px] filter drop-shadow-[0_0_6px_#a855f7]">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-purple-400 group-hover:scale-125 transition-transform" />
-                               </div>
-                               
-                               <div className="premium-card p-4 flex items-start sm:items-center justify-between gap-4 bg-[#080808]/40 border-white/[0.03] hover:border-purple-500/25 transition-all">
-                                  <div className="flex items-center gap-3.5 min-w-0">
-                                     <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl shrink-0 border border-white/5 ${act.color}`}>
-                                        {act.icon}
-                                     </div>
-                                     <div className="min-w-0">
-                                        <h4 className="text-xs font-black text-white uppercase italic tracking-wide group-hover:text-purple-400 transition-colors">{act.title}</h4>
-                                        <p className="text-[11px] font-semibold text-white/50 leading-relaxed mt-0.5">{act.desc}</p>
-                                        <span className="text-[9px] font-mono text-white/20 uppercase tracking-widest block mt-1.5 flex items-center gap-1.5">
-                                           <Calendar size={10} /> {dateString}
-                                        </span>
-                                     </div>
-                                  </div>
-                                  
-                                  {act.xpBadge && (
-                                     <span className="px-3 py-1 bg-purple-500/10 border border-purple-500/25 text-purple-400 font-mono text-[9px] font-black uppercase rounded-lg tracking-widest shrink-0 self-start sm:self-center">
-                                        {act.xpBadge}
-                                     </span>
-                                  )}
-                               </div>
-                            </div>
-                         );
-                      })}
-                   </div>
+              <AnimatePresence initial={false}>
+                {expandedSections.historico && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="relative pl-6 border-l-2 border-white/[0.03] space-y-8 mt-4 ml-6">
+                       {getActivityTimeline().length === 0 ? (
+                          <div className="text-center py-8">
+                             <TrendingUp className="mx-auto text-white/10 mb-2" size={24} />
+                             <p className="text-[10px] font-black text-white/30 uppercase tracking-wider">Ainda não há registros de atividade</p>
+                          </div>
+                       ) : (
+                          getActivityTimeline().slice(0, visibleActivitiesCount).map((act: any) => {
+                             const dateString = act.createdAt 
+                                ? new Date(act.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) 
+                                : 'Recente';
+                             return (
+                                <div key={act.id} className="relative group">
+                                   {/* Dot Indicator */}
+                                   <div className="absolute -left-[31px] top-1.5 w-4 h-4 rounded-full bg-black border-2 border-purple-500 flex items-center justify-center text-[9px] filter drop-shadow-[0_0_6px_#a855f7]">
+                                      <div className="w-1.5 h-1.5 rounded-full bg-purple-400 group-hover:scale-125 transition-transform" />
+                                   </div>
+                                   
+                                   <div className="premium-card p-4 flex items-start sm:items-center justify-between gap-4 bg-[#080808]/40 border-white/[0.03] hover:border-purple-500/25 transition-all">
+                                      <div className="flex items-center gap-3.5 min-w-0">
+                                         <div className={'w-11 h-11 rounded-2xl flex items-center justify-center text-xl shrink-0 border border-white/5 ' + act.color}>
+                                            {act.icon}
+                                         </div>
+                                         <div className="min-w-0">
+                                            <h4 className="text-xs font-black text-white uppercase italic tracking-wide group-hover:text-purple-400 transition-colors">{act.title}</h4>
+                                            <p className="text-[11px] font-semibold text-white/50 leading-relaxed mt-0.5">{act.desc}</p>
+                                            <span className="text-[9px] font-mono text-white/20 uppercase tracking-widest block mt-1.5 flex items-center gap-1.5">
+                                               <Calendar size={10} /> {dateString}
+                                            </span>
+                                         </div>
+                                      </div>
+                                      
+                                      {act.xpBadge && (
+                                         <span className="px-3 py-1 bg-purple-500/10 border border-purple-500/25 text-purple-400 font-mono text-[9px] font-black uppercase rounded-lg tracking-widest shrink-0 self-start sm:self-center">
+                                            {act.xpBadge}
+                                         </span>
+                                      )}
+                                   </div>
+                                </div>
+                             );
+                          })
+                       )}
+                    </div>
 
-                   {/* Pagination button */}
-                   {getActivityTimeline().length > visibleActivitiesCount && (
-                      <div className="flex justify-center pt-2">
-                         <button 
-                            type="button"
-                            onClick={() => setVisibleActivitiesCount(prev => prev + 5)}
-                            className="px-6 py-3 bg-[#0a0a0a] border border-white/5 hover:border-purple-500/30 text-white font-black uppercase tracking-widest text-[9px] rounded-xl cursor-pointer active:scale-95 transition-all flex items-center gap-1.5"
-                         >
-                            <RefreshCw size={12} /> Carregar Mais Atividades
-                         </button>
-                      </div>
-                   )}
-                </div>
-             )}
-          </section>
+                    {/* Pagination button */}
+                    {getActivityTimeline().length > visibleActivitiesCount && (
+                       <div className="flex justify-center pt-4">
+                          <button 
+                             type="button"
+                             onClick={() => setVisibleActivitiesCount(prev => prev + 5)}
+                             className="px-6 py-3 bg-[#0a0a0a] border border-white/5 hover:border-purple-500/30 text-white font-black uppercase tracking-widest text-[9px] rounded-xl cursor-pointer active:scale-95 transition-all flex items-center gap-1.5"
+                          >
+                             <RefreshCw size={12} /> Carregar Mais Atividades
+                          </button>
+                       </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
 
+          
           {/* Virtual Gifts Chest Received Gallery */}
-          <section className="w-full space-y-6 mb-10">
+          {false && (
+            <section className="w-full space-y-6 mb-10">
             <div className="flex items-center justify-between px-2">
                <div className="flex items-center gap-3">
                   <Gift size={20} className="text-pink-500" />
@@ -1594,6 +2374,68 @@ export default function Profile() {
               </div>
             )}
           </section>
+          )}
+          
+
+
+          {/* Visitantes Recentes Tab Screen */}
+          {false && (
+            <div className="w-full space-y-4 mb-10 animate-fade-in">
+              <div className="premium-card p-6 bg-[#0c0c0c] border border-white/[0.04] rounded-[28px]">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
+                      <Eye size={18} className="text-cyan-400" />
+                    </div>
+                    <div className="text-left">
+                      <h3 className="text-sm font-black text-white uppercase italic tracking-wide">Visitantes do Perfil</h3>
+                      <p className="text-[9px] text-white/30 uppercase tracking-widest">Membros que visualizaram sua aura</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-lg">
+                    {recentVisitors.length} Visualizações
+                  </span>
+                </div>
+
+                {recentVisitors.length === 0 ? (
+                  <div className="bg-black/35 border border-white/[0.02] p-12 rounded-[24px] text-center text-xs text-white/30 italic uppercase tracking-wider">
+                     <Eye className="mx-auto mb-3 opacity-20 animate-pulse" size={28} />
+                     Nenhum visitante recente ainda. Divulgue seu perfil para receber visitas!
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                     {recentVisitors.map((visit) => (
+                        <button 
+                           key={visit.id}
+                           onClick={() => {
+                              if (visit.visitorId) {
+                                 navigate(`/profile/${visit.visitorId}`);
+                              }
+                           }}
+                           className="flex items-center justify-between p-4 bg-white/[0.01] hover:bg-white/[0.04] border border-white/[0.02] hover:border-cyan-500/25 rounded-2xl transition-all cursor-pointer text-left group"
+                        >
+                           <div className="flex items-center gap-3">
+                              <img 
+                                 src={visit.visitorPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${visit.visitorName}`} 
+                                 alt="" 
+                                 className="w-10 h-10 rounded-xl object-cover border border-white/10 group-hover:border-purple-500/20 transition-all" 
+                              />
+                              <div>
+                                 <span className="text-xs font-black text-white leading-none block group-hover:text-purple-400 transition-colors">{visit.visitorName}</span>
+                                 <span className="text-[9px] font-semibold text-white/25 uppercase tracking-wide block mt-1">Membro Clã</span>
+                              </div>
+                           </div>
+                           <div className="text-right flex flex-col items-end">
+                             <span className="text-[9px] font-bold text-white/30 italic block leading-none">{formatTimeAgo(visit.visitedAt)}</span>
+                             <span className="text-[8px] font-mono font-black text-cyan-400 uppercase tracking-widest bg-cyan-400/5 px-1.5 py-0.5 rounded border border-cyan-500/10 mt-1.5 inline-block">VISITOU</span>
+                           </div>
+                        </button>
+                     ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Gift Selection slide-up Modal drawer */}
           <AnimatePresence>
@@ -1850,6 +2692,39 @@ export default function Profile() {
                     className="w-full bg-white/5 border border-white/5 rounded-2xl p-4 text-white text-sm outline-none focus:border-white/20 transition-all resize-none"
                     placeholder="Sua bio..."
                   />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[#8A2EFF] ml-1">Equipar Título Desbloqueado</label>
+                  <div className="space-y-2">
+                    <select
+                      value={myProfile?.equippedTitle || ''}
+                      onChange={async (e) => {
+                        const val = e.target.value;
+                        try {
+                          await updateProfile({ equippedTitle: val || null });
+                          success("Título atualizado com sucesso! 🏆");
+                        } catch (err) {
+                          toastError("Falha ao equipar o título.");
+                        }
+                      }}
+                      className="w-full bg-white/5 border border-white/5 rounded-2xl p-4 text-white text-xs font-bold outline-none focus:border-white/20 transition-all cursor-pointer"
+                    >
+                      <option value="" className="bg-[#0c0c0c] text-white/45">Nenhum Título Equipado</option>
+                      {EXCLUSIVE_TITLES.filter(t => (myProfile?.level || 1) >= t.minLevel).map((t) => (
+                        <option 
+                          key={t.title} 
+                          value={t.title} 
+                          className="bg-[#0a0a0a] text-white font-bold"
+                        >
+                          🏆 {t.title} (LV.{t.minLevel}+)
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-[9px] font-bold text-white/25 block leading-normal ml-1">
+                      Você pode equipar títulos adquiridos alcançando níveis de XP. Novos títulos desbloqueiam benefícios visuais!
+                    </span>
+                  </div>
                 </div>
 
                 <button

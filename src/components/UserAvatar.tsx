@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { PREMIUM_FRAMES, getDirectDriveUrl } from '../lib/frames';
+import { PREMIUM_FRAMES, getDirectDriveUrl, getFrameById } from '../lib/frames';
 import { AURA_LEVELS } from '../lib/aura';
 import ProfileFrame from './ProfileFrame';
 
@@ -149,7 +149,7 @@ export default function UserAvatar({
   const matchedFrameId = forceFrameId !== undefined ? forceFrameId : (equippedFrame || (activeIsVip && activeVipPlan ? `fr_vip_${activeVipPlan.toLowerCase()}` : null));
 
   // Match the equipped frame item
-  const currentFrameObj = showFrame && matchedFrameId ? PREMIUM_FRAMES.find(f => f.id === matchedFrameId) : null;
+  const currentFrameObj = showFrame && matchedFrameId ? getFrameById(matchedFrameId) : null;
 
   const activeAuraLevel = isMe ? (profile?.auraLevel || 1) : userAuraLevel;
   const hasAuraFrame = !currentFrameObj && activeAuraLevel >= 2;
@@ -157,11 +157,12 @@ export default function UserAvatar({
 
   // Check if they are explicitly using another non-VIP frame. Avoid cluttering if another frame is equipped.
   const isUsingSelfVipFrame = !equippedFrame || (activeVipPlan && equippedFrame === `fr_vip_${activeVipPlan.toLowerCase()}`);
+  const isRawDesign = !!currentFrameObj?.noProcessing;
 
   return (
     <div id="user-avatar-root" className={`relative flex-shrink-0 ${className} aspect-square overflow-visible group flex items-center justify-center bg-transparent`}>
            {/* Background Aura glow - WePlay theme aura or custom VIP pulse gradient */}
-      {(currentFrameObj || hasAuraFrame || activeIsVip) && (
+      {(!isRawDesign && (currentFrameObj || hasAuraFrame || activeIsVip)) && (
         <div 
           className="absolute rounded-full pointer-events-none transition-all duration-1000 opacity-80 group-hover:opacity-100 animate-pulse"
           style={{
@@ -185,7 +186,7 @@ export default function UserAvatar({
       )}
 
       {/* Rotating holograph loop for VIP / Premium style */}
-      {(currentFrameObj?.isVip || (hasAuraFrame && activeAuraLevel >= 4) || (activeIsVip && isUsingSelfVipFrame)) && (
+      {(!isRawDesign && (currentFrameObj?.isVip || (hasAuraFrame && activeAuraLevel >= 4) || (activeIsVip && isUsingSelfVipFrame))) && (
         <>
           {/* Default Rotating Hologram */}
           <div 

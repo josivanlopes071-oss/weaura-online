@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, onAuthStateChanged, signInAnonymously, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { doc, getDoc, setDoc, serverTimestamp, runTransaction, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, runTransaction, updateDoc, collection, onSnapshot } from 'firebase/firestore';
+import { registerCustomFramesInCache } from '../lib/frames';
 
 interface UserProfile {
   uid: string;
@@ -31,12 +32,52 @@ interface UserProfile {
   purchasedGifts?: { [giftId: string]: number };
   aura?: number;
   auraLevel?: number;
+  equippedTitle?: string | null;
 }
+
+export interface TitleDefinition {
+  title: string;
+  minLevel: number;
+  unlockedMsg: string;
+  colorClass?: string;
+}
+
+export const EXCLUSIVE_TITLES: TitleDefinition[] = [
+  { title: "Adepto do WeAura", minLevel: 1, unlockedMsg: "Iniciou sua jornada de luz no WeAura" },
+  { title: "Desbravador Estelar", minLevel: 2, unlockedMsg: "Passo inicial para dominar o cosmos", colorClass: "text-[#A1A1AA]" },
+  { title: "Iniciado Aura", minLevel: 3, unlockedMsg: "Sintonizou os primeiros canais espirituais", colorClass: "text-[#34D399]" },
+  { title: "Viajante Cósmico", minLevel: 5, unlockedMsg: "Conectou-se a rituais sonoros profundos", colorClass: "text-[#38BDF8]" },
+  { title: "Místico Digital", minLevel: 7, unlockedMsg: "Descobriu as frequências ocultas do clã", colorClass: "text-[#2DD4BF]" },
+  { title: "Sentinela Solar", minLevel: 10, unlockedMsg: "Protetor radiante da harmonia do servidor", colorClass: "text-[#60A5FA] font-bold" },
+  { title: "Mestre da Aura", minLevel: 15, unlockedMsg: "Canalizador supremo de energia WeAura", colorClass: "text-[#C084FC] font-extrabold" },
+  { title: "Mago de Frequências", minLevel: 20, unlockedMsg: "Dono do ritmo e vibração cósmica", colorClass: "text-[#F472B6] font-extrabold" },
+  { title: "Alquimista do EGO", minLevel: 25, unlockedMsg: "Transmutador perfeito de riquezas terrenas", colorClass: "text-[#F59E0B] font-extrabold animate-pulse" },
+  { title: "Sábio Superior", minLevel: 30, unlockedMsg: "Portador da sabedoria eterna dos astros", colorClass: "text-[#A78BFA] font-black" },
+  { title: "Divindade Estelar", minLevel: 40, unlockedMsg: "Ascendeu à imortalidade sonora e espiritual", colorClass: "text-[#22D3EE] font-black tracking-widest uppercase animate-pulse" },
+  { title: "Lenda Transcendental", minLevel: 50, unlockedMsg: "Unificação absoluta com a energia cósmica", colorClass: "bg-gradient-to-r from-[#FBBF24] via-[#EC4899] to-[#22D3EE] bg-clip-text text-transparent font-black tracking-widest uppercase animate-pulse" }
+];
+
+export const getXpNeededForLevel = (lvl: number): number => {
+  // Level progression curve: 
+  // Level 1: 100 XP
+  // Level 2: 150 XP
+  // Level 3: 200 XP
+  // Formula: 100 + (lvl - 1) * 50
+  return 100 + (lvl - 1) * 50;
+};
 
 const SUPER_ADMINS = ['josivanlopes071@gmail.com', 'manoeldasilva631kejr@gmail.com'];
 
 export function isSuperAdmin(email?: string | null) {
   return SUPER_ADMINS.includes((email || '').toLowerCase());
+}
+
+export interface LevelUpCelebrationInfo {
+  oldLevel: number;
+  newLevel: number;
+  coinsReward: number;
+  auraReward: number;
+  unlockedTitle: string | null;
 }
 
 interface AuthContextType {
@@ -56,6 +97,9 @@ interface AuthContextType {
   refreshConnection: () => Promise<void>;
   sendGift: (targetUserId: string, giftId: string, roomId?: string, chatId?: string, quantity?: number) => Promise<{ success: boolean; quantity: number; auraGained: number; coinsGained: number; giftName: string; giftIcon: string }>;
   gainAura: (amount: number) => Promise<void>;
+  levelUpData: LevelUpCelebrationInfo | null;
+  clearLevelUpData: () => void;
+  customFrames: any[];
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -66,6 +110,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [levelUpData, setLevelUpData] = useState<LevelUpCelebrationInfo | null>(null);
+  const [customFrames, setCustomFrames] = useState<any[]>([]);
+
+  useEffect(() => {
+    const framesRef = collection(db, 'custom_profile_frames');
+    const unsubscribe = onSnapshot(framesRef, (snap) => {
+      const framesList = snap.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name,
+          description: data.description || '',
+          price: data.price || 0,
+          driveUrl: data.imageUrl || '',
+          imageUrl: data.imageUrl || '',
+          glowColor: data.glowColor || '#8A2EFF',
+          glowClass: data.glowClass || 'shadow-purple-500/50',
+          isVip: data.rarity === 'Lendário' || data.rarity === 'Épico',
+          category: 'Special' as const,
+          badge: data.rarity || 'Comum',
+          rarity: data.rarity || 'Comum',
+          noProcessing: data.noProcessing ?? true,
+          statusUnlock: data.statusUnlock || 'locked', // 'free' or 'locked'
+          avatarScale: data.avatarScale || 0.755,
+          avatarOffsetY: data.avatarOffsetY || '0%',
+          createdBy: data.createdBy || '',
+          createdAt: data.createdAt
+        };
+      });
+      setCustomFrames(framesList);
+      registerCustomFramesInCache(framesList);
+    }, (err) => {
+      console.warn("Failed to subscribe to custom_profile_frames in AuthContext:", err);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const clearLevelUpData = () => setLevelUpData(null);
 
   const refreshConnection = async () => {
     setConnectionError(null);
@@ -143,6 +226,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               level: 1,
               xp: 0,
               coins: 100,
+              purchasedFrames: [
+                'weplay_aura_guardiao'
+              ],
               role: isAdminEmail ? 'admin' : 'user',
               displayId: numericalId,
               following: [],
@@ -240,7 +326,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               aura: data.aura || 0,
               auraLevel: data.auraLevel || 1,
               following: data.following || [],
-              followers: data.followers || []
+              followers: data.followers || [],
+              purchasedFrames: Array.from(new Set([
+                ...(data.purchasedFrames || []),
+                'weplay_aura_guardiao'
+              ]))
             });
           }
         } catch (error: any) {
@@ -374,21 +464,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const gainXp = async (amount: number) => {
     if (!user || !profile) return;
     
-    // Level logic: each level needs (level * 100) XP
     let newXp = (profile.xp || 0) + amount;
     let newLevel = profile.level || 1;
+    let didLevelUp = false;
     
     while (true) {
-      const xpNeeded = newLevel * 100;
+      const xpNeeded = getXpNeededForLevel(newLevel);
       if (newXp >= xpNeeded) {
         newXp -= xpNeeded;
         newLevel += 1;
+        didLevelUp = true;
       } else {
         break;
       }
     }
     
-    await updateProfile({ xp: newXp, level: newLevel });
+    if (didLevelUp) {
+      let coinsReward = 0;
+      let auraReward = 0;
+      for (let lvl = profile.level + 1; lvl <= newLevel; lvl++) {
+        coinsReward += lvl * 50; 
+        auraReward += lvl * 10;
+      }
+      
+      const nextCoins = (profile.coins || 0) + coinsReward;
+      const nextAura = (profile.aura || 0) + auraReward;
+      
+      const newlyUnlockedTitles = EXCLUSIVE_TITLES.filter(t => t.minLevel > profile.level && t.minLevel <= newLevel).map(t => t.title);
+      const latestTitleUnlocked = newlyUnlockedTitles.length > 0 ? newlyUnlockedTitles[newlyUnlockedTitles.length - 1] : null;
+      
+      await updateProfile({ 
+        xp: newXp, 
+        level: newLevel,
+        coins: nextCoins,
+        aura: nextAura
+      });
+      
+      setLevelUpData({
+        oldLevel: profile.level,
+        newLevel,
+        coinsReward,
+        auraReward,
+        unlockedTitle: latestTitleUnlocked
+      });
+    } else {
+      await updateProfile({ xp: newXp });
+    }
   };
 
   const followUser = async (targetId: string) => {
@@ -578,7 +699,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user, profile, loading, isOnline, connectionError, 
       loginAnonymously, loginWithEmail, loginWithGoogle, logout, 
       updateProfile, updateCoins, gainXp, followUser, refreshConnection,
-      sendGift, gainAura
+      sendGift, gainAura, levelUpData, clearLevelUpData, customFrames
     }}>
       {children}
     </AuthContext.Provider>

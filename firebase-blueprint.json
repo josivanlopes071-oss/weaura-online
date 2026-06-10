@@ -177,9 +177,30 @@
         "chatId": { "type": "string" }
       },
       "required": ["senderId", "receiverId", "giftId", "quantity", "totalPrice", "auraGained", "createdAt"]
+    },
+    "custom_profile_frame": {
+      "title": "Custom Profile Frame",
+      "description": "Administrator custom uploaded profile frame",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "price": { "type": "integer" },
+        "rarity": { "type": "string", "enum": ["Lendário", "Épico", "Raro", "Comum"] },
+        "noProcessing": { "type": "boolean" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "imageUrl", "rarity", "price", "createdAt"]
     }
   },
   "firestore": {
+    "/custom_profile_frames/{frameId}": {
+      "schema": "custom_profile_frame",
+      "description": "Custom frames added by administrator"
+    },
     "/gift_transactions/{transactionId}": {
       "schema": "gift_transaction",
       "description": "History of all sent gifts"

@@ -18,7 +18,7 @@ import {
   Users, MessageSquare, Volume2, X, Star, Heart, Flame, Trophy,
   Smile, ThumbsUp, PartyPopper, Ghost as GhostIcon,
   Music, Lock, Plus, LayoutGrid, ShoppingBag, VolumeX, MessageCircle,
-  Settings, Shield, Camera, Palette, UserMinus, UserPlus, BellOff, Crown, Eye, EyeOff,
+  Settings, Shield, Camera, Palette, UserMinus, UserPlus, BellOff, Crown, Eye, EyeOff, Share2,
   Trash2, LogOut, AlertCircle, Sparkles, Rocket, Gem, Coins, Zap, HelpCircle,
   Activity, Wifi, WifiOff, Hand
 } from 'lucide-react';
@@ -66,6 +66,7 @@ interface RoomData {
   stageLayout?: string;
   allowGuestsNextToHost?: boolean;
   speakRequests?: string[];
+  totalGifts?: number;
 }
 
 const nameCache: { [uid: string]: string } = {};
@@ -317,10 +318,13 @@ export default function Room() {
   const [activeAnimation, setActiveAnimation] = useState<any | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showUserActions, setShowUserActions] = useState<string | null>(null);
+  const [showSignalModal, setShowSignalModal] = useState(false);
   
   // Interactive Live Features
   const [showSpeakRequestsQueue, setShowSpeakRequestsQueue] = useState(false);
   const [showRoomRank, setShowRoomRank] = useState(false);
+  const [showShareToast, setShowShareToast] = useState(false);
+  const [uptime, setUptime] = useState('00:00');
   const [entranceAnnouncements, setEntranceAnnouncements] = useState<{ id: string, uid: string, name: string, photoURL: string, role?: string, isVip?: boolean, vipPlan?: string | null }[]>([]);
   
   // Settings Panel State
@@ -356,6 +360,30 @@ export default function Room() {
       setEditAllowGuestsNextToHost(room.allowGuestsNextToHost !== false);
     }
   }, [showSettings, room]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const start = sessionStartTimeRef.current || Date.now();
+      const diffSecs = Math.floor((Date.now() - start) / 1000);
+      const hrs = Math.floor(diffSecs / 3600);
+      const mins = Math.floor((diffSecs % 3600) / 60);
+      const secs = diffSecs % 60;
+      
+      const formatted = `${hrs > 0 ? String(hrs).padStart(2, '0') + ':' : ''}${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      setUptime(formatted);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleShareRoom = () => {
+    const shareUrl = window.location.href;
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      setShowShareToast(true);
+      setTimeout(() => setShowShareToast(false), 3000);
+    }).catch(err => {
+      console.warn("Share copy error:", err);
+    });
+  };
 
   const copyDisplayId = (displayId: number) => {
     navigator.clipboard.writeText(String(displayId));
@@ -531,7 +559,8 @@ export default function Room() {
           moderators: data.moderators || [],
           mutedUsers: data.mutedUsers || [],
           speakRequests: data.speakRequests || [],
-          allowGuestsNextToHost: data.allowGuestsNextToHost !== false
+          allowGuestsNextToHost: data.allowGuestsNextToHost !== false,
+          totalGifts: data.totalGifts || 0
         });
       } else {
         // Room deleted
@@ -727,15 +756,18 @@ export default function Room() {
     
     if (oldMembers.length > 0) {
       const newJoined = currentMembers.filter(m => !oldMembers.includes(m) && m !== user.uid);
+      const leftMembers = oldMembers.filter(m => !currentMembers.includes(m) && m !== user.uid);
+
       newJoined.forEach(async (uid) => {
         try {
           const userSnap = await getDoc(doc(db, 'users', uid));
           if (userSnap.exists()) {
             const data = userSnap.data();
+            const displayName = data.displayName || 'Voz do Espaço';
             const ann = {
               id: Math.random().toString(),
               uid: uid,
-              name: data.displayName || 'Voz do Espaço',
+              name: displayName,
               photoURL: data.photoURL || '',
               role: data.role || 'user',
               isVip: data.isVip || false,
@@ -749,9 +781,51 @@ export default function Room() {
             setTimeout(() => {
               setEntranceAnnouncements(prev => prev.filter(item => item.id !== ann.id));
             }, 6000);
+
+            // Local system join message
+            setMessages(prev => {
+              const sysMsg: Message = {
+                id: `system-joined-${uid}-${Date.now()}`,
+                authorId: 'system',
+                authorName: 'Sistema',
+                text: `${displayName} entrou na sala.`,
+                type: 'system',
+                timestamp: null,
+                clientCreatedAt: Date.now()
+              };
+              if (prev.some(m => m.id === sysMsg.id)) return prev;
+              return [...prev, sysMsg];
+            });
           }
         } catch (err) {
           console.warn("Error triggering entrance announcement:", err);
+        }
+      });
+
+      leftMembers.forEach(async (uid) => {
+        try {
+          const userSnap = await getDoc(doc(db, 'users', uid));
+          let displayName = 'Membro Aura';
+          if (userSnap.exists()) {
+            displayName = userSnap.data().displayName || 'Membro Aura';
+          }
+
+          // Local system exit message
+          setMessages(prev => {
+            const sysMsg: Message = {
+              id: `system-left-${uid}-${Date.now()}`,
+              authorId: 'system',
+              authorName: 'Sistema',
+              text: `${displayName} saiu da sala.`,
+              type: 'system',
+              timestamp: null,
+              clientCreatedAt: Date.now()
+            };
+            if (prev.some(m => m.id === sysMsg.id)) return prev;
+            return [...prev, sysMsg];
+          });
+        } catch (err) {
+          console.warn("Error tracking exit log:", err);
         }
       });
     }
@@ -1153,7 +1227,8 @@ export default function Room() {
             displayName: dName,
             photoURL: uPhoto,
             totalSpent: increment(totalCost)
-          }
+          },
+          totalGifts: increment(giftQuantity)
         }).catch((e) => console.warn("Erro ao atualizar ranking de presentes:", e));
 
         await addDoc(collection(db, 'rooms', id, 'messages'), {
@@ -1316,12 +1391,13 @@ export default function Room() {
         className="absolute top-0 left-0 w-full h-[50vh] blur-[120px] rounded-full pointer-events-none opacity-10 transition-all duration-1000"
         style={{ backgroundColor: currentTheme.primary }}
       ></div>
-      {/* Refined Header */}
+      {/* Refined Minimal Header */}
       <header className="flex-none flex items-center justify-between px-8 pt-16 pb-6 glass-dark border-b border-white/[0.04] relative z-20 shadow-premium">
         <div className="flex items-center gap-4">
           <button 
             onClick={handleLeaveRoom}
-            className="w-12 h-12 flex items-center justify-center bg-white/5 border border-white/10 rounded-2xl text-white/40 hover:text-white transition-all active:scale-90"
+            className="w-12 h-12 flex items-center justify-center bg-white/5 border border-white/10 rounded-2xl text-white/30 hover:text-white transition-all active:scale-90"
+            title="Sair da Sala"
           >
             <ChevronLeft size={24} />
           </button>
@@ -1332,22 +1408,35 @@ export default function Room() {
                 <span className="text-[9px] font-black text-purple-400 uppercase tracking-widest">ID:{id?.slice(0, 6)}</span>
               </div>
             </div>
-            <div className="flex items-center gap-3 mt-1.5">
-               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 italic">{room.category || 'Mundo'}</span>
-               <div className="w-1 h-1 bg-white/10 rounded-full" />
-               <div className="flex items-center gap-1.5">
-                 <Users size={12} className="text-purple-500/50" />
-                 <span className="text-[11px] font-black text-white/30 tabular-nums">{room.members.length} Ativos</span>
-               </div>
-            </div>
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/20 italic mt-1.5">{room.category || 'Mundo'}</span>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3">
+          {/* Unified Stats & Diagnostics Icon */}
+          <button 
+            onClick={() => setShowSignalModal(true)}
+            className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-purple-400 hover:text-purple-300 transition-all active:scale-90 relative cursor-pointer"
+            title="Estatísticas, Membros & Diagnósticos da Conexão"
+          >
+            <Activity size={20} className={
+              connectionStatus === 'excelente' ? 'text-emerald-400' :
+              connectionStatus === 'bom' ? 'text-purple-400' :
+              connectionStatus === 'instavel' ? 'text-orange-400 animate-pulse' :
+              'text-red-400 animate-bounce'
+            } />
+            <span className={`absolute top-2.5 right-2.5 w-1.5 h-1.5 rounded-full ${
+              connectionStatus === 'excelente' ? 'bg-emerald-400 shadow-[0_0_6px_#10b981]' :
+              connectionStatus === 'bom' ? 'bg-purple-400 shadow-[0_0_6px_#a855f7]' :
+              connectionStatus === 'instavel' ? 'bg-orange-400 shadow-[0_0_6px_#f97316] animate-pulse' :
+              'bg-red-500 shadow-[0_0_6px_#ef4444] animate-ping'
+            }`} />
+          </button>
+
           {isMeMod && (
             <button 
               onClick={() => setShowSettings(true)}
-              className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-purple-400 hover:text-purple-300 hover:border-purple-500/20 transition-all active:scale-90 animate-pulse"
+              className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-[#a855f7] hover:text-[#c084fc] hover:border-purple-500/20 transition-all active:scale-90"
               title="Configurações da Sala"
             >
               <Settings size={22} style={{ color: currentTheme.primary }} />
@@ -1378,8 +1467,16 @@ export default function Room() {
             <HelpCircle size={22} />
           </button>
           <button 
+            onClick={handleShareRoom}
+            className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-pink-400 hover:text-pink-300 hover:border-pink-500/20 transition-all active:scale-90"
+            title="Compartilhar Link da Sala"
+          >
+            <Share2 size={20} />
+          </button>
+          <button 
             onClick={handleLeaveRoom}
             className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white text-black hover:bg-red-500 hover:text-white transition-all active:scale-90 shadow-[0_10px_20px_rgba(255,255,255,0.1)]"
+            title="Sair Canal"
           >
             <LogOut size={22} />
           </button>
@@ -1387,79 +1484,47 @@ export default function Room() {
       </header>
 
       {/* Stage Layout */}
-      <main className="flex-1 overflow-y-auto px-6 relative z-10 pt-10 pb-48 no-scrollbar scroll-smooth">
-        {/* Real-time Connection Quality & Latency Dashboard */}
-        <div className="mb-8 p-4 rounded-3xl bg-white/[0.02] border border-white/5 backdrop-blur-md max-w-sm mx-auto flex flex-col gap-2.5 shadow-xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Activity size={14} className={
-                connectionStatus === 'excelente' ? 'text-emerald-400 animate-pulse' :
-                connectionStatus === 'bom' ? 'text-purple-400' :
-                connectionStatus === 'instavel' ? 'text-orange-400 animate-bounce' :
-                'text-red-400 animate-bounce'
-              } />
-              <span className="text-[10px] font-black uppercase text-white/50 tracking-wider">Qualidade do Sinal</span>
-            </div>
-            <div className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1 border ${
-              connectionStatus === 'excelente' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-              connectionStatus === 'bom' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
-              connectionStatus === 'instavel' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
-              'bg-red-500/10 text-red-500 border-red-500/30'
-            }`}>
-              <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
-              {connectionStatus === 'excelente' ? 'Excelente' :
-               connectionStatus === 'bom' ? 'Bom / Estável' :
-               connectionStatus === 'instavel' ? 'Instável / Oscilação' :
-               'Crítico / Lento'}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 bg-black/20 p-2 rounded-2xl border border-white/[0.02] text-center">
-            <div>
-              <span className="text-[9px] text-white/30 font-bold uppercase tracking-wider block">Ping</span>
-              <span className="text-xs font-black text-white font-mono mt-0.5 block">
-                {currentLatency !== null ? `${currentLatency}ms` : '--'}
-              </span>
-            </div>
-            <div>
-              <span className="text-[9px] text-white/30 font-bold uppercase tracking-wider block">Média</span>
-              <span className="text-xs font-black text-white font-mono mt-0.5 block">
-                {averageLatency > 0 ? `${averageLatency}ms` : '--'}
-              </span>
-            </div>
-            <div>
-              <span className="text-[9px] text-white/30 font-bold uppercase tracking-wider block">Oscilação (Jit)</span>
-              <span className="text-xs font-black text-white font-mono mt-0.5 block">
-                {jitter > 0 ? `${jitter}ms` : '0ms'}
-              </span>
-            </div>
-          </div>
-
-          {(connectionStatus === 'instavel' || connectionStatus === 'critico') && (
-            <div className="flex gap-2 p-2.5 rounded-xl bg-orange-500/5 border border-orange-500/10 items-start">
-              <AlertCircle size={14} className="text-orange-400 flex-shrink-0 mt-0.5" />
-              <p className="text-[9px] text-orange-300 font-semibold leading-relaxed text-left">
-                Oscilação ou ping elevados detectados. Considere aproximar do Wi-Fi antes de subir ao assento para evitar gargalos em sua voz.
-              </p>
-            </div>
-          )}
-        </div>
+      <main className="flex-1 overflow-y-auto px-5 relative z-10 pt-3 pb-36 no-scrollbar scroll-smooth">
 
         {/* El Palco de Voz ✨ (The Voice Stage) */}
-        <div id="tour-voice-stage" className="relative mb-10 bg-white/[0.02] border border-white/[0.04] p-6 rounded-[36px] backdrop-blur-md max-w-md mx-auto shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+        <div id="tour-voice-stage" className="relative mb-4 bg-white/[0.02] border border-white/[0.04] p-3.5 rounded-[24px] backdrop-blur-md max-w-[350px] mx-auto shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
           {/* Header title for Stage */}
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#0c0c0c] px-4 py-1.5 rounded-full border border-purple-500/30 flex items-center gap-1.5 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
             <Sparkles size={11} className="text-purple-400 animate-pulse" />
             <span className="text-[9px] font-black uppercase text-white tracking-[0.2em] whitespace-nowrap">PALCO PRINCIPAL ✨</span>
           </div>
 
-          <div className="flex items-center justify-between gap-2 pt-4">
+          <div className="flex items-center justify-center gap-8 pt-2">
+            {/* Slot 0: Center Primary Host */}
+            {(() => {
+              const hostUid = room.slots?.[0] && room.members.includes(room.slots?.[0]) ? room.slots?.[0] : null;
+              return (
+                <div className="flex flex-col items-center">
+                  <VoiceSeat 
+                    slotId={0} 
+                    userId={hostUid} 
+                    isActive={!!(hostUid && (room.activeSpeakers.includes(hostUid) || (volumes[hostUid] > 5)))}
+                    isOwner={hostUid === room.ownerId}
+                    volumeLevel={hostUid ? volumes[hostUid] : 0}
+                    activeColor={currentTheme.primary}
+                    onTake={takeSlot}
+                    onUserClick={setShowUserActions}
+                    isMuted={!!(hostUid && (room.mutedUsers?.includes(hostUid) || (hostUid === user?.uid && !isMicOn)))}
+                  />
+                  <span className="text-[10px] font-black text-yellow-400 truncate w-24 text-center mt-1.5 flex items-center justify-center gap-1 leading-none">
+                    <Crown size={10} className="fill-yellow-400/20 shrink-0" />
+                    <UserDisplayName uid={hostUid} fallback="Host" />
+                  </span>
+                </div>
+              );
+            })()}
+
             {/* Slot 1: Left Co-Host */}
             {(() => {
               const uid1 = room.slots?.[1] && room.members.includes(room.slots?.[1]) ? room.slots?.[1] : null;
               const isLockedByHost = room.allowGuestsNextToHost === false;
               return (
-                <div className="flex flex-col items-center flex-1">
+                <div className="flex flex-col items-center">
                   <VoiceSeat 
                     slotId={1} 
                     userId={uid1} 
@@ -1470,82 +1535,15 @@ export default function Room() {
                     onTake={takeSlot}
                     onUserClick={setShowUserActions}
                     isLocked={isLockedByHost}
+                    isMuted={!!(uid1 && (room.mutedUsers?.includes(uid1) || (uid1 === user?.uid && !isMicOn)))}
                   />
-                  <span className="text-[9px] font-black tracking-wider text-center mt-2 leading-none block">
+                  <span className="text-[10px] font-black tracking-wider text-center mt-1.5 leading-none block w-24">
                     {isLockedByHost && !uid1 ? (
                       <span className="text-red-500/60 flex items-center justify-center gap-1 font-black">
                         <Lock size={9} /> FECHADO
                       </span>
                     ) : (
-                      <span className="text-white/50 truncate w-16 block"><UserDisplayName uid={uid1} fallback="Convidado L" /></span>
-                    )}
-                  </span>
-                </div>
-              );
-            })()}
-
-            {/* Slot 0: Center Primary Host */}
-            {(() => {
-              const hostUid = room.slots?.[0] && room.members.includes(room.slots?.[0]) ? room.slots?.[0] : null;
-              return (
-                <div className="flex flex-col items-center flex-1 relative -top-3">
-                  <div className={`p-1.5 rounded-full transition-all duration-1000 relative ${
-                    (hostUid && (room.activeSpeakers.includes(hostUid) || (volumes[hostUid] > 5)))
-                      ? 'shadow-[0_0_60px_rgba(168,85,247,0.4)]' 
-                      : 'bg-white/5 border border-white/5 shadow-2xl'
-                  }`}
-                  style={{ 
-                    background: (hostUid && (room.activeSpeakers.includes(hostUid) || (volumes[hostUid] > 5)))
-                      ? `linear-gradient(to tr, ${currentTheme.primary}, ${currentTheme.secondary}, #fb923c)` 
-                      : undefined 
-                  }}>
-                    {/* Rotating Dashed Border */}
-                    <div className="absolute inset-1 rounded-full border border-white/10 border-dashed animate-[spin_20s_linear_infinite] opacity-30 pointer-events-none" />
-                    
-                    <VoiceSeat 
-                      slotId={0} 
-                      userId={hostUid} 
-                      size="large" 
-                      isActive={!!(hostUid && (room.activeSpeakers.includes(hostUid) || (volumes[hostUid] > 5)))}
-                      isOwner={hostUid === room.ownerId}
-                      volumeLevel={hostUid ? volumes[hostUid] : 0}
-                      activeColor={currentTheme.primary}
-                      onTake={takeSlot}
-                      onUserClick={setShowUserActions}
-                    />
-                  </div>
-                  <span className="text-[10px] font-black text-yellow-400 truncate w-20 text-center mt-2 flex items-center justify-center gap-1 leading-none">
-                    <Crown size={10} className="fill-yellow-400/20" />
-                    <UserDisplayName uid={hostUid} fallback="Cantinho Host" />
-                  </span>
-                </div>
-              );
-            })()}
-
-            {/* Slot 2: Right Co-Host */}
-            {(() => {
-              const uid2 = room.slots?.[2] && room.members.includes(room.slots?.[2]) ? room.slots?.[2] : null;
-              const isLockedByHost = room.allowGuestsNextToHost === false;
-              return (
-                <div className="flex flex-col items-center flex-1">
-                  <VoiceSeat 
-                    slotId={2} 
-                    userId={uid2} 
-                    isActive={!!(uid2 && (room.activeSpeakers.includes(uid2) || (volumes[uid2] > 5)))}
-                    isOwner={uid2 === room.ownerId}
-                    volumeLevel={uid2 ? volumes[uid2] : 0}
-                    activeColor={currentTheme.primary}
-                    onTake={takeSlot}
-                    onUserClick={setShowUserActions}
-                    isLocked={isLockedByHost}
-                  />
-                  <span className="text-[9px] font-black tracking-wider text-center mt-2 leading-none block">
-                    {isLockedByHost && !uid2 ? (
-                      <span className="text-red-500/60 flex items-center justify-center gap-1 font-black">
-                        <Lock size={9} /> FECHADO
-                      </span>
-                    ) : (
-                      <span className="text-white/50 truncate w-16 block"><UserDisplayName uid={uid2} fallback="Convidado R" /></span>
+                      <span className="text-white/50 truncate block"><UserDisplayName uid={uid1} fallback="Convidado" /></span>
                     )}
                   </span>
                 </div>
@@ -1554,12 +1552,12 @@ export default function Room() {
           </div>
 
           {isMeMod && (
-            <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-white/5">
-              <div className="flex items-center justify-between px-2">
-                <span className="text-[10px] font-black uppercase text-white/30 tracking-wider">Configuração do Palco</span>
-                <span className="text-[9px] font-medium text-white/20 italic">Apenas Mod / Dono</span>
+            <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-white/5">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[9px] font-black uppercase text-white/20 tracking-wider">Painel do Palco</span>
+                <span className="text-[8px] font-medium text-white/15 italic">Mod / Dono</span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-1.5">
                 {/* Free Mic Toggle Button */}
                 <button
                   type="button"
@@ -1572,13 +1570,13 @@ export default function Room() {
                       console.error(e);
                     }
                   }}
-                  className={`py-2.5 px-3 rounded-2xl text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 border transition-all active:scale-95 ${
+                  className={`py-1.5 px-2 rounded-xl text-[8px] font-black uppercase tracking-wider flex items-center justify-center gap-1 border transition-all active:scale-95 ${
                     room.allowFreeMic !== false
-                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                      : 'bg-[#a855f7]/10 border-[#a855f7]/20 text-[#a855f7]'
+                      ? 'bg-emerald-500/10 border-emerald-500/15 text-emerald-400'
+                      : 'bg-[#a855f7]/10 border-[#a855f7]/15 text-[#a855f7]'
                   }`}
                 >
-                  <Mic size={11} /> {room.allowFreeMic !== false ? "Microfone Livre" : "Palco Moderado"}
+                  <Mic size={10} /> {room.allowFreeMic !== false ? "Mic Livre" : "Moderado"}
                 </button>
 
                 {/* Co-host Allowed Toggle Button */}
@@ -1598,23 +1596,23 @@ export default function Room() {
                       console.error(e);
                     }
                   }}
-                  className={`py-2.5 px-3 rounded-2xl text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 border transition-all active:scale-95 ${
+                  className={`py-1.5 px-2 rounded-xl text-[8px] font-black uppercase tracking-wider flex items-center justify-center gap-1 border transition-all active:scale-95 ${
                     room.allowGuestsNextToHost !== false
-                      ? 'bg-pink-500/10 border-pink-500/20 text-pink-400'
-                      : 'bg-red-500/10 border-red-500/20 text-red-400'
+                      ? 'bg-pink-500/10 border-pink-500/15 text-pink-400'
+                      : 'bg-red-500/10 border-red-500/15 text-red-400'
                   }`}
                 >
-                  {room.allowGuestsNextToHost !== false ? <UserMinus size={11} /> : <UserPlus size={11} />}
-                  {room.allowGuestsNextToHost !== false ? "Pessoas ao Lado: ON" : "Pessoas ao Lado: OFF"}
+                  {room.allowGuestsNextToHost !== false ? <UserMinus size={10} /> : <UserPlus size={10} />}
+                  {room.allowGuestsNextToHost !== false ? "Convidado ON" : "Convidado OFF"}
                 </button>
 
                 {/* General Settings Button */}
                 <button
                   type="button"
                   onClick={() => setShowSettings(true)}
-                  className="col-span-2 py-3 px-4 rounded-2xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 mt-1 transition-all active:scale-95 cursor-pointer"
+                  className="col-span-2 py-2 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/15 transition-all active:scale-95 cursor-pointer"
                 >
-                  <Settings size={12} /> Configurações Gerais da Sala
+                  <Settings size={10} /> Configurar Sala
                 </button>
               </div>
             </div>
@@ -1622,24 +1620,24 @@ export default function Room() {
         </div>
 
         {/* Assentos da Plateia de Voz 🎙️ (Audience Seats) */}
-        <div id="tour-audience-seats" className="mb-20 max-w-md mx-auto bg-white/[0.01] p-6 rounded-[36px] border border-white/[0.02] backdrop-blur-sm">
+        <div id="tour-audience-seats" className="mb-6 max-w-[350px] mx-auto bg-white/[0.01] p-4 rounded-[24px] border border-white/[0.02] backdrop-blur-sm">
           {/* Section subtitle */}
-          <div className="flex items-center gap-1.5 mb-6 justify-center">
+          <div className="flex items-center gap-1.5 mb-3.5 justify-center">
             <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
-            <span className="text-[8px] font-black uppercase text-white/20 tracking-widest">Assentos de Voz ({Array.from({ length: 7 }).filter((_, i) => room.slots?.[i + 3]).length}/7)</span>
+            <span className="text-[8px] font-black uppercase text-white/20 tracking-widest">Assentos de Voz ({Array.from({ length: 8 }).filter((_, i) => room.slots?.[i + 2]).length}/8)</span>
           </div>
 
-          <div className="grid grid-cols-4 gap-y-8 gap-x-4">
-            {Array.from({ length: 7 }).map((_, i) => {
-              const slotId = i + 3; // Slots 3 to 9
+          <div className="grid grid-cols-4 gap-y-4.5 gap-x-3.5">
+            {Array.from({ length: 8 }).map((_, i) => {
+              const slotId = i + 2; // Slots 2 to 9
               const rawUid = room.slots?.[slotId];
               const uid = rawUid && room.members.includes(rawUid) ? rawUid : null;
               return (
                 <motion.div 
                   key={slotId} 
-                  initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                  initial={{ opacity: 0, scale: 0.8, y: 10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 + 0.1, duration: 0.4 }}
+                  transition={{ delay: i * 0.04 + 0.05, duration: 0.3 }}
                   className="flex flex-col items-center"
                 >
                   <VoiceSeat 
@@ -1651,10 +1649,11 @@ export default function Room() {
                     activeColor={currentTheme.primary}
                     onTake={takeSlot}
                     onUserClick={setShowUserActions}
+                    isMuted={!!(uid && (room.mutedUsers?.includes(uid) || (uid === user?.uid && !isMicOn)))}
                   />
-                  <div className="mt-2 w-14 text-center">
+                  <div className="mt-1.5 w-12 text-center">
                      <p className="text-[9px] font-bold text-white/30 truncate leading-none overflow-hidden block">
-                       <UserDisplayName uid={uid} fallback={`${slotId}º`} />
+                       <UserDisplayName uid={uid} fallback={`${slotId - 1}º`} />
                      </p>
                   </div>
                 </motion.div>
@@ -2472,6 +2471,306 @@ export default function Room() {
           onAnimationComplete={() => setActiveAnimation(null)} 
         />
       )}
+
+      {/* Unified Stats & Diagnostics Modal */}
+      <AnimatePresence>
+        {showSignalModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/85 backdrop-blur-md z-[999] flex items-center justify-center p-4 scroll-smooth"
+            onClick={() => setShowSignalModal(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 180 }}
+              className="bg-[#0b0b0b] border border-white/[0.08] w-full max-w-sm rounded-[32px] p-6 text-center space-y-4.5 relative shadow-2xl overflow-y-auto max-h-[90vh] no-scrollbar"
+              onClick={e => e.stopPropagation()}
+            >
+              <button 
+                onClick={() => setShowSignalModal(false)}
+                className="absolute top-4 right-4 p-2 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white rounded-xl transition-all active:scale-95 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+
+              <div className="flex flex-col items-center gap-1.5 mt-2">
+                <div className={`p-3.5 rounded-2xl ${
+                  connectionStatus === 'excelente' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                  connectionStatus === 'bom' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
+                  connectionStatus === 'instavel' ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' :
+                  'bg-red-500/10 text-red-400 border border-red-500/20'
+                }`}>
+                  <Activity size={24} className={
+                    connectionStatus === 'excelente' ? 'animate-pulse' :
+                    connectionStatus === 'bom' ? '' :
+                    'animate-bounce'
+                  } />
+                </div>
+                <h3 className="text-base font-black uppercase text-white tracking-wider mt-1">Painel & Diagnósticos</h3>
+                <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest font-mono">Estatísticas Operacionais</p>
+              </div>
+
+              {/* Barra de Status de Conectividade */}
+              <div className={`mx-auto px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border flex items-center justify-center gap-1.5 w-max ${
+                connectionStatus === 'excelente' ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25' :
+                connectionStatus === 'bom' ? 'bg-purple-500/15 text-purple-300 border-purple-500/25' :
+                connectionStatus === 'instavel' ? 'bg-orange-500/15 text-orange-300 border-orange-500/25' :
+                'bg-red-500/15 text-red-300 border-red-500/25'
+              }`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping shrink-0" />
+                Sinal: {connectionStatus === 'excelente' ? 'Excelente' :
+                 connectionStatus === 'bom' ? 'Bom / Estável' :
+                 connectionStatus === 'instavel' ? 'Instável / Oscilação' :
+                 'Crítico / Lento'}
+              </div>
+
+              {/* Grid 1: Diagnostic Metrics (Ping, Média, Oscilação) */}
+              <div className="grid grid-cols-3 gap-2 bg-black/50 p-3 rounded-2xl border border-white/5 text-center">
+                <div className="space-y-0.5">
+                  <span className="text-[8px] text-white/30 font-black uppercase tracking-widest block">Ping</span>
+                  <span className="text-xs font-black text-white font-mono block">
+                    {currentLatency !== null ? `${currentLatency}ms` : '--'}
+                  </span>
+                </div>
+                <div className="space-y-0.5 border-x border-white/5">
+                  <span className="text-[8px] text-white/30 font-black uppercase tracking-widest block">Média</span>
+                  <span className="text-xs font-black text-purple-300 font-mono block">
+                    {averageLatency > 0 ? `${averageLatency}ms` : '--'}
+                  </span>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[8px] text-white/30 font-black uppercase tracking-widest block">Oscilação</span>
+                  <span className="text-xs font-black text-white font-mono block">
+                    {jitter > 0 ? `${jitter}ms` : '0ms'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Grid 2: Room Operational statistics */}
+              <div className="grid grid-cols-2 gap-2">
+                {/* Uptime Stat Box */}
+                <div className="bg-white/[0.02] border border-white/5 p-3 rounded-2xl text-left flex flex-col justify-between">
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs">⏱️</span>
+                    <span className="text-[8px] text-white/40 font-black uppercase tracking-widest">Tempo de Sala</span>
+                  </div>
+                  <span className="text-xs font-black text-emerald-300 font-mono tracking-wide tabular-nums mt-1">{uptime}</span>
+                </div>
+
+                {/* Total Gifts Box */}
+                <div className="bg-white/[0.02] border border-white/5 p-3 rounded-2xl text-left flex flex-col justify-between">
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs">🎁</span>
+                    <span className="text-[8px] text-white/40 font-black uppercase tracking-widest">Enviados</span>
+                  </div>
+                  <span className="text-xs font-black text-pink-400 font-mono tracking-wide mt-1">{room.totalGifts || 0} mimos</span>
+                </div>
+              </div>
+
+              {/* Section 3: Active Members Carousel list with Ranking shortcut */}
+              <div className="border-t border-white/[0.06] pt-4 text-left space-y-3">
+                <div className="flex items-center justify-between select-none">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white/40 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                    Membros Ativos ({room.members.length})
+                  </span>
+                  
+                  <button
+                    onClick={() => {
+                      setShowSignalModal(false);
+                      setShowRoomRank(true);
+                    }}
+                    className="text-[9px] font-black uppercase tracking-widest text-yellow-400 hover:text-yellow-300 flex items-center gap-1 bg-yellow-400/10 border border-yellow-400/15 px-2 py-1 rounded-lg transition-all active:scale-95 cursor-pointer"
+                  >
+                    <Trophy size={10} className="fill-yellow-400/10" />
+                    Ranking
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-1 scroll-smooth max-h-16">
+                  {room.members.map((uid) => (
+                    <button 
+                      key={uid}
+                      onClick={() => {
+                        setShowSignalModal(false);
+                        setShowUserActions(uid);
+                      }}
+                      className="relative flex-none hover:scale-105 active:scale-95 transition-all outline-none"
+                      title="Ver Ações"
+                    >
+                      <div className="relative">
+                        <UserAvatar 
+                          uid={uid} 
+                          className="w-10 h-10 rounded-full border border-white/5" 
+                          showLevel={false} 
+                        />
+                        {room.ownerId === uid && (
+                          <div className="absolute -top-1.5 -right-1.5 bg-yellow-500 text-black rounded-full p-0.5 border border-[#0c0c0c] scale-[0.55] shadow-[0_2px_8px_rgba(0,0,0,0.5)]">
+                            <Crown size={8} className="fill-yellow-500/20" />
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Informative advice */}
+              <div className="text-left text-[11px] text-white/40 bg-white/[0.01] border border-white/5 p-3.5 rounded-2xl leading-relaxed">
+                {connectionStatus === 'excelente' && (
+                  <p className="text-emerald-300/60 font-semibold">
+                    Conexão fantástica! Sem perdas de áudio, com atraso imperceptível. ✨
+                  </p>
+                )}
+                {connectionStatus === 'bom' && (
+                  <p className="text-purple-300/60 font-semibold">
+                    Conexão normal e saudável. Ótima qualidade de voz. 👍
+                  </p>
+                )}
+                {connectionStatus === 'instavel' && (
+                  <p className="text-orange-300/60 font-semibold">
+                    Sinal oscilando parciamente. Fique perto do roteador. 📡
+                  </p>
+                )}
+                {connectionStatus === 'critico' && (
+                  <p className="text-red-300/60 font-semibold">
+                    Latência muito alta. A voz pode engasgar um pouco. ⚠️
+                  </p>
+                )}
+              </div>
+
+              <button 
+                onClick={() => setShowSignalModal(false)}
+                className="w-full py-3 bg-white text-black hover:bg-neutral-200 transition-colors font-black uppercase text-[10px] tracking-wider rounded-2xl shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+              >
+                Fechar Painel
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Room Ranking Modal (Mimos Leaderboard) */}
+      <AnimatePresence>
+        {showRoomRank && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-md z-[999] flex items-center justify-center p-4 select-none"
+            onClick={() => setShowRoomRank(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 180 }}
+              className="bg-[#0b0b0b] border border-white/[0.08] w-full max-w-sm rounded-[32px] p-6 text-center space-y-5 relative shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <button 
+                onClick={() => setShowRoomRank(false)}
+                className="absolute top-4 right-4 p-2 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white rounded-xl transition-all active:scale-95 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+
+              <div className="flex flex-col items-center gap-1 mt-2">
+                <div className="p-4 bg-yellow-500/10 text-yellow-400 rounded-2xl border border-yellow-500/20 shadow-[0_0_20px_rgba(234,179,8,0.15)]">
+                  <Trophy size={32} className="fill-yellow-500/10" />
+                </div>
+                <h3 className="text-lg font-black uppercase text-white tracking-wider mt-3 font-sans italic">Ranking de Mimos</h3>
+                <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest font-mono">Maiores Contribuidores</p>
+              </div>
+
+              {/* Leaderboard content scroll */}
+              <div className="max-h-64 overflow-y-auto space-y-2.5 pr-1 no-scrollbar">
+                {sortedContributors.length === 0 ? (
+                  <div className="py-12 flex flex-col items-center justify-center text-white/20">
+                    <Gift size={28} className="stroke-1.5 opacity-20 mb-2 animate-bounce text-pink-500" />
+                    <p className="text-[10px] uppercase font-black tracking-wider">Ainda não há mimos nesta sala!</p>
+                  </div>
+                ) : (
+                  sortedContributors.map((c, index) => {
+                    const isGold = index === 0;
+                    const isSilver = index === 1;
+                    const isBronze = index === 2;
+                    
+                    return (
+                      <div 
+                        key={c.uid}
+                        className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all ${
+                          isGold ? 'bg-yellow-500/10 border-yellow-500/25 shadow-[0_0_15px_rgba(234,179,8,0.1)]' :
+                          isSilver ? 'bg-slate-300/5 border-slate-300/10' :
+                          isBronze ? 'bg-amber-700/5 border-amber-700/10' :
+                          'bg-white/[0.01] border-white/5'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          {/* Rank badge */}
+                          <div className="w-6 flex items-center justify-center">
+                            {isGold ? <span className="text-lg">🥇</span> :
+                             isSilver ? <span className="text-lg">🥈</span> :
+                             isBronze ? <span className="text-lg">🥉</span> :
+                             <span className="font-mono text-[10px] font-black text-white/20">#{index + 1}</span>
+                            }
+                          </div>
+
+                          <div className="w-10 h-10 rounded-full relative">
+                            <UserAvatar 
+                              uid={c.uid} 
+                              className="w-full h-full rounded-full object-cover" 
+                              showLevel={false} 
+                            />
+                          </div>
+
+                          <div className="flex flex-col items-start text-left">
+                            <span className="text-xs font-black text-white leading-tight">{c.displayName}</span>
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-white/30">Benfeitor</span>
+                          </div>
+                        </div>
+
+                        {/* Total Spent in coins */}
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs font-black text-rose-450 font-mono text-pink-400 tabular-nums">{c.totalSpent}</span>
+                          <span className="text-[9px] font-black uppercase tracking-wider text-pink-500/50">Moedas</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <button 
+                onClick={() => setShowRoomRank(false)}
+                className="w-full py-3 bg-white text-black hover:bg-neutral-200 transition-colors font-black uppercase text-[10px] tracking-wider rounded-2xl shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+              >
+                Fechar Ranking
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating Share Copy Toast */}
+      <AnimatePresence>
+        {showShareToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 40, scale: 0.9, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
+            exit={{ opacity: 0, scale: 0.9, y: 20, transition: { duration: 0.2 }, x: '-50%' }}
+            transition={{ type: 'spring', stiffness: 350, damping: 22 }}
+            className="fixed bottom-28 left-1/2 z-[999] px-6 py-4 bg-[#0c0c0c]/90 border border-pink-500/30 text-pink-300 rounded-[20px] flex items-center gap-2.5 shadow-2xl backdrop-blur-xl shrink-0 select-none text-[10px] font-black uppercase tracking-widest text-center"
+          >
+            <Sparkles size={13} className="animate-pulse text-pink-400 shrink-0" /> 
+            Link de convite copiado! Convide seus amigos ✨
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -2486,7 +2785,8 @@ function VoiceSeat({
   volumeLevel = 0,
   activeColor = '#a855f7',
   size = 'medium',
-  isLocked = false
+  isLocked = false,
+  isMuted = false
 }: { 
   slotId: number, 
   userId?: string | null, 
@@ -2497,40 +2797,56 @@ function VoiceSeat({
   volumeLevel?: number,
   activeColor?: string,
   size?: 'medium' | 'large',
-  isLocked?: boolean
+  isLocked?: boolean,
+  isMuted?: boolean
 }) {
-  const sizeClasses = size === 'large' ? 'w-24 h-24' : 'w-16 h-16';
+  const sizeClasses = size === 'large' ? 'w-22 h-22' : 'w-14 h-14';
 
   return (
     <div className="relative group flex flex-col items-center select-none">
-      {/* Speaking Aura - Ultra Premium */}
+      {/* Speaking Aura - Ultra Premium Smooth Pulsing visualizer */}
       <AnimatePresence>
         {isActive && (
           <>
+            {/* 1st outer smooth wave pulse */}
             <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
+              initial={{ scale: 1, opacity: 0 }}
               animate={{ 
-                scale: [0.95, 1.45, 0.95], 
-                opacity: [0, 0.3, 0] 
+                scale: [1, 1.45 + (volumeLevel / 120), 1], 
+                opacity: [0, 0.45, 0] 
               }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-              className={`absolute inset-0 border-[3px] rounded-full z-0 pointer-events-none`}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
+              className="absolute inset-0 rounded-full z-0 pointer-events-none"
               style={{ 
-                borderColor: activeColor, 
-                boxShadow: `0 0 30px ${activeColor}60` 
+                border: `3px solid ${activeColor}`, 
+                boxShadow: `0 0 40px ${activeColor}80` 
               }}
             />
+            {/* 2nd inner high-speed aura ring */}
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 1, opacity: 0 }}
               animate={{ 
-                scale: [0.9, 1.2, 0.9], 
-                opacity: [0, 0.5, 0] 
+                scale: [1, 1.25 + (volumeLevel / 180), 1], 
+                opacity: [0, 0.7, 0] 
               }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut", delay: 0.5 }}
-              className={`absolute inset-0 border-2 rounded-full z-0 pointer-events-none opacity-40`}
-              style={{ borderColor: activeColor }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut", delay: 0.2 }}
+              className="absolute inset-0 rounded-full z-0 pointer-events-none"
+              style={{ 
+                border: `2px solid ${activeColor}`,
+                boxShadow: `inset 0 0 20px ${activeColor}55`
+              }}
+            />
+            {/* Ambient pulsing background radial projection */}
+            <motion.div
+              animate={{ 
+                scale: [1, 1.15, 1],
+                opacity: [0.15, 0.35, 0.15]
+              }}
+              transition={{ repeat: Infinity, duration: 2.2, ease: "linear" }}
+              className="absolute inset-[-12px] rounded-full blur-xl pointer-events-none z-0"
+              style={{ backgroundColor: activeColor }}
             />
           </>
         )}
@@ -2545,16 +2861,22 @@ function VoiceSeat({
           userId ? onUserClick?.(userId) : onTake(slotId);
         }}
         className={`
-          ${sizeClasses} rounded-full flex items-center justify-center relative z-10 transition-all duration-500
+          ${sizeClasses} rounded-full flex items-center justify-center relative z-10 transition-all duration-300
           ${userId 
-            ? 'p-1 bg-[#0c0c0c] border-[3px] shadow-[0_0_40px_rgba(0,0,0,0.8)]' 
+            ? 'p-1 bg-[#0c0c0c] border-[3px] shadow-[0_4px_25px_rgba(0,0,0,0.7)]' 
             : isLocked 
               ? 'bg-red-500/10 border-2 border-dashed border-red-500/20 opacity-40 cursor-not-allowed'
               : 'bg-white/5 border-2 border-dashed border-white/10 hover:bg-white/10 hover:border-white/20 hover:scale-105'
           }
           active:scale-95
         `}
-        style={{ borderColor: userId && isActive ? activeColor : 'rgba(255,255,255,0.08)' }}
+        style={{ 
+          borderColor: userId && isActive ? activeColor : 'rgba(255,255,255,0.08)',
+          boxShadow: userId && isActive 
+            ? `0 0 25px ${activeColor}, inset 0 0 15px rgba(255,255,255,0.2)` 
+            : '0 4px 20px rgba(0,0,0,0.5)',
+          transform: userId && isActive ? `scale(${1 + Math.min(volumeLevel / 200, 0.08)})` : undefined
+        }}
         disabled={isLocked && !userId}
       >
         {userId ? (
@@ -2564,7 +2886,8 @@ function VoiceSeat({
             
             <UserAvatar 
               uid={userId!} 
-              className={`w-full h-full object-cover transition-all duration-700 ${isActive ? 'grayscale-0' : 'grayscale-[0.3] group-hover:grayscale-0 group-hover:scale-110'}`}
+              className={`w-full h-full object-cover transition-all duration-700 ${isActive ? 'grayscale-0' : 'grayscale-[0.1] group-hover:grayscale-0 group-hover:scale-110'}`}
+              showLevel={false} // Don't show extra levels on stage avatars as requested
             />
             
             {/* Thinking / Speaking indicator Overlay - Premium Visualizer */}
@@ -2587,7 +2910,7 @@ function VoiceSeat({
                       );
                     })}
                   </div>
-                   <div className="text-[7px] font-black text-white uppercase tracking-widest animate-pulse italic">Sintonizado</div>
+                   <div className="text-[7px] font-black text-white uppercase tracking-widest animate-pulse italic">Falando</div>
                </div>
               )}
             </AnimatePresence>
@@ -2604,11 +2927,37 @@ function VoiceSeat({
         )}
       </button>
 
-      {/* Mic Status Icon for occupied slots */}
+      {/* Visual Indicator: Anfitrião da Sala (Crown at top-left) */}
+      {userId && isOwner && (
+        <div 
+          className="absolute -top-1.5 -left-1.5 bg-gradient-to-r from-yellow-400 via-amber-500 to-rose-500 text-black w-6.5 h-6.5 rounded-xl flex items-center justify-center z-40 shadow-[0_4px_12px_rgba(234,179,8,0.5)] border border-yellow-300"
+          title="Anfitrião do Clã"
+        >
+          <Crown size={12} className="fill-black/10 text-black" />
+        </div>
+      )}
+
+      {/* Visual Indicator: Mic Status (Green/Indigo/Red micro-capsule at top-right) */}
       {userId && (
-         <div className={`absolute -top-1 -right-1 w-7 h-7 rounded-xl border border-white/10 flex items-center justify-center z-40 transition-all duration-500 shadow-2xl ${isActive ? 'bg-purple-600 text-white shadow-[0_0_15px_rgba(168,85,247,0.5)] scale-110' : 'bg-[#1a1a1a] text-white/20'}`}>
-            {isActive ? <Mic size={14} className="animate-pulse" /> : <MicOff size={14} />}
-         </div>
+        isMuted ? (
+          <div 
+            className="absolute -top-1.5 -right-1.5 w-6.5 h-6.5 rounded-xl border border-red-500/30 bg-red-600 text-white flex items-center justify-center z-40 shadow-[0_4px_12px_rgba(239,68,68,0.45)]"
+            title="Microfone Mutado"
+          >
+            <MicOff size={11} />
+          </div>
+        ) : (
+          <div 
+            className={`absolute -top-1.5 -right-1.5 w-6.5 h-6.5 rounded-xl border flex items-center justify-center z-40 transition-all duration-500 shadow-2xl ${
+              isActive 
+                ? 'bg-emerald-500 text-white border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.5)] scale-110' 
+                : 'bg-indigo-600 text-white border-indigo-400/50 shadow-[0_4px_10px_rgba(79,70,229,0.3)]'
+            }`}
+            title={isActive ? "Microfone Ligado • Falando Ativamente" : "Microfone Ligado • Em Silêncio"}
+          >
+            <Mic size={11} className={isActive ? "animate-pulse" : ""} />
+          </div>
+        )
       )}
     </div>
   );

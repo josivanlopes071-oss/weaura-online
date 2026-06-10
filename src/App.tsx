@@ -6,6 +6,7 @@
 import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import confetti from 'canvas-confetti';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { ToastProvider } from './contexts/ToastContext';
@@ -40,7 +41,7 @@ const PageLoading = () => (
 );
 
 function AppContent() {
-  const { user, profile, loading, connectionError, isOnline, refreshConnection } = useAuth();
+  const { user, profile, loading, connectionError, isOnline, refreshConnection, levelUpData, clearLevelUpData } = useAuth();
   const { theme } = useTheme();
   const location = useLocation();
   const isRoomPage = location.pathname.startsWith('/room/');
@@ -144,6 +145,52 @@ function AppContent() {
     return () => unsubscribe();
   }, [user]);
 
+  useEffect(() => {
+    if (levelUpData) {
+      try {
+        confetti({
+          particleCount: 120,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#a855f7', '#ec4899', '#3b82f6', '#eab308']
+        });
+      } catch (confettiErr) {
+        console.warn(confettiErr);
+      }
+      
+      try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+          const ctx = new AudioContextClass();
+          const now = ctx.currentTime;
+          
+          const playNote = (freq: number, delay: number, dur: number) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.frequency.setValueAtTime(freq, now + delay);
+            gain.gain.setValueAtTime(0, now + delay);
+            gain.gain.linearRampToValueAtTime(0.06, now + delay + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + delay + dur);
+            
+            osc.start(now + delay);
+            osc.stop(now + delay + dur);
+          };
+          
+          // Ascending Major Chord
+          playNote(329.63, 0, 0.4); 
+          playNote(415.30, 0.1, 0.4); 
+          playNote(493.88, 0.2, 0.5); 
+          playNote(659.25, 0.3, 0.7); 
+        }
+      } catch (soundErr) {
+        console.warn(soundErr);
+      }
+    }
+  }, [levelUpData]);
+
   const handleDismissAnnouncement = () => {
     if (latestAnnouncement) {
       try {
@@ -228,6 +275,82 @@ function AppContent() {
             >
               <XIcon size={16} />
             </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Real-time Level Up Celebration Overlay */}
+      <AnimatePresence>
+        {levelUpData && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-[#020202]/90 backdrop-blur-xl z-[250] flex items-center justify-center p-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 30, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 30, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 180 }}
+              className="w-full max-w-md bg-gradient-to-b from-[#110729] to-[#05020c] border border-purple-500/40 rounded-[32px] p-8 shadow-[0_0_50px_rgba(138,46,255,0.3)] text-center relative overflow-hidden"
+            >
+              {/* Decorative background blurs */}
+              <div className="absolute -top-16 -left-16 w-36 h-36 bg-purple-600/15 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-16 -right-16 w-36 h-36 bg-pink-600/15 rounded-full blur-3xl pointer-events-none" />
+              
+              <div className="relative z-10 space-y-6">
+                <div className="mx-auto w-16 h-16 bg-purple-500/10 rounded-2xl flex items-center justify-center border-2 border-purple-500/30 shadow-[0_0_20px_rgba(168,85,247,0.2)] animate-pulse text-3xl">
+                  ⚡
+                </div>
+                
+                <div>
+                  <span className="text-[10px] font-black uppercase text-pink-500 tracking-[0.3em] block mb-2">Ascensão no Clã</span>
+                  <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter leading-none">Nível Expandido!</h2>
+                </div>
+
+                {/* Level indicators */}
+                <div className="flex items-center justify-center gap-6 py-2">
+                  <div className="text-2xl font-black text-white/40 italic font-mono">{levelUpData.oldLevel || 1}</div>
+                  <div className="text-purple-400 text-xl font-bold">➔</div>
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 text-white flex items-center justify-center text-3xl font-black italic shadow-[0_0_25px_rgba(168,85,247,0.5)]">
+                    {levelUpData.newLevel}
+                  </div>
+                </div>
+
+                {/* Level Up Rewards */}
+                <div className="bg-black/40 border border-white/5 rounded-2xl p-4 gap-3 grid grid-cols-2">
+                  <div className="text-center p-1 border-r border-white/5">
+                    <span className="text-[9px] font-black uppercase text-white/30 tracking-widest block mb-1">Prêmio EGO</span>
+                    <span className="text-lg font-black text-yellow-400 font-mono italic flex items-center justify-center gap-1">
+                      💰 +{levelUpData.coinsReward}
+                    </span>
+                  </div>
+                  <div className="text-center p-1">
+                    <span className="text-[9px] font-black uppercase text-white/30 tracking-widest block mb-1">Prêmio AURA</span>
+                    <span className="text-lg font-black text-purple-400 font-mono italic flex items-center justify-center gap-1">
+                      ✨ +{levelUpData.auraReward}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Unlocked Title details */}
+                {levelUpData.unlockedTitle && (
+                  <div className="bg-purple-950/20 border border-purple-500/20 rounded-2xl p-4 space-y-1">
+                    <span className="text-[9px] font-black text-[#00F0FF] tracking-wider uppercase">🏆 Novo Título Desbloqueado!</span>
+                    <p className="text-sm font-black text-purple-200 mt-1">"{levelUpData.unlockedTitle}"</p>
+                    <p className="text-[10px] text-white/40 leading-relaxed">Você pode equipar este título no menu de edição de perfil.</p>
+                  </div>
+                )}
+
+                <button
+                  onClick={clearLevelUpData}
+                  className="w-full h-14 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl text-[11px] font-black uppercase tracking-widest text-white shadow-lg shadow-purple-500/20 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer block"
+                >
+                  Receber Recompensas
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

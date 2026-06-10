@@ -32,6 +32,10 @@ export interface FrameItem {
   category: 'Aura' | 'Elite' | 'Special';
   badge: string;
   isVideo?: boolean;
+  rarity: 'Lendário' | 'Épico' | 'Raro' | 'Comum';
+  noProcessing?: boolean;
+  avatarScale?: number;
+  avatarOffsetY?: string;
 }
 
 export const PREMIUM_FRAMES: FrameItem[] = [
@@ -46,101 +50,21 @@ export const PREMIUM_FRAMES: FrameItem[] = [
     glowClass: 'shadow-purple-500/50',
     isVip: true,
     category: 'Elite',
-    badge: 'Elite VIP'
-  },
-  {
-    id: 'fr_celestial',
-    name: 'Guardião Celestial',
-    description: 'Glow azul royal cintilante vindo das altas dimensões celestes.',
-    price: 200,
-    driveUrl: '',
-    imageUrl: '',
-    glowColor: '#00F0FF',
-    glowClass: 'shadow-[0_0_20px_#00F0FF]',
-    isVip: false,
-    category: 'Aura',
-    badge: 'Celestial'
-  },
-  {
-    id: 'fr_gold_royale',
-    name: 'Ouro Real Dynas',
-    description: 'Bordas robustas de ouro real com pulsos metálicos espelhados.',
-    price: 450,
-    driveUrl: '',
-    imageUrl: '',
-    glowColor: '#eab308',
-    glowClass: 'shadow-[0_0_20px_#eab308]',
-    isVip: false,
-    category: 'Elite',
-    badge: 'Realeza'
-  },
-  {
-    id: 'fr_cyber',
-    name: 'Cibernética Grid',
-    description: 'Estruturação de grade hacker neon eletrizante com feixe de laser.',
-    price: 300,
-    driveUrl: '',
-    imageUrl: '',
-    glowColor: '#ec4899',
-    glowClass: 'shadow-[0_0_20px_#ec4899]',
-    isVip: false,
-    category: 'Special',
-    badge: 'Cyber'
-  },
-  {
-    id: 'fr_vip_bronze',
-    name: 'Guerreiro de Bronze',
-    description: 'Moldura antiga forjada em bronze celestial. Desbloqueado com VIP Bronze.',
-    price: 0,
-    driveUrl: '',
-    imageUrl: '',
-    glowColor: '#d97706',
-    glowClass: 'shadow-[0_0_20px_rgba(217,119,6,0.8)] border border-amber-600/30',
-    isVip: true,
-    category: 'Special',
-    badge: 'Bronze VIP'
-  },
-  {
-    id: 'fr_vip_prata',
-    name: 'Soberano de Prata',
-    description: 'Bordas polidas em prata cintilante estelar. Desbloqueado com VIP Prata.',
-    price: 0,
-    driveUrl: '',
-    imageUrl: '',
-    glowColor: '#94a3b8',
-    glowClass: 'shadow-[0_0_20px_rgba(148,163,184,0.8)] border border-slate-400/30',
-    isVip: true,
-    category: 'Special',
-    badge: 'Prata VIP'
-  },
-  {
-    id: 'fr_vip_ouro',
-    name: 'Império Dourado',
-    description: 'Glow radiante em ouro imperial ultra polido. Desbloqueado com VIP Ouro.',
-    price: 0,
-    driveUrl: '',
-    imageUrl: '',
-    glowColor: '#eab308',
-    glowClass: 'shadow-[0_0_25px_rgba(234,179,8,0.9)] border border-yellow-400/30',
-    isVip: true,
-    category: 'Elite',
-    badge: 'Ouro VIP'
-  },
-  {
-    id: 'fr_vip_diamante',
-    name: 'Prisma de Diamante',
-    description: 'A joia mais reluzente do clã WeAura. Desbloqueado com VIP Diamante.',
-    price: 0,
-    driveUrl: '',
-    imageUrl: '',
-    glowColor: '#06b6d4',
-    glowClass: 'shadow-[0_0_30px_rgba(6,182,212,1)] border border-cyan-400/40 animate-pulse',
-    isVip: true,
-    category: 'Elite',
-    badge: 'Diamante VIP'
+    badge: 'Elite VIP',
+    rarity: 'Lendário'
   }
 ];
 
+export let CUSTOM_FRAMES_CACHE: FrameItem[] = [];
+
+export function registerCustomFramesInCache(frames: FrameItem[]) {
+  CUSTOM_FRAMES_CACHE = frames;
+}
+
+export function getAllFrames(): FrameItem[] {
+  return [...PREMIUM_FRAMES, ...CUSTOM_FRAMES_CACHE];
+}
+
 export function getFrameById(id: string): FrameItem | undefined {
-  return PREMIUM_FRAMES.find(f => f.id === id);
+  return PREMIUM_FRAMES.find(r => r.id === id) || CUSTOM_FRAMES_CACHE.find(r => r.id === id);
 }

@@ -252,6 +252,9 @@ export function useVoiceChat(
         if (!localStreamRef.current) {
           try {
             console.log("[Voice] Capturing optimized audio track on client...");
+            if (!navigator?.mediaDevices?.getUserMedia) {
+              throw new Error("O seu navegador ou ambiente de visualização atual não suporta captura de áudio direta.");
+            }
             const stream = await navigator.mediaDevices.getUserMedia({
               audio: {
                 echoCancellation: true,
@@ -273,7 +276,7 @@ export function useVoiceChat(
               setupAudioAnalysis(userId, stream);
             }
           } catch (err: any) {
-            console.error("[Voice] Audio grab error:", err);
+            console.warn("[Voice] Audio grab warning:", err?.message || err);
             if (active) {
               setMicError(err?.message || "Erro de permissão no microfone.");
             }

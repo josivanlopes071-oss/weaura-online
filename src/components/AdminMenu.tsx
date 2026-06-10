@@ -13,9 +13,12 @@ import {
   limit, 
   serverTimestamp,
   addDoc,
-  orderBy
+  orderBy,
+  setDoc,
+  deleteDoc
 } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
+import UserAvatar from './UserAvatar';
 import { 
   X, Shield, Users, Layers, MessageSquare, AlertTriangle, Terminal, Search, 
   Ban, ShieldAlert, VolumeX, Award, User, RefreshCw, Zap, Gift, Compass, 
@@ -100,10 +103,112 @@ interface AdminMenuProps {
 }
 
 export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
-  const { user, profile } = useAuth();
+  const { user, profile, customFrames = [] } = useAuth();
   const isCurrentUserOwner = ['josivanlopes071@gmail.com', 'manoeldasilva631kejr@gmail.com'].includes((profile?.email || user?.email || '').toLowerCase());
-  const [activeTab, setActiveTab ] = useState<'players' | 'rooms' | 'chat' | 'moderation'>('players');
+  const [activeTab, setActiveTab ] = useState<'players' | 'rooms' | 'chat' | 'moderation' | 'frames'>('players');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  
+  // Custom Frames Creation States
+  const [newFrameId, setNewFrameId] = useState('');
+  const [newFrameName, setNewFrameName] = useState('');
+  const [newFrameDescription, setNewFrameDescription] = useState('');
+  const [newFrameRarity, setNewFrameRarity] = useState<'Comum' | 'Raro' | 'Épico' | 'Lendário'>('Comum');
+  const [newFramePrice, setNewFramePrice] = useState<number>(300);
+  const [newFrameStatusUnlock, setNewFrameStatusUnlock] = useState<'locked' | 'free'>('locked');
+  const [newFrameAvatarScale, setNewFrameAvatarScale] = useState<number>(0.755);
+  const [newFrameAvatarOffsetY, setNewFrameAvatarOffsetY] = useState<number>(0);
+  const [newFrameImageUrl, setNewFrameImageUrl] = useState('');
+  const [isSavingFrame, setIsSavingFrame] = useState(false);
+  
+  const handleFrameFileChange = (e: any) => {
+    let file: File | null = null;
+    if (e.target && e.target.files) {
+      file = e.target.files[0] || null;
+    } else if (e.dataTransfer) {
+      e.preventDefault();
+      file = e.dataTransfer.files[0] || null;
+    }
+    
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert("Por favor, selecione um arquivo de imagem válido (PNG, WebP, GIF).");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (reader.result) {
+        setNewFrameImageUrl(reader.result as string);
+        playCyberSound('laser');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveCustomFrame = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFrameName.trim()) {
+      alert("O nome da moldura é obrigatório.");
+      return;
+    }
+    if (!newFrameImageUrl) {
+      alert("Por favor, adicione o arquivo da moldura (upload ou URL).");
+      return;
+    }
+
+    setIsSavingFrame(true);
+    try {
+      const generatedId = newFrameId.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') || `fr_custom_${Date.now()}`;
+      
+      const frameData = {
+        id: generatedId,
+        name: newFrameName.trim(),
+        description: newFrameDescription.trim() || 'Moldura personalizada enviada pelo administrador',
+        price: Number(newFramePrice) || 0,
+        imageUrl: newFrameImageUrl,
+        rarity: newFrameRarity,
+        statusUnlock: newFrameStatusUnlock,
+        avatarScale: Number(newFrameAvatarScale) || 0.755,
+        avatarOffsetY: `${newFrameAvatarOffsetY}%`,
+        noProcessing: true,
+        createdBy: profile?.uid || user?.uid || 'admin',
+        createdAt: serverTimestamp()
+      };
+
+      await setDoc(doc(db, 'custom_profile_frames', generatedId), frameData);
+      
+      playCyberSound('success');
+      addAdminLog(`Nova moldura personalizada criada: [${generatedId}] ("${newFrameName}")`, 'success');
+      
+      // Clean up fields
+      setNewFrameId('');
+      setNewFrameName('');
+      setNewFrameDescription('');
+      setNewFramePrice(300);
+      setNewFrameRarity('Comum');
+      setNewFrameStatusUnlock('locked');
+      setNewFrameAvatarScale(0.755);
+      setNewFrameAvatarOffsetY(0);
+      setNewFrameImageUrl('');
+    } catch (err: any) {
+      console.error(err);
+      alert("Erro ao salvar moldura: " + err.message);
+    } finally {
+      setIsSavingFrame(false);
+    }
+  };
+
+  const handleDeleteCustomFrame = async (id: string, name: string) => {
+    if (!confirm(`Deseja realmente excluir permanentemente a moldura "${name}"?`)) return;
+    try {
+      await deleteDoc(doc(db, 'custom_profile_frames', id));
+      playCyberSound('alert');
+      addAdminLog(`A moldura [${id}] foi excluída permanentemente pelo administrador.`, 'warning');
+    } catch (err: any) {
+      alert("Erro ao excluir moldura: " + err.message);
+    }
+  };
   
   // Players Tab State
   const [playerSearchType, setPlayerSearchType] = useState<'displayId' | 'uid' | 'name' | 'email'>('displayId');
@@ -735,6 +840,7 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
                     { id: 'players', label: 'Jogadores', icon: Users, color: PALETTE.pink },
                     { id: 'rooms', label: 'Salas & Espaços', icon: Layers, color: PALETTE.cyan },
                     { id: 'chat', label: 'Filtros Chat', icon: MessageSquare, color: PALETTE.blue },
+                    { id: 'frames', label: 'Molduras ADM', icon: Award, color: '#FBBF24' },
                     { id: 'moderation', label: 'Logs de Segurança', icon: Terminal, color: PALETTE.primary },
                   ].map(tab => {
                     const Icon = tab.icon;
@@ -1425,6 +1531,294 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
                     </div>
                   )}
                 </div>
+              </motion.div>
+            )}
+
+            {/* TAB CONTENT: CUSTOM FRAMES */}
+            {activeTab === 'frames' && (
+              <motion.div initial={{ opacity: 0, scale: 0.99 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
+                <div>
+                  <h3 className="text-sm font-black text-white uppercase tracking-widest">Painel Operativo de Molduras Personalizadas</h3>
+                  <p className="text-[10px] text-white/40 mt-1">Crie e configure molduras premium exclusivas. As imagens PNG, GIF ou WebP enviadas são publicadas imediatamente na loja e inventário.</p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  
+                  {/* LEFT: Frame Creation Form */}
+                  <form onSubmit={handleSaveCustomFrame} className="lg:col-span-7 p-5 rounded-2xl bg-[#03050f]/80 border border-white/[0.04] space-y-4">
+                    <span className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
+                      <Plus size={14} className="text-[#FBBF24]" />
+                      Inserir Nova Moldura
+                    </span>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* ID field */}
+                      <div className="space-y-1.5">
+                        <label className="text-[9.5px] font-black uppercase text-white/40 tracking-wider">ID Único (Opcional)</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: fr_natal_2026"
+                          value={newFrameId}
+                          onChange={(e) => setNewFrameId(e.target.value)}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white placeholder-white/20 focus:border-[#FBBF24]/50 transition-all outline-none"
+                        />
+                      </div>
+
+                      {/* Name field */}
+                      <div className="space-y-1.5">
+                        <label className="text-[9.5px] font-black uppercase text-white/40 tracking-wider">Nome da Moldura</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: Aura Natalina"
+                          value={newFrameName}
+                          onChange={(e) => setNewFrameName(e.target.value)}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white placeholder-white/20 focus:border-[#FBBF24]/50 transition-all outline-none"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Description field */}
+                    <div className="space-y-1.5">
+                      <label className="text-[9.5px] font-black uppercase text-white/40 tracking-wider">Descrição Detalhada</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Moldura festiva concedida a membros ativos do Clã."
+                        value={newFrameDescription}
+                        onChange={(e) => setNewFrameDescription(e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white placeholder-white/20 focus:border-[#FBBF24]/50 transition-all outline-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {/* Price field */}
+                      <div className="space-y-1.5">
+                        <label className="text-[9.5px] font-black uppercase text-white/40 tracking-wider">Preço (🪙 Moedas EGO)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={newFramePrice}
+                          onChange={(e) => setNewFramePrice(Number(e.target.value))}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white placeholder-white/20 focus:border-[#FBBF24]/50 transition-all outline-none"
+                          required
+                        />
+                      </div>
+
+                      {/* Rarity */}
+                      <div className="space-y-1.5">
+                        <label className="text-[9.5px] font-black uppercase text-white/40 tracking-wider">Raridade da Aura</label>
+                        <select
+                          value={newFrameRarity}
+                          onChange={(e) => setNewFrameRarity(e.target.value as any)}
+                          className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold text-white focus:border-[#FBBF24]/50 transition-all outline-none"
+                        >
+                          <option value="Comum">Comum</option>
+                          <option value="Raro">Raro</option>
+                          <option value="Épico">Épico</option>
+                          <option value="Lendário">Lendário</option>
+                        </select>
+                      </div>
+
+                      {/* Unlock Status */}
+                      <div className="space-y-1.5">
+                        <label className="text-[9.5px] font-black uppercase text-white/40 tracking-wider">Status Desbloqueio</label>
+                        <select
+                          value={newFrameStatusUnlock}
+                          onChange={(e) => setNewFrameStatusUnlock(e.target.value as any)}
+                          className="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold text-white focus:border-[#FBBF24]/50 transition-all outline-none"
+                        >
+                          <option value="locked">Pago (Comprar c/ coins)</option>
+                          <option value="free">Livre (Grátis p/ todos)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Drag-and-drop or file picker */}
+                    <div className="space-y-1.5">
+                      <label className="text-[9.5px] font-black uppercase text-white/40 tracking-wider">Arquivo da Moldura (PNG, WebP, GIF)</label>
+                      <div 
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={handleFrameFileChange}
+                        className="border-2 border-dashed border-white/10 hover:border-[#FBBF24]/50 rounded-2xl p-5 flex flex-col items-center justify-center bg-white/[0.01] hover:bg-white/[0.03] duration-200 cursor-pointer relative"
+                      >
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFrameFileChange}
+                          className="absolute inset-0 opacity-0 cursor-pointer"
+                        />
+                        <Compass className="text-white/30 mb-2 animate-pulse" size={24} />
+                        <span className="text-xs font-black text-white/80 select-none">Arraste a moldura ou clique para upload</span>
+                        <span className="text-[9px] text-white/30 lowercase mt-1 select-none">(PNG transparente, WebP ou GIF animado)</span>
+                      </div>
+                    </div>
+
+                    {/* Or enter Direct Drive/Web URL */}
+                    <div className="space-y-1.5">
+                      <label className="text-[9.5px] font-black uppercase text-white/40 tracking-wider">Ou Endereço URL de Imagem Direta</label>
+                      <input
+                        type="url"
+                        placeholder="https://exemplo.com/moldura.png"
+                        value={newFrameImageUrl}
+                        onChange={(e) => setNewFrameImageUrl(e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-white placeholder-white/20 focus:border-[#FBBF24]/50 transition-all outline-none"
+                      />
+                    </div>
+
+                    {/* AVATAR FIT CONTROLS */}
+                    <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl space-y-4">
+                      <span className="text-[10px] font-black text-white/70 uppercase tracking-widest block border-b border-white/5 pb-2">Controles de Encaixe do Avatar</span>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Scale slider */}
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-[9px] font-black uppercase text-white/40 tracking-wider">
+                            <span>Escala do Avatar</span>
+                            <span>{Math.round(newFrameAvatarScale * 100)}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0.5"
+                            max="1.2"
+                            step="0.005"
+                            value={newFrameAvatarScale}
+                            onChange={(e) => setNewFrameAvatarScale(Number(e.target.value))}
+                            className="w-full bg-white/15 h-1.5 rounded-lg accent-[#FBBF24]"
+                          />
+                        </div>
+
+                        {/* Offset Y slider */}
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-[9px] font-black uppercase text-white/40 tracking-wider">
+                            <span>Deslocamento Vertical (Y)</span>
+                            <span>{newFrameAvatarOffsetY}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="-25"
+                            max="25"
+                            step="0.5"
+                            value={newFrameAvatarOffsetY}
+                            onChange={(e) => setNewFrameAvatarOffsetY(Number(e.target.value))}
+                            className="w-full bg-white/15 h-1.5 rounded-lg accent-[#FBBF24]"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isSavingFrame}
+                      className="w-full bg-[#FBBF24] hover:bg-[#FBBF24]/90 font-black text-xs text-black uppercase py-4 rounded-xl shadow-lg shadow-[#FBBF24]/10 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-40"
+                    >
+                      {isSavingFrame ? (
+                        <>
+                          <RefreshCw size={14} className="animate-spin" />
+                          Gravando Moldura na Nuvem...
+                        </>
+                      ) : (
+                        'Publicar Moldura Oficial'
+                      )}
+                    </button>
+                  </form>
+
+                  {/* RIGHT: Live Preview & Existing custom frames list */}
+                  <div className="lg:col-span-5 space-y-5">
+                    
+                    {/* Live Preview card */}
+                    <div className="p-5 rounded-2xl bg-[#03050f]/80 border border-white/[0.04] space-y-4 flex flex-col items-center">
+                      <span className="text-xs font-black text-white uppercase tracking-wider self-start">
+                        Visualizador em Tempo Real
+                      </span>
+                      
+                      <div className="w-32 h-32 relative flex items-center justify-center bg-zinc-950/80 rounded-full border border-white/5 overflow-visible">
+                        {/* avatar photo wrapper under frame */}
+                        <div 
+                          className="rounded-full overflow-hidden absolute flex items-center justify-center"
+                          style={{
+                            width: `${newFrameAvatarScale * 100}%`,
+                            height: `${newFrameAvatarScale * 100}%`,
+                            top: `calc(50% + ${newFrameAvatarOffsetY}%)`,
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            zIndex: 1
+                          }}
+                        >
+                          <img 
+                            src={profile?.photoURL || "https://api.dicebear.com/7.x/avataaars/svg?seed=preview_art"} 
+                            className="w-full h-full object-cover" 
+                            alt="" 
+                          />
+                        </div>
+                        
+                        {/* frame image layer over avatar */}
+                        {newFrameImageUrl ? (
+                          <img 
+                            src={newFrameImageUrl} 
+                            className="absolute pointer-events-none object-contain w-[132%] h-[132%]" 
+                            style={{
+                              left: '50%',
+                              top: '50%',
+                              transform: 'translate(-50%, -50%)',
+                              zIndex: 10
+                            }}
+                          />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center text-[9px] uppercase font-black text-white/20 text-center px-4 leading-relaxed tracking-wider z-10">Use o painel para carregar um arquivo</div>
+                        )}
+                      </div>
+                      
+                      <div className="text-center space-y-1">
+                        <span className="text-[11px] font-black text-white block uppercase tracking-wider">{newFrameName || "Nome Provisório"}</span>
+                        <span className="text-[9px] font-mono text-white/30 block capitalize">
+                          {newFrameRarity} • {newFrameStatusUnlock === 'free' ? 'Grátis' : `🪙 ${newFramePrice}`}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Manage List Card */}
+                    <div className="p-5 rounded-2xl bg-[#03050f]/80 border border-white/[0.04] space-y-3">
+                      <span className="text-xs font-black text-white uppercase tracking-wider block">
+                        Molduras Publicadas ({customFrames.length})
+                      </span>
+                      
+                      {customFrames.length === 0 ? (
+                        <div className="py-10 text-center text-[10px] font-black uppercase tracking-widest text-[#FF4D9D] select-none">
+                          Nenhuma moldura personalizada publicada.
+                        </div>
+                      ) : (
+                        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                          {customFrames.map((item: any) => (
+                            <div key={item.id} className="p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-3">
+                                {/* Small visual circle avatar equipped with this frame! */}
+                                <div className="w-12 h-12 flex-shrink-0 relative flex items-center justify-center overflow-visible">
+                                  <UserAvatar uid={profile?.uid} className="w-8 h-8" forceFrameId={item.id} showLevel={false} />
+                                </div>
+                                <div className="space-y-0.5">
+                                  <span className="text-xs font-black text-white leading-none uppercase flex items-center gap-1.5 italic">
+                                    {item.name}
+                                    <span className="text-[7.5px] font-black px-1.5 py-0.5 border border-white/5 rounded bg-white/5 uppercase select-none">{item.rarity}</span>
+                                  </span>
+                                  <span className="text-[8px] font-mono text-white/30 block">ID: {item.id} • {item.statusUnlock === 'free' ? 'Grátis' : `🪙 ${item.price}`}</span>
+                                </div>
+                              </div>
+                              <button 
+                                onClick={() => handleDeleteCustomFrame(item.id, item.name)}
+                                className="w-8 h-8 rounded-lg bg-red-950/20 hover:bg-red-900/40 border border-red-500/20 hover:border-red-500/50 flex items-center justify-center text-red-100 cursor-pointer group active:scale-95 transition-all text-xs"
+                              >
+                                <Trash2 size={13} className="group-hover:scale-110 duration-200" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+
+                </div>
+
               </motion.div>
             )}
 

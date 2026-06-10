@@ -14,8 +14,8 @@ service cloud.firestore {
     function isSuperAdmin() {
       return isSignedIn() && 
              'email' in request.auth.token && (
-               request.auth.token.email.matches('(?i)^josivanlopes071@gmail\\.com$') ||
-               request.auth.token.email.matches('(?i)^manoeldasilva631kejr@gmail\\.com$')
+               request.auth.token.email.lower() == 'josivanlopes071@gmail.com' ||
+               request.auth.token.email.lower() == 'manoeldasilva631kejr@gmail.com'
              );
     }
 
@@ -38,7 +38,7 @@ service cloud.firestore {
     }
 
     function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_-]+$');
     }
 
     // 1. System Counters (MUST be accessible for user creation)
@@ -264,6 +264,11 @@ service cloud.firestore {
 
     // 5. Admin system & audit tables
     match /system_announcements/{announcementId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isNotBanned();
+    }
+
+    match /custom_profile_frames/{frameId} {
       allow read: if isSignedIn();
       allow write: if isAdmin() && isNotBanned();
     }

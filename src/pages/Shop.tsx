@@ -95,10 +95,12 @@ export const PREMIUM_THEMES: ThemeItem[] = [
 ];
 
 export default function Shop() {
-  const { profile, updateCoins, updateProfile } = useAuth();
+  const { profile, updateCoins, updateProfile, customFrames = [] } = useAuth();
   const { success, error } = useToast();
   const [transactionLoading, setTransactionLoading] = useState<string | null>(null);
   const [loadingCoins, setLoadingCoins] = useState<string | null>(null);
+  
+  const allAvailableFrames = [...PREMIUM_FRAMES, ...customFrames];
   
   // Custom 6 main shop tabs
   const [activeTab, setActiveTab] = useState<'frames' | 'effects' | 'balloons' | 'avatars' | 'gifts' | 'themes' | 'coins'>('frames');
@@ -132,8 +134,9 @@ export default function Shop() {
   const handleBuyFrame = async (frame: FrameItem) => {
     if (!profile) return;
     const purchased = profile.purchasedFrames || [];
+    const isUnlockedByDefault = (frame as any).statusUnlock === 'free';
     
-    if (purchased.includes(frame.id)) {
+    if (purchased.includes(frame.id) || isUnlockedByDefault) {
       if (profile.equippedFrame === frame.id) {
         await updateProfile({ equippedFrame: "" });
         success("Moldura desequipada!");
@@ -400,13 +403,21 @@ export default function Shop() {
         {/* TAB 1: PREMIUM MOULDS (FRAMES) */}
         {activeTab === 'frames' && (
           <motion.div key="frames-view" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} className="space-y-6">
-            <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/30 flex items-center gap-2">Molduras Elite de Perfil ({PREMIUM_FRAMES.length})</h3>
+            <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/30 flex items-center gap-2">Molduras Elite de Perfil ({allAvailableFrames.length})</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {PREMIUM_FRAMES.map((frame) => {
-                const isBought = purchasedFrames.includes(frame.id);
+              {allAvailableFrames.map((frame) => {
+                const isBought = purchasedFrames.includes(frame.id) || (frame as any).statusUnlock === 'free';
                 const isEquipped = currentlyEquippedFrame === frame.id;
                 return (
                   <div key={frame.id} className="relative bg-[#0c0c0c]/80 border border-white/5 p-6 rounded-[32px] flex flex-col justify-between hover:border-purple-500/20 transition-all duration-300">
+                    <span className={`absolute top-4 left-4 px-2 py-0.5 rounded-full text-[7.5px] font-black uppercase tracking-wider border ${
+                      frame.rarity === 'Lendário' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' :
+                      frame.rarity === 'Épico' ? 'bg-fuchsia-500/10 border-fuchsia-500/20 text-fuchsia-400' :
+                      frame.rarity === 'Raro' ? 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400' :
+                      'bg-slate-500/10 border-slate-500/15 text-slate-400'
+                    }`}>
+                      {frame.rarity || 'Comum'}
+                    </span>
                     <span className="absolute top-4 right-4 bg-white/5 px-2.5 py-1 rounded-full text-[8px] font-black text-white/50 lowercase tracking-wider uppercase">{(frame as any).badge || 'Elite'}</span>
                     <div>
                       <div className="w-20 h-20 bg-black rounded-full border border-white/10 mx-auto relative flex items-center justify-center mb-4">
