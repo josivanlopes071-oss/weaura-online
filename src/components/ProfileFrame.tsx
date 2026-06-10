@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PREMIUM_FRAMES, FrameItem, getDirectDriveUrl, getFrameById } from '../lib/frames';
 import { getTransparentFrame } from '../lib/transparentFrameProcessor';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ProfileFrameProps {
   frameId?: string | null;
@@ -23,8 +24,10 @@ export default function ProfileFrame({
   glowColor,
   children
 }: ProfileFrameProps) {
+  const { customFrames = [] } = useAuth();
+
   // Find frame item based on frameId or use direct frameObj
-  const frame = frameObj || (frameId ? getFrameById(frameId) : null);
+  const frame = frameObj || (frameId ? (PREMIUM_FRAMES.find(r => r.id === frameId) || customFrames.find((r: any) => r.id === frameId) || getFrameById(frameId)) : null);
   
   // Resolve resources falling back to direct props
   const resolvedStaticUrl = staticUrl || frame?.imageUrl || null;
@@ -180,23 +183,29 @@ export default function ProfileFrame({
         Avatar photo wrapper container. Positioned inside the frame with matching 1:1 circles.
         Width & height computed proportionally based on the frame's specific avatarScale to center perfectly.
       */}
-      {children && (
-        <div 
-          className="absolute rounded-full overflow-hidden flex items-center justify-center pointer-events-auto"
-          style={{
-            position: 'absolute',
-            width: `${(frame?.avatarScale || 0.755) * 100}%`, 
-            height: `${(frame?.avatarScale || 0.755) * 100}%`, // Custom circular scale to dodge frame borders
-            left: '50%',
-            top: `calc(50% + ${frame?.avatarOffsetY || '0%'})`,
-            transform: 'translate(-50%, -50%)',
-            zIndex: 5, // Sits safely below the premium frame image
-            background: 'transparent'
-          }}
-        >
-          {children}
-        </div>
-      )}
+      {children && (() => {
+        const rawOffsetY = frame?.avatarOffsetY;
+        const resolvedOffsetY = typeof rawOffsetY === 'number' 
+          ? `${rawOffsetY}%` 
+          : (rawOffsetY && String(rawOffsetY).includes('%') ? rawOffsetY : `${rawOffsetY || 0}%`);
+        return (
+          <div 
+            className="absolute rounded-full overflow-hidden flex items-center justify-center pointer-events-auto"
+            style={{
+              position: 'absolute',
+              width: `${(frame?.avatarScale || 0.755) * 100}%`, 
+              height: `${(frame?.avatarScale || 0.755) * 100}%`, // Custom circular scale to dodge frame borders
+              left: '50%',
+              top: `calc(50% + ${resolvedOffsetY})`,
+              transform: 'translate(-50%, -50%)',
+              zIndex: 5, // Sits safely below the premium frame image
+              background: 'transparent'
+            }}
+          >
+            {children}
+          </div>
+        );
+      })()}
 
       {/* Loading state spinner */}
       {isProcessing && !processedFrameUrl && (

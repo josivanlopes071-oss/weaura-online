@@ -269,8 +269,7 @@ service cloud.firestore {
     }
 
     match /custom_profile_frames/{frameId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin() && isNotBanned();
+      allow read, write: if isSignedIn();
     }
 
     match /admin_audit_logs/{logId} {

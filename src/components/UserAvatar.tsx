@@ -34,7 +34,7 @@ export default function UserAvatar({
   showLevel = true,
   forceLevel
 }: UserAvatarProps) {
-  const { profile, user } = useAuth();
+  const { profile, user, customFrames = [] } = useAuth();
   const [photo, setPhoto] = useState<string | null>(null);
   const [userLevel, setUserLevel] = useState<number>(1);
   const [equippedFrame, setEquippedFrame] = useState<string | null>(null);
@@ -134,7 +134,7 @@ export default function UserAvatar({
     };
 
     fetchUserMeta();
-  }, [uid, user?.uid, profile?.photoURL, profile?.equippedFrame, profile?.level, profile?.auraLevel, profile?.isVip, profile?.vipPlan, forceFrameId, forceLevel]);
+  }, [uid, user?.uid, profile?.photoURL, profile?.equippedFrame, profile?.level, profile?.auraLevel, profile?.isVip, profile?.vipPlan, forceFrameId, forceLevel, customFrames]);
 
   const isMe = user && uid === user.uid;
   const activePhoto = isMe ? (profile?.photoURL || null) : photo;
@@ -149,7 +149,9 @@ export default function UserAvatar({
   const matchedFrameId = forceFrameId !== undefined ? forceFrameId : (equippedFrame || (activeIsVip && activeVipPlan ? `fr_vip_${activeVipPlan.toLowerCase()}` : null));
 
   // Match the equipped frame item
-  const currentFrameObj = showFrame && matchedFrameId ? getFrameById(matchedFrameId) : null;
+  const currentFrameObj = showFrame && matchedFrameId 
+    ? (PREMIUM_FRAMES.find(f => f.id === matchedFrameId) || customFrames.find((f: any) => f.id === matchedFrameId) || getFrameById(matchedFrameId)) 
+    : null;
 
   const activeAuraLevel = isMe ? (profile?.auraLevel || 1) : userAuraLevel;
   const hasAuraFrame = !currentFrameObj && activeAuraLevel >= 2;

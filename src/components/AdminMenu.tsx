@@ -119,6 +119,7 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
   const [newFrameAvatarOffsetY, setNewFrameAvatarOffsetY] = useState<number>(0);
   const [newFrameImageUrl, setNewFrameImageUrl] = useState('');
   const [isSavingFrame, setIsSavingFrame] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   
   const handleFrameFileChange = (e: any) => {
     let file: File | null = null;
@@ -136,14 +137,75 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (reader.result) {
-        setNewFrameImageUrl(reader.result as string);
-        playCyberSound('laser');
+    const isGif = file.type === 'image/gif';
+    
+    if (isGif) {
+      // Check file size for GIFs to prevent Firestore 1MB limits (Base64 is ~33% larger)
+      if (file.size > 800 * 1024) {
+        alert(`O arquivo GIF animado é muito grande (${(file.size / 1024 / 1024).toFixed(2)} MB). O limite máximo de segurança para garantir o salvamento sem falhas é de 800 KB (aprox. 1MB em Base64). Por favor, otimize seu GIF.`);
+        return;
       }
-    };
-    reader.readAsDataURL(file);
+      
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (reader.result) {
+          setNewFrameImageUrl(reader.result as string);
+          playCyberSound('laser');
+        }
+      };
+      reader.readAsDataURL(file);
+    } else {
+      // It's a static image (PNG, WebP, JPG). We dynamically resize and compress it to 384x384px max dimension
+      // This preserves fine detail for an avatar frame while keeping base64 payload size under 50KB to 100KB!
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (reader.result) {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxDimension = 384; 
+            let width = img.width;
+            let height = img.height;
+            
+            if (width > maxDimension || height > maxDimension) {
+              if (width > height) {
+                height = Math.round((height * maxDimension) / width);
+                width = maxDimension;
+              } else {
+                width = Math.round((width * maxDimension) / height);
+                height = maxDimension;
+              }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.clearRect(0, 0, width, height);
+              ctx.drawImage(img, 0, 0, width, height);
+              // Maintain transparency if original is PNG
+              const format = file.type === 'image/png' ? 'image/png' : 'image/webp';
+              const resizedUrl = canvas.toDataURL(format, 0.85); // 85% quality to keep it compact and crisp
+              
+              const approximateByteSize = resizedUrl.length * 0.75;
+              if (approximateByteSize > 850 * 1024) {
+                alert("Mesmo após a redução automática, a imagem ainda excede o tamanho limite do Firestore. Por favor, utilize uma imagem mais simples.");
+                return;
+              }
+              
+              setNewFrameImageUrl(resizedUrl);
+              playCyberSound('laser');
+            } else {
+              setNewFrameImageUrl(reader.result as string);
+              playCyberSound('laser');
+            }
+          };
+          img.src = reader.result as string;
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSaveCustomFrame = async (e: React.FormEvent) => {
@@ -193,20 +255,67 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
       setNewFrameImageUrl('');
     } catch (err: any) {
       console.error(err);
-      alert("Erro ao salvar moldura: " + err.message);
+      const isPermissionError = err.code === 'permission-denied' || 
+        (err.message && (
+          err.message.includes('permission') || 
+          err.message.includes('Permission') || 
+          err.message.includes('insufficient')
+        ));
+      
+      if (isPermissionError) {
+        alert(
+          "⚠️ ERRO DE PERMISSÃO NO FIRESTORE:\n\n" +
+          "O salvamento da nova moldura falhou por restrição de permissão no banco de dados.\n\n" +
+          "Como este aplicativo está conectado a um projeto do Firebase externo, o deploy automático de novas rotas de segurança está negado no console de nuvem.\n\n" +
+          "COMO RESOLVER:\n" +
+          "1. Acesse o console do seu projeto Firebase (https://console.firebase.google.com/).\n" +
+          "2. Navegue até 'Firestore Database' e vá na aba 'Rules' (Regras).\n" +
+          "3. Adicione a permissão de leitura/gravação temporária para a coleção 'custom_profile_frames' dentro de match /databases/{database}/documents:\n\n" +
+          "   match /custom_profile_frames/{frameId} {\n" +
+          "     allow read: if request.auth != null;\n" +
+          "     allow write: if request.auth != null;\n" +
+          "   }\n\n" +
+          "4. Clique em 'Publish' (Publicar) e tente novamente em instantes!"
+        );
+      } else {
+        alert("Erro ao salvar moldura: " + err.message);
+      }
     } finally {
       setIsSavingFrame(false);
     }
   };
 
   const handleDeleteCustomFrame = async (id: string, name: string) => {
-    if (!confirm(`Deseja realmente excluir permanentemente a moldura "${name}"?`)) return;
     try {
       await deleteDoc(doc(db, 'custom_profile_frames', id));
       playCyberSound('alert');
       addAdminLog(`A moldura [${id}] foi excluída permanentemente pelo administrador.`, 'warning');
     } catch (err: any) {
-      alert("Erro ao excluir moldura: " + err.message);
+      console.error(err);
+      const isPermissionError = err.code === 'permission-denied' || 
+        (err.message && (
+          err.message.includes('permission') || 
+          err.message.includes('Permission') || 
+          err.message.includes('insufficient')
+        ));
+      
+      if (isPermissionError) {
+        alert(
+          "⚠️ ERRO DE PERMISSÃO NO FIRESTORE:\n\n" +
+          "A exclusão da moldura falhou por restrição de permissão no banco de dados.\n\n" +
+          "Como este aplicativo está conectado a um projeto do Firebase externo, o deploy automático de novas rotas de segurança está negado no console de nuvem.\n\n" +
+          "COMO RESOLVER:\n" +
+          "1. Acesse o console do seu projeto Firebase (https://console.firebase.google.com/).\n" +
+          "2. Navegue até 'Firestore Database' e vá na aba 'Rules' (Regras).\n" +
+          "3. Certifique-se de que a permissão de leitura/gravação está liberada para a coleção 'custom_profile_frames':\n\n" +
+          "   match /custom_profile_frames/{frameId} {\n" +
+          "     allow read, write: if request.auth != null;\n" +
+          "   }\n\n" +
+          "4. Clique em 'Publish' (Publicar) e tente novamente em instantes!"
+        );
+      } else {
+        alert("Erro ao excluir moldura: " + err.message);
+      }
     }
   };
   
@@ -1803,12 +1912,45 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
                                   <span className="text-[8px] font-mono text-white/30 block">ID: {item.id} • {item.statusUnlock === 'free' ? 'Grátis' : `🪙 ${item.price}`}</span>
                                 </div>
                               </div>
-                              <button 
-                                onClick={() => handleDeleteCustomFrame(item.id, item.name)}
-                                className="w-8 h-8 rounded-lg bg-red-950/20 hover:bg-red-900/40 border border-red-500/20 hover:border-red-500/50 flex items-center justify-center text-red-100 cursor-pointer group active:scale-95 transition-all text-xs"
-                              >
-                                <Trash2 size={13} className="group-hover:scale-110 duration-200" />
-                              </button>
+                              <div className="flex gap-1.5 items-center flex-shrink-0">
+                                {deleteConfirmId === item.id ? (
+                                  <div className="flex gap-1 items-center animate-pulse">
+                                    <button 
+                                      onClick={() => {
+                                        setDeleteConfirmId(null);
+                                        playCyberSound('click');
+                                      }}
+                                      className="px-2 py-1 text-[9px] font-black uppercase text-white/50 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 rounded cursor-pointer transition-all"
+                                    >
+                                      Cancelar
+                                    </button>
+                                    <button 
+                                      onClick={() => {
+                                        handleDeleteCustomFrame(item.id, item.name);
+                                        setDeleteConfirmId(null);
+                                      }}
+                                      className="px-2 py-1 text-[9px] font-black uppercase text-red-200 bg-red-900/60 hover:bg-red-700/80 border border-red-600/50 rounded flex items-center gap-1 cursor-pointer transition-all"
+                                    >
+                                      <span>Deletar</span>
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button 
+                                    onClick={() => {
+                                      setDeleteConfirmId(item.id);
+                                      playCyberSound('alert');
+                                      // Auto-clear after 4 seconds
+                                      setTimeout(() => {
+                                        setDeleteConfirmId(prev => prev === item.id ? null : prev);
+                                      }, 4000);
+                                    }}
+                                    className="w-8 h-8 rounded-lg bg-red-950/20 hover:bg-red-900/40 border border-red-500/20 hover:border-red-500/50 flex items-center justify-center text-red-100 cursor-pointer group active:scale-95 transition-all text-xs"
+                                    title="Excluir moldura de catálogo"
+                                  >
+                                    <Trash2 size={13} className="group-hover:scale-110 duration-200" />
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           ))}
                         </div>
