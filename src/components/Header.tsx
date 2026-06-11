@@ -35,52 +35,52 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 left-0 right-0 z-40 bg-black/40 backdrop-blur-3xl border-b border-white/[0.08] px-6 py-5 flex items-center justify-between">
+    <header className="sticky top-0 left-0 right-0 z-40 bg-zinc-100/70 dark:bg-black/40 backdrop-blur-3xl border-b border-zinc-200/60 dark:border-white/[0.08] px-6 py-4.5 flex items-center justify-between">
       <div className="flex items-center gap-4">
         <motion.div 
           whileTap={{ scale: 0.95 }}
           onClick={() => navigate('/profile')}
           className="relative cursor-pointer flex items-center justify-center"
         >
-          <UserAvatar uid={profile?.uid} className="w-12 h-12" />
+          <UserAvatar uid={profile?.uid} className="w-11 h-11" />
         </motion.div>
         
-        <div className="flex flex-col">
-          <h1 className="text-lg font-black uppercase tracking-[0.15em] text-white leading-none">
-            WE<span className="text-purple-500">AURA</span>
-          </h1>
-          <div 
-            onClick={() => navigate('/shop')}
-            className="flex items-center gap-1.5 cursor-pointer mt-2 bg-zinc-100 dark:bg-white/5 px-2.5 py-1 rounded-full border border-zinc-200/50 dark:border-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 transition-all active:scale-95 group w-fit"
-          >
-            <Coins size={12} className="text-yellow-500 group-hover:rotate-12 transition-transform" />
-            <span className="text-[10px] font-black text-zinc-400 dark:text-white/40 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors tabular-nums tracking-wider">{profile?.coins || 0}</span>
-          </div>
-        </div>
+        <h1 className="text-lg font-extrabold uppercase tracking-[0.16em] text-zinc-900 dark:text-white leading-none">
+          WE<span className="text-purple-600 dark:text-purple-500">AURA</span>
+        </h1>
       </div>
 
-      <div className="flex items-center gap-2.5">
-        <button className="w-12 h-12 bg-zinc-100 dark:bg-white/5 rounded-2xl text-zinc-400 dark:text-white/30 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-90 flex items-center justify-center border border-zinc-200/80 dark:border-white/5">
-          <Search size={22} />
+      <div className="flex items-center gap-2">
+        <div 
+          onClick={() => navigate('/shop')}
+          className="flex items-center gap-1.5 cursor-pointer bg-zinc-200/40 dark:bg-white/5 px-3 py-2 rounded-xl border border-zinc-300/40 dark:border-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 transition-all active:scale-95 group text-xs font-bold text-zinc-700 dark:text-zinc-305 h-11 shadow-sm"
+          title="Ver Mercado Aura"
+        >
+          <Coins size={14} className="text-amber-500 group-hover:rotate-12 transition-transform" />
+          <span className="font-mono text-zinc-800 dark:text-white/80">{profile?.coins || 0}</span>
+        </div>
+
+        <button className="w-11 h-11 bg-zinc-200/40 dark:bg-white/5 rounded-xl text-zinc-500 dark:text-white/30 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-95 flex items-center justify-center border border-zinc-300/40 dark:border-white/5">
+          <Search size={20} />
         </button>
         <button 
           onClick={toggleTheme}
-          className="w-12 h-12 bg-zinc-100 dark:bg-white/5 rounded-2xl text-zinc-400 dark:text-white/30 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-90 flex items-center justify-center border border-zinc-200/80 dark:border-white/5"
+          className="w-11 h-11 bg-zinc-200/40 dark:bg-white/5 rounded-xl text-zinc-500 dark:text-white/30 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-95 flex items-center justify-center border border-zinc-300/40 dark:border-white/5"
           title={theme === 'light' ? 'Alterar para Modo Escuro' : 'Alterar para Modo Claro'}
         >
           {theme === 'light' ? (
-            <Moon size={22} className="text-zinc-600 fill-zinc-600 animate-in" />
+            <Moon size={20} className="text-zinc-650 fill-zinc-600/30 animate-in" />
           ) : (
-            <Sun size={22} className="text-yellow-400 fill-yellow-400 animate-in" />
+            <Sun size={20} className="text-yellow-400 fill-yellow-400/20 animate-in" />
           )}
         </button>
         <button 
           onClick={() => setShowNotifications(!showNotifications)}
-          className="w-12 h-12 bg-zinc-100 dark:bg-white/5 rounded-2xl text-zinc-400 dark:text-white/30 hover:text-zinc-900 dark:hover:text-white transition-all relative active:scale-90 flex items-center justify-center border border-zinc-200/80 dark:border-white/5"
+          className="w-11 h-11 bg-zinc-200/40 dark:bg-white/5 rounded-xl text-zinc-500 dark:text-white/30 hover:text-zinc-900 dark:hover:text-white transition-all relative active:scale-95 flex items-center justify-center border border-zinc-300/40 dark:border-white/5"
         >
-          <Bell size={22} />
+          <Bell size={20} />
           {unreadCount > 0 && (
-            <span className={`absolute -top-1 -right-1 w-5 h-5 bg-purple-500 rounded-full border-[3.5px] ${theme === 'light' ? 'border-white' : 'border-[#020202]'} flex items-center justify-center text-[8px] font-black text-white shadow-lg shadow-purple-500/40`}>
+            <span className={`absolute -top-1 -right-1 w-5 h-5 bg-purple-600 rounded-full border-2 ${theme === 'light' ? 'border-white' : 'border-[#020202]'} flex items-center justify-center text-[8px] font-black text-white shadow-md shadow-purple-500/30`}>
               {unreadCount}
             </span>
           )}

@@ -57,65 +57,67 @@ export default function Challenges() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="p-6 pb-36 bg-[#020202] min-h-screen space-y-8"
+      className="p-4 md:p-6 pb-32 space-y-6 min-h-screen bg-transparent"
     >
-      {/* Header */}
-      <div className="flex items-center justify-between pt-4">
+      {/* Header and Quick Stats */}
+      <div className="flex items-center justify-between pt-2">
         <div>
-          <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase">Desafios</h1>
-          <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest mt-1">Complete desafios e ganhe recompensas!</p>
+          <h1 className="text-2xl font-black text-zinc-900 dark:text-white italic tracking-tighter uppercase">
+            Desafios
+          </h1>
+          <p className="text-[10px] font-bold text-zinc-400 dark:text-white/30 uppercase tracking-wider mt-0.5">
+            Complete metas e resgate suas recompensas
+          </p>
         </div>
-        <div className="flex gap-3">
-          <button className="w-12 h-12 bg-[#0c0c0c] rounded-2xl flex items-center justify-center border border-white/5 relative">
-            <Bell size={20} className="text-white/40" />
-            <div className="absolute top-3 right-3 w-2 h-2 bg-pink-500 rounded-full shadow-[0_0_10px_#ec4899]"></div>
+        <div className="flex gap-2.5">
+          <button className="w-10 h-10 bg-zinc-100 dark:bg-[#0c0c0c] rounded-xl flex items-center justify-center border border-zinc-200 dark:border-white/5 relative hover:border-zinc-300 dark:hover:border-white/20 transition-all">
+            <Bell size={16} className="text-zinc-500 dark:text-white/40" />
+            <div className="absolute top-2.5 right-2.5 w-1.5 h-1.5 bg-pink-500 rounded-full shadow-[0_0_8px_#ec4899]"></div>
           </button>
-          <button className="w-12 h-12 bg-[#0c0c0c] rounded-2xl flex items-center justify-center border border-white/5">
-            <HelpCircle size={20} className="text-white/40" />
+          <button className="w-10 h-10 bg-zinc-100 dark:bg-[#0c0c0c] rounded-xl flex items-center justify-center border border-zinc-200 dark:border-white/5 hover:border-zinc-300 dark:hover:border-white/20 transition-all">
+            <HelpCircle size={16} className="text-zinc-500 dark:text-white/40" />
           </button>
         </div>
       </div>
 
-      {/* Main Banner */}
-      <div className="bg-[#0c0c0c] rounded-[48px] border border-white/[0.08] p-8 shadow-premium relative overflow-hidden card-shine">
-        <div className="absolute right-[-20px] top-6 opacity-30">
-          <Gift size={140} className="text-purple-500 blur-sm" />
-        </div>
-        <div className="flex items-center gap-6 relative z-10">
-          <div className="w-24 h-24 bg-purple-500/10 rounded-[32px] flex items-center justify-center border border-purple-500/20 shadow-[0_0_40px_rgba(168,85,247,0.2)]">
-            <Target size={48} className="text-purple-500 glow-purple" />
+      {/* Main Campaign/Target Banner simplified */}
+      <div className="bg-zinc-100/80 dark:bg-[#0c0c0c]/80 rounded-2xl border border-zinc-200 dark:border-white/[0.08] p-5 shadow-sm relative overflow-hidden backdrop-blur-md">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 relative z-10">
+          <div className="w-14 h-14 bg-purple-500/10 rounded-xl flex items-center justify-center border border-purple-500/20 shrink-0">
+            <Target size={26} className="text-purple-500" />
           </div>
-          <div className="flex-1">
-            <h2 className="text-xl font-black text-white italic uppercase tracking-tight">Desafio Diário</h2>
-            <p className="text-[10px] font-medium text-white/30 leading-relaxed mt-2 uppercase">Conclua todos os desafios diários e ganhe uma recompensa especial!</p>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base font-black text-zinc-900 dark:text-white italic uppercase tracking-tight">Campanha Diária</h2>
+            <p className="text-[10px] font-medium text-zinc-500 dark:text-white/40 mt-1 uppercase leading-snug">
+              Conclua 5 desafios hoje para desbloquear o baú místico
+            </p>
             
-            <div className="mt-4 flex items-center justify-between">
-              <div className="flex-1 h-2 bg-black rounded-full overflow-hidden mr-4">
-                <div className="h-full bg-gradient-to-r from-purple-600 to-purple-400 w-3/5 shadow-[0_0_15px_#a855f7]"></div>
+            <div className="mt-3.5 flex items-center gap-3">
+              <div className="flex-1 h-1.5 bg-zinc-200 dark:bg-black rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-purple-600 to-pink-500 w-3/5 shadow-[0_0_10px_rgba(168,85,247,0.3)]"></div>
               </div>
-              <span className="text-[10px] font-black text-white/40 italic">3/5</span>
+              <span className="text-[10px] font-black text-zinc-400 dark:text-white/40 italic font-mono shrink-0">3/5</span>
             </div>
           </div>
-          <div className="flex flex-col items-center">
+          <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto mt-2 sm:mt-0">
             <div className="relative">
-               <img src="https://cdn-icons-png.flaticon.com/512/8141/8141477.png" className="w-24 h-24 object-contain filter drop-shadow-[0_0_20px_rgba(168,85,247,0.4)]" alt="Chest" />
-               <div className="absolute inset-0 bg-purple-500/20 blur-2xl -z-10 rounded-full" />
+               <img src="https://cdn-icons-png.flaticon.com/512/8141/8141477.png" className="w-14 h-14 object-contain filter drop-shadow-[0_4px_10px_rgba(168,85,247,0.2)]" alt="Chest" />
             </div>
-            <span className="text-[9px] font-black text-purple-400 uppercase tracking-widest mt-2 italic animate-pulse">Em andamento</span>
+            <span className="text-[8px] font-black text-purple-500 border border-purple-500/15 bg-purple-500/5 px-2 py-1 rounded-md uppercase tracking-wider italic animate-pulse">Andamento</span>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-4 overflow-x-auto scrollbar-hide py-2 px-1">
+      {/* Tabs list streamlined */}
+      <div className="flex gap-2 overflow-x-auto scrollbar-hide py-1">
         {tabs.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-8 py-4 rounded-[28px] border text-[10px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap italic ${
+            className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap italic border ${
               activeTab === tab 
-                ? 'bg-white text-black border-white shadow-xl scale-[1.05]' 
-                : 'bg-[#0c0c0c] border-white/5 text-white/20 hover:text-white/40'
+                ? 'bg-zinc-900 text-white dark:bg-white dark:text-black border-transparent shadow-sm' 
+                : 'bg-zinc-100/50 hover:bg-zinc-150 border-zinc-200/60 dark:bg-[#0c0c0c] dark:border-white/5 text-zinc-400 dark:text-white/30 hover:text-zinc-500 dark:hover:text-white/50'
             }`}
           >
             {tab}
@@ -123,83 +125,99 @@ export default function Challenges() {
         ))}
       </div>
 
-      {/* Challenges List */}
-      <div className="space-y-4">
+      {/* Challenges List rendered in a very clean grid */}
+      <div className="space-y-3">
         {dailyChallenges.map((ch) => (
-          <div key={ch.id} className="bg-[#0c0c0c] rounded-[40px] border border-white/[0.08] p-6 flex items-center gap-6 group hover:border-white/20 transition-all card-shine">
-            <div className={`w-18 h-18 rounded-[28px] flex items-center justify-center border bg-zinc-950/50 ${
-              ch.color === 'blue' ? 'border-blue-500/30 text-blue-500' : 
-              ch.color === 'green' ? 'border-green-500/30 text-green-500' :
-              ch.color === 'pink' ? 'border-pink-500/30 text-pink-500' : 'border-purple-500/30 text-purple-500'
-            }`}>
-              {ch.id === 1 && <Gamepad2 size={28} />}
-              {ch.id === 2 && <Users size={28} />}
-              {ch.id === 3 && <Target size={28} />}
-              {ch.id === 4 && <Trophy size={28} />}
-            </div>
-            
-            <div className="flex-1 min-w-0">
-              <h4 className="text-base font-black text-white italic leading-tight uppercase tracking-tight">{ch.title}</h4>
-              <p className="text-[10px] font-medium text-white/20 mt-1 uppercase truncate">{ch.desc}</p>
+          <div key={ch.id} className="bg-zinc-100/60 dark:bg-[#0c0c0c]/80 rounded-2xl border border-zinc-200/60 dark:border-white/[0.06] p-4 flex items-center justify-between gap-4 hover:border-zinc-300 dark:hover:border-white/10 transition-all">
+            <div className="flex items-center gap-3.5 min-w-0 flex-1">
+              <div className={`w-11 h-11 rounded-xl flex items-center justify-center border shrink-0 bg-white/50 dark:bg-zinc-950/40 ${
+                ch.color === 'blue' ? 'border-blue-500/20 text-blue-500' : 
+                ch.color === 'green' ? 'border-green-500/20 text-green-500' :
+                ch.color === 'pink' ? 'border-pink-500/20 text-pink-500' : 'border-purple-500/20 text-purple-500'
+              }`}>
+                {ch.id === 1 && <Gamepad2 size={18} />}
+                {ch.id === 2 && <Users size={18} />}
+                {ch.id === 3 && <Target size={18} />}
+                {ch.id === 4 && <Trophy size={18} />}
+              </div>
               
-              <div className="mt-4 flex items-center justify-between">
-                <div className="flex-1 h-1.5 bg-black rounded-full overflow-hidden mr-4">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(ch.progress / ch.total) * 100}%` }}
-                    className={`h-full shadow-[0_0_10px_currentColor] ${
-                      ch.color === 'blue' ? 'bg-blue-500 text-blue-500' : 
-                      ch.color === 'green' ? 'bg-green-500 text-green-500' :
-                      ch.color === 'pink' ? 'bg-pink-500 text-pink-500' : 'bg-purple-500 text-purple-500'
-                    }`} 
-                  />
+              <div className="min-w-0 flex-1">
+                <h4 className="text-xs font-black text-zinc-900 dark:text-white italic uppercase tracking-tight truncate leading-tight">
+                  {ch.title}
+                </h4>
+                <p className="text-[9px] font-medium text-zinc-400 dark:text-white/30 mt-0.5 uppercase truncate leading-none">
+                  {ch.desc}
+                </p>
+                
+                {/* Slimmer progress bar */}
+                <div className="mt-2.5 flex items-center gap-2">
+                  <div className="flex-1 h-1 bg-zinc-200 dark:bg-zinc-900 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(ch.progress / ch.total) * 100}%` }}
+                      className={`h-full ${
+                        ch.color === 'blue' ? 'bg-blue-500' : 
+                        ch.color === 'green' ? 'bg-green-500' :
+                        ch.color === 'pink' ? 'bg-pink-500' : 'bg-purple-500'
+                      }`} 
+                    />
+                  </div>
+                  <span className="text-[9px] font-bold text-zinc-400 dark:text-white/30 font-mono shrink-0">{ch.progress}/{ch.total}</span>
                 </div>
-                <span className="text-[10px] font-black text-white/30 italic">{ch.progress}/{ch.total}</span>
               </div>
             </div>
 
-            <div className={`bg-zinc-950/50 p-4 rounded-[28px] border border-white/5 flex flex-col items-center justify-center min-w-[100px] text-center ${ch.completed ? 'border-green-500/30 bg-green-500/5' : ''}`}>
-               {ch.completed ? (
-                 <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-black shadow-[0_0_15px_#22c55e]">
-                   <Check size={20} strokeWidth={4} />
-                 </div>
-               ) : (
-                 <>
-                   <div className={`text-xl font-black italic tracking-tighter mb-1 ${
-                     ch.reward.includes('MOEDAS') ? 'text-yellow-500' : 'text-green-500'
-                   }`}>
-                     {ch.reward.split(' ')[0]}
+            {/* Quick Reward Badge */}
+            <div className="flex items-center gap-2 shrink-0">
+              <div className={`p-2.5 rounded-xl border flex flex-col items-center justify-center min-w-[76px] ${
+                ch.completed 
+                  ? 'border-green-500/20 bg-green-500/5 text-green-500' 
+                  : 'border-zinc-200 dark:border-white/5 bg-zinc-50 dark:bg-zinc-900/40'
+              }`}>
+                 {ch.completed ? (
+                   <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-black">
+                     <Check size={12} strokeWidth={4} />
                    </div>
-                   <div className="text-[8px] font-black text-white/20 uppercase tracking-widest leading-none">
-                     {ch.reward.split(' ')[1]}
+                 ) : (
+                   <div className="text-center">
+                     <div className={`text-[10px] font-black italic mt-0.5 ${
+                       ch.reward.includes('MOEDAS') ? 'text-yellow-600 dark:text-yellow-500' : 'text-green-600 dark:text-green-500'
+                     }`}>
+                       {ch.reward.split(' ')[0]}
+                     </div>
+                     <div className="text-[7px] font-bold text-zinc-400 dark:text-white/20 uppercase tracking-widest leading-none mt-0.5">
+                       {ch.reward.split(' ')[1]}
+                     </div>
                    </div>
-                 </>
-               )}
+                 )}
+              </div>
+              {!ch.completed && (
+                <ChevronRight size={14} className="text-zinc-300 dark:text-white/10" />
+              )}
             </div>
-            {!ch.completed && (
-               <ChevronRight size={20} className="text-white/10 group-hover:text-white transition-colors" />
-            )}
           </div>
         ))}
       </div>
 
-      {/* Premium Banner */}
-      <div className="bg-gradient-to-r from-yellow-500/10 via-yellow-500/20 to-orange-500/10 rounded-[48px] border border-yellow-500/20 p-8 shadow-premium relative overflow-hidden group">
-         <div className="flex items-center justify-between relative z-10">
-            <div className="flex items-center gap-6">
-               <div className="w-16 h-16 bg-yellow-500 rounded-[28px] flex items-center justify-center shadow-[0_10px_30px_rgba(234,179,8,0.4)] border-4 border-black/10">
-                  <Crown size={32} className="text-white animate-bounce" />
+      {/* Premium Upgrades Banner redefined and refined */}
+      <div className="bg-gradient-to-r from-yellow-500/5 via-yellow-500/10 to-transparent dark:from-yellow-500/10 dark:via-yellow-500/5 dark:to-transparent rounded-2xl border border-yellow-500/20 p-5 shadow-sm relative overflow-hidden group">
+         <div className="flex items-center justify-between gap-4 relative z-10">
+            <div className="flex items-center gap-3.5">
+               <div className="w-11 h-11 bg-yellow-500 rounded-xl flex items-center justify-center shrink-0 shadow-sm border border-yellow-400/20">
+                  <Crown size={22} className="text-white" />
                </div>
                <div>
-                  <h3 className="text-lg font-black text-yellow-500 italic uppercase leading-none">Desafio Premium</h3>
-                  <p className="text-[10px] font-bold text-yellow-500/40 uppercase tracking-widest mt-2 max-w-[180px]">Assine o Premium e desbloqueie desafios exclusivos!</p>
+                  <h3 className="text-xs font-black text-yellow-600 dark:text-yellow-500 italic uppercase">Assinatura Premium</h3>
+                  <p className="text-[9px] font-medium text-zinc-500 dark:text-yellow-500/40 uppercase tracking-wider mt-0.5">
+                     Desbloqueie conquistas secretas e aceleradores
+                  </p>
                </div>
             </div>
-            <button className="bg-[#0c0c0c] border border-white/10 text-white px-8 py-4 rounded-[22px] text-[10px] font-black uppercase tracking-[0.25em] italic hover:bg-white hover:text-black transition-all">Ver Premium</button>
+            <button className="bg-zinc-900 text-white dark:bg-[#0c0c0c] border border-zinc-800 dark:border-white/10 hover:bg-zinc-800 hover:text-white dark:hover:bg-white dark:hover:text-black px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all italic shrink-0">
+              Assinar Premium
+            </button>
          </div>
-         <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400 blur-[80px] opacity-10 group-hover:opacity-20 transition-opacity" />
       </div>
-
     </motion.div>
   );
 }

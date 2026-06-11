@@ -170,13 +170,7 @@ export default function VIPDrawer({ isOpen, onClose }: VIPDrawerProps) {
                   </span>
                 </div>
               </div>
-            ) : (
-              <div className="mb-6 bg-white/[0.02] border border-white/5 p-4 rounded-3xl text-center">
-                <p className="text-xs text-white/40 font-semibold leading-relaxed">
-                  Desbloqueie tags coloridas, distintivos de luxo no avatar, impulsos de XP absurdos e presentes de aura exclusivos do plano!
-                </p>
-              </div>
-            )}
+            ) : null}
 
             {/* VIP Quick Select Cards */}
             <div className="grid grid-cols-4 gap-3 mb-6">

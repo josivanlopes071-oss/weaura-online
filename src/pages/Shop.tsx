@@ -355,19 +355,19 @@ export default function Shop() {
       className="p-4 md:p-6 pb-36 space-y-8 min-h-screen relative"
     >
       {/* Wallet Balance Display Header */}
-      <div className="flex flex-col gap-6 pt-4 md:pt-8 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-4 pt-2 md:pt-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-3xl font-black text-white tracking-tight italic">MERCADO AURA</h2>
-          <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.35em] leading-none mt-2 italic">Aura Vip • Cosméticos Avançados • Molduras Premium • Temas do Clã</p>
+          <h2 className="text-xl font-black text-white tracking-tight italic">MERCADO AURA</h2>
+          <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.25em] leading-none mt-1.5 italic">Aura Vip • Cosméticos Avançados • Molduras Premium • Temas do Clã</p>
         </div>
 
-        <div className="glass-dark px-5 py-3 rounded-[24px] border border-white/[0.08] flex items-center gap-3.5 shadow-premium w-fit self-start md:self-auto hover:border-purple-500/20 transition-all duration-500 bg-black/60">
-           <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-[15px] flex items-center justify-center border-2 border-black shadow-[0_5px_15px_rgba(245,158,11,0.3)]">
-              <Sparkles size={18} className="text-black drop-shadow-md animate-pulse" />
+        <div className="glass-dark px-4 py-2 rounded-xl border border-white/[0.05] flex items-center gap-3 shadow-sm w-fit self-start md:self-auto hover:border-purple-500/10 transition-all bg-black/60">
+           <div className="w-8 h-8 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-lg flex items-center justify-center border border-black/50 shadow-sm">
+              <Sparkles size={14} className="text-black animate-pulse" />
            </div>
            <div>
-              <span className="block text-[8px] font-black text-white/30 uppercase tracking-widest mb-0.5 italic">Seu Saldo EGO</span>
-              <span className="text-lg font-black text-white leading-none tabular-nums italic flex items-center gap-1.5">
+              <span className="block text-[8px] font-black text-white/20 uppercase tracking-widest mb-0.5 italic">Saldo EGO</span>
+              <span className="text-sm font-black text-white leading-none tabular-nums italic flex items-center gap-1">
                 {profile?.coins || 0} 🪙
               </span>
            </div>
@@ -375,7 +375,7 @@ export default function Shop() {
       </div>
 
       {/* Tabs Selector for Categories */}
-      <div className="flex bg-[#0a0a0a]/80 p-1.5 rounded-3xl border border-white/[0.08] w-full overflow-x-auto scrollbar-hide gap-1.5 backdrop-blur">
+      <div className="flex bg-[#0a0a0a]/80 p-1 rounded-xl border border-white/[0.05] w-full overflow-x-auto scrollbar-hide gap-1 backdrop-blur">
         {[
           { id: 'frames', label: 'Molduras', icon: '🖼️' },
           { id: 'effects', label: 'Efeitos Entrada', icon: '✨' },
@@ -388,9 +388,9 @@ export default function Shop() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex-1 min-w-[124px] flex items-center justify-center gap-2 py-3.5 rounded-[20px] font-black uppercase text-[10px] tracking-wider transition-all duration-500 italic ${
+            className={`flex-1 min-w-[110px] flex items-center justify-center gap-1.5 py-2 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all duration-350 italic ${
               activeTab === tab.id 
-                ? 'bg-white text-black shadow-xl scale-[1.02]' 
+                ? 'bg-white text-black shadow-md scale-[1.01]' 
                 : 'text-white/20 hover:text-white/40'
             }`}
           >
@@ -409,7 +409,7 @@ export default function Shop() {
                 const isBought = purchasedFrames.includes(frame.id) || (frame as any).statusUnlock === 'free';
                 const isEquipped = currentlyEquippedFrame === frame.id;
                 return (
-                  <div key={frame.id} className="relative bg-[#0c0c0c]/80 border border-white/5 p-6 rounded-[32px] flex flex-col justify-between hover:border-purple-500/20 transition-all duration-300">
+                  <div key={frame.id} className="relative bg-[#0c0c0c]/90 border border-white/[0.04] p-4 rounded-2xl flex flex-col justify-between hover:border-purple-500/15 transition-all duration-300 shadow-sm">
                     <span className={`absolute top-4 left-4 px-2 py-0.5 rounded-full text-[7.5px] font-black uppercase tracking-wider border ${
                       frame.rarity === 'Lendário' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' :
                       frame.rarity === 'Épico' ? 'bg-fuchsia-500/10 border-fuchsia-500/20 text-fuchsia-400' :
@@ -458,7 +458,7 @@ export default function Shop() {
                 const isBought = purchasedEffects.includes(effect.id);
                 const isEquipped = currentlyEquippedEffect === effect.id;
                 return (
-                  <div key={effect.id} className="bg-[#0c0c0c]/80 border border-white/5 p-6 rounded-[32px] flex flex-col justify-between hover:border-green-500/20 transition-all duration-300">
+                  <div key={effect.id} className="bg-[#0c0c0c]/90 border border-white/[0.04] p-4 rounded-2xl flex flex-col justify-between hover:border-green-500/15 transition-all duration-300 shadow-sm">
                     <div className="text-center">
                       <span className="text-4xl block mb-4 filter drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)]">{effect.icon}</span>
                       <h4 className="text-sm font-black text-white uppercase italic">{effect.name}</h4>
@@ -496,7 +496,7 @@ export default function Shop() {
                 const isBought = purchasedBalloons.includes(balloon.id);
                 const isEquipped = currentlyEquippedBalloon === balloon.id;
                 return (
-                  <div key={balloon.id} className="bg-[#0c0c0c]/80 border border-white/5 p-6 rounded-[32px] flex flex-col justify-between hover:border-purple-500/20 transition-all duration-300">
+                  <div key={balloon.id} className="bg-[#0c0c0c]/90 border border-white/[0.04] p-4 rounded-2xl flex flex-col justify-between hover:border-purple-500/15 transition-all duration-300 shadow-sm">
                     <div>
                       <div className="flex justify-center mb-4"><span className="text-3xl">{balloon.icon}</span></div>
                       <h4 className="text-sm font-black text-white uppercase italic text-center">{balloon.name}</h4>
@@ -539,10 +539,10 @@ export default function Shop() {
                 const isBought = purchasedAvatars.includes(avatar.id);
                 const isApplied = profile?.photoURL === avatar.imageUrl;
                 return (
-                  <div key={avatar.id} className="relative bg-[#0c0c0c]/80 border border-white/5 p-6 rounded-[32px] flex flex-col justify-between hover:border-[#00F0FF]/25 transition-all duration-300">
+                  <div key={avatar.id} className="relative bg-[#0c0c0c]/90 border border-white/[0.04] p-4 rounded-2xl flex flex-col justify-between hover:border-[#00F0FF]/15 transition-all duration-300 shadow-sm">
                     <span className="absolute top-4 right-4 bg-[#00F0FF]/15 px-2.5 py-1 rounded-full text-[8.5px] font-black text-[#00F0FF] uppercase border border-[#00F0FF]/10">{avatar.badge}</span>
                     <div className="text-center">
-                      <img src={avatar.imageUrl} className="w-20 h-20 rounded-[24px] bg-black border border-white/10 mx-auto object-cover mb-4" alt={avatar.name} referrerPolicy="no-referrer" />
+                      <img src={avatar.imageUrl} className="w-16 h-16 rounded-xl bg-black border border-white/10 mx-auto object-cover mb-3" alt={avatar.name} referrerPolicy="no-referrer" />
                       <h4 className="text-sm font-black text-white uppercase italic">{avatar.name}</h4>
                       <p className="text-[10px] text-white/30 font-semibold mt-1 leading-relaxed max-w-[180px] mx-auto">{avatar.description}</p>
                     </div>
@@ -577,7 +577,7 @@ export default function Shop() {
               {SPECIAL_GIFTS.map((gift) => {
                 const inventoryCount = purchasedGifts[gift.id] || 0;
                 return (
-                  <div key={gift.id} className="relative bg-[#0c0c0c]/80 border border-white/5 p-6 rounded-[32px] flex flex-col justify-between hover:border-pink-500/20 transition-all duration-300">
+                  <div key={gift.id} className="relative bg-[#0c0c0c]/90 border border-white/[0.04] p-4 rounded-2xl flex flex-col justify-between hover:border-pink-500/15 transition-all duration-300 shadow-sm">
                     {inventoryCount > 0 && (
                       <span className="absolute top-4 right-4 bg-pink-500/10 border border-pink-500/20 text-pink-400 px-3 py-1 rounded-full text-[9px] font-mono font-black uppercase tracking-widest">
                          Possui: {inventoryCount}x
@@ -597,7 +597,7 @@ export default function Shop() {
                       <button
                         onClick={() => handleBuySpecialGift(gift)}
                         disabled={transactionLoading !== null}
-                        className="w-full py-3.5 bg-gradient-to-r from-pink-500/10 to-purple-600/10 border border-pink-500/20 hover:border-pink-500/50 text-white font-black uppercase text-[9px] tracking-widest rounded-2xl transition-all hover:scale-[1.01]"
+                        className="w-full py-2.5 bg-gradient-to-r from-pink-500/10 to-purple-600/10 border border-pink-500/15 hover:border-pink-500/30 text-white font-black uppercase text-[9px] tracking-widest rounded-lg transition-all"
                       >
                         {transactionLoading === gift.id ? <Loader2 size={12} className="animate-spin mx-auto text-pink-500" /> : `Adquirir • 🪙 ${gift.price}`}
                       </button>
@@ -618,7 +618,7 @@ export default function Shop() {
                 const isBought = purchasedThemes.includes(themeItem.id);
                 const isEquipped = currentlyEquippedTheme === themeItem.id;
                 return (
-                  <div key={themeItem.id} className="relative bg-[#0c0c0c]/80 border border-white/5 p-6 rounded-[32px] flex flex-col justify-between hover:border-amber-500/25 transition-all duration-300">
+                  <div key={themeItem.id} className="relative bg-[#0c0c0c]/90 border border-white/[0.04] p-4 rounded-2xl flex flex-col justify-between hover:border-amber-500/15 transition-all duration-300 shadow-sm">
                     <div>
                       {/* Theme preview box mock */}
                       <div className={`w-full h-24 rounded-2xl mb-4 relative overflow-hidden flex flex-col items-center justify-center ${themeItem.previewClass}`}>
@@ -634,7 +634,7 @@ export default function Shop() {
                       <button
                         onClick={() => handleBuyTheme(themeItem)}
                         disabled={transactionLoading !== null}
-                        className={`w-full py-3.5 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                        className={`w-full py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
                           isEquipped
                             ? 'bg-amber-950/20 border border-amber-500/50 text-all text-amber-400'
                             : isBought
@@ -658,7 +658,7 @@ export default function Shop() {
             <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/30 flex items-center gap-2">Adquirir Moedas EGO</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {coinPacks.map((pack) => (
-                <div key={pack.id} className="bg-[#0c0c0c]/80 border border-white/5 p-6 rounded-[28px] hover:border-yellow-500/20 transition-all duration-300 flex flex-col justify-between text-center relative overflow-hidden group">
+                <div key={pack.id} className="bg-[#0c0c0c]/95 border border-white/[0.04] p-4 rounded-2xl hover:border-yellow-500/15 transition-all duration-300 flex flex-col justify-between text-center relative overflow-hidden group shadow-sm">
                   {pack.popular && (
                     <div className="absolute top-3 right-3 bg-pink-500 text-black text-[7.5px] font-black uppercase px-2 py-0.5 rounded italic">
                       POPULAR

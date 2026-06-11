@@ -820,20 +820,19 @@ export default function Games() {
     };
   }, []);
 
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="p-6 pb-36 space-y-8 bg-[#020202] min-h-screen"
+      className="p-4 md:p-6 pb-32 space-y-6 bg-transparent min-h-screen"
     >
       {/* Header Back Button & Page Introduction */}
-      <div className="flex items-center justify-between pt-4">
+      <div className="flex items-center justify-between pt-2">
         <div>
-          <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase flex items-center gap-2">
-            Aura <span className="text-purple-500">Arena</span>
+          <h1 className="text-2xl font-black text-zinc-900 dark:text-white italic tracking-tighter uppercase flex items-center gap-2">
+            Aura <span className="text-purple-650 dark:text-purple-500">Arena</span>
           </h1>
-          <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mt-1">
+          <p className="text-[10px] font-bold text-zinc-405 dark:text-white/30 uppercase tracking-wider mt-0.5">
             Minijogos interativos para faturar moedas e aumentar de nível!
           </p>
         </div>
@@ -841,93 +840,93 @@ export default function Games() {
         {/* Wallet Balance Widget */}
         <div 
           onClick={() => navigate('/shop')}
-          className="flex items-center gap-2 bg-[#0c0c0c] border border-white/[0.08] px-4 py-2.5 rounded-2xl cursor-pointer hover:border-purple-500/30 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.5)]"
+          className="flex items-center gap-2 bg-zinc-100 dark:bg-[#0c0c0c] border border-zinc-200 dark:border-white/[0.08] px-3.5 py-2 rounded-xl cursor-pointer hover:border-purple-500/30 transition-all shadow-sm"
         >
-          <Coins size={14} className="text-yellow-500 animate-pulse" />
-          <span className="text-xs font-black text-yellow-500 uppercase tracking-wider">
-            {coins} <span className="text-[9px] text-white/40 font-bold">MOEDAS</span>
+          <Coins size={13} className="text-yellow-600 dark:text-yellow-500" />
+          <span className="text-[10px] font-black text-yellow-600 dark:text-yellow-500 uppercase tracking-wider">
+            {coins} <span className="text-[8px] text-zinc-400 dark:text-white/40 font-bold">MOEDAS</span>
           </span>
         </div>
       </div>
 
       {/* Featured Arena Banner: Damas Neon */}
       <section 
-        className="relative h-56 rounded-[48px] overflow-hidden group cursor-pointer shadow-premium border border-purple-500/20 hover:border-purple-500/40 transition-all duration-300 transform hover:-translate-y-1"
+        className="relative h-44 rounded-2xl overflow-hidden group cursor-pointer shadow-sm border border-purple-500/20 dark:border-purple-500/20 hover:border-purple-500/40 transition-all duration-300 transform hover:-translate-y-0.5"
         onClick={() => navigate('/checkers')}
       >
-        <div className="absolute inset-0 bg-[#06030c]">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#00F0FF]/20 via-transparent to-[#FF4D9D]/20 animate-pulse" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-purple-600/10 blur-[100px] rounded-full" />
+        <div className="absolute inset-0 bg-zinc-100/30 dark:bg-[#06030c]">
+          <div className="absolute inset-0 bg-gradient-to-br from-[#00F0FF]/10 via-transparent to-[#FF4D9D]/10 animate-pulse" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-600/10 dark:bg-purple-600/5 blur-[80px] rounded-full" />
         </div>
         
-        <div className="absolute inset-0 p-8 flex flex-col justify-between relative z-10">
+        <div className="absolute inset-0 p-5 flex flex-col justify-between relative z-10">
           <div className="flex items-center justify-between">
-            <div className="bg-[#00F0FF]/15 px-3 py-1.5 rounded-full border border-[#00F0FF]/30 flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,240,255,0.2)]">
+            <div className="bg-[#00F0FF]/10 px-2.5 py-1 rounded-full border border-[#00F0FF]/25 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-[#00F0FF] animate-ping" />
-              <span className="text-[9px] font-black uppercase text-[#00F0FF] tracking-[0.25em] italic">JOGO PRINCIPAL 1V1</span>
+              <span className="text-[8px] font-black uppercase text-[#00F0FF] tracking-wider italic">JOGO PRINCIPAL 1V1</span>
             </div>
             
             {/* User checkers status */}
-            <div className={`px-2.5 py-1 rounded-lg border text-[9px] font-black uppercase tracking-wider flex items-center gap-1 bg-black/40 ${getEloRankName(checkersElo).bg} ${getEloRankName(checkersElo).color}`}>
-              <Star size={10} className="fill-current" />
+            <div className={`px-2 py-0.5 rounded-lg border text-[8px] font-black uppercase tracking-wider flex items-center gap-1 bg-white/40 dark:bg-black/40 ${getEloRankName(checkersElo).bg} ${getEloRankName(checkersElo).color}`}>
+              <Star size={8} className="fill-current" />
               {getEloRankName(checkersElo).name} ({checkersElo} ELO)
             </div>
           </div>
 
           <div>
-            <h2 className="text-3xl font-black text-white leading-none uppercase tracking-tighter italic">
-              DAMAS NEON <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-[#FF4D9D] to-[#00F0FF]">COIN ARENA</span>
+            <h2 className="text-xl md:text-2xl font-black text-zinc-900 dark:text-white leading-none uppercase tracking-tight italic">
+              DAMAS NEON <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 via-[#FF4D9D] to-[#00F0FF]">COIN ARENA</span>
             </h2>
-            <p className="text-white/40 text-[9px] font-bold mt-2 uppercase tracking-[0.2em] italic">
+            <p className="text-zinc-500 dark:text-white/40 text-[8.5px] font-bold mt-1 uppercase tracking-wider italic">
               Aposte moedas em tempo real • Sistema automático de matchmaking
             </p>
           </div>
 
           {/* Real-time statistics banner */}
-          <div className="flex items-center gap-5 border-t border-white/5 pt-3 mt-3 text-[10px] font-black uppercase tracking-wider text-white/50">
-            <div>Taxa Variação: <span className="text-emerald-400">{checkersWinRate}% WR</span></div>
-            <div>Vitórias: <span className="text-purple-400">{checkersWins}</span></div>
+          <div className="flex items-center gap-4 border-t border-zinc-200 dark:border-white/5 pt-2.5 mt-2 text-[9px] font-black uppercase tracking-wider text-zinc-400 dark:text-white/50">
+            <div>WR: <span className="text-emerald-600 dark:text-emerald-400">{checkersWinRate}%</span></div>
+            <div>Vitórias: <span className="text-purple-600 dark:text-purple-400">{checkersWins}</span></div>
             <div>Streak: <span className="text-[#FF4D9D]">🔥 {checkersStreak}</span></div>
           </div>
         </div>
 
-        <div className="absolute right-[-10px] bottom-[-10px] opacity-20 group-hover:scale-105 group-hover:rotate-6 transition-transform duration-1000">
-          <Gamepad2 size={180} className="text-[#FF4D9D] blur-xs" />
+        <div className="absolute right-[-10px] bottom-[-10px] opacity-10 dark:opacity-20 group-hover:scale-105 group-hover:rotate-6 transition-transform duration-1000">
+          <Gamepad2 size={120} className="text-[#FF4D9D]" />
         </div>
       </section>
 
       {/* Grid title */}
       <div>
-        <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white/40 border-b border-white/5 pb-2">
+        <h3 className="text-[10px] font-black uppercase tracking-wider text-zinc-400 dark:text-white/40 border-b border-zinc-200 dark:border-white/5 pb-1.5">
           Mini-Arcade Individual (Fature Moedas)
         </h3>
       </div>
 
       {/* Grid of other playables */}
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
         
         {/* Card 1: Jogo da Velha */}
         <motion.div 
           onClick={() => { playSynthSound('click'); setActiveModal('ticTac'); }}
-          whileHover={{ y: -4, scale: 1.01 }}
-          className="bg-[#0c0c0c] border border-white/[0.08] hover:border-emerald-500/20 rounded-[40px] p-8 relative overflow-hidden group cursor-pointer transition-all"
+          whileHover={{ y: -2 }}
+          className="bg-zinc-100/60 dark:bg-[#0c0c0c]/80 border border-zinc-200/60 dark:border-white/[0.08] hover:border-emerald-500/20 dark:hover:border-emerald-500/20 rounded-2xl p-5 relative overflow-hidden group cursor-pointer transition-all flex flex-col justify-between"
         >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-3xl rounded-full" />
-          <div className="flex flex-col justify-between h-full space-y-6">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 blur-2xl rounded-full" />
+          <div className="flex flex-col justify-between h-full space-y-4">
             <div className="flex items-center justify-between">
-              <div className="w-14 h-14 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.1)]">
-                <Cpu size={24} />
+              <div className="w-10 h-10 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center text-emerald-500 shadow-sm">
+                <Cpu size={18} />
               </div>
-              <span className="text-[9px] font-black uppercase text-emerald-400 tracking-widest bg-emerald-500/5 px-2.5 py-1 rounded-md border border-emerald-500/10">
-                Ganhe até 20 Coins
+              <span className="text-[8px] font-black uppercase text-emerald-600 dark:text-emerald-400 tracking-wider bg-emerald-500/5 px-2 py-0.5 rounded border border-emerald-500/10">
+                Até 20 COINS
               </span>
             </div>
 
             <div>
-              <h4 className="text-xl font-black text-white italic uppercase tracking-tight leading-tight">
+              <h4 className="text-sm font-black text-zinc-900 dark:text-white italic uppercase tracking-tight leading-none">
                 VELHA NEON IA
               </h4>
-              <p className="text-[10px] font-bold text-white/30 uppercase mt-1">
+              <p className="text-[9px] font-bold text-zinc-400 dark:text-white/30 uppercase mt-1 leading-normal">
                 Derrote nossa Inteligência Artificial ou jogue localmente!
               </p>
             </div>
@@ -937,25 +936,25 @@ export default function Games() {
         {/* Card 2: Minesweeper Risk Game */}
         <motion.div 
           onClick={() => { playSynthSound('click'); setActiveModal('mines'); }}
-          whileHover={{ y: -4, scale: 1.01 }}
-          className="bg-[#0c0c0c] border border-white/[0.08] hover:border-amber-500/20 rounded-[40px] p-8 relative overflow-hidden group cursor-pointer transition-all"
+          whileHover={{ y: -2 }}
+          className="bg-zinc-100/60 dark:bg-[#0c0c0c]/80 border border-zinc-200/60 dark:border-white/[0.08] hover:border-amber-500/20 dark:hover:border-amber-500/20 rounded-2xl p-5 relative overflow-hidden group cursor-pointer transition-all flex flex-col justify-between"
         >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-3xl rounded-full" />
-          <div className="flex flex-col justify-between h-full space-y-6">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 blur-2xl rounded-full" />
+          <div className="flex flex-col justify-between h-full space-y-4">
             <div className="flex items-center justify-between">
-              <div className="w-14 h-14 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center text-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.1)]">
-                <Bomb size={24} />
+              <div className="w-10 h-10 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-center text-amber-600 dark:text-amber-500 shadow-sm">
+                <Bomb size={18} />
               </div>
-              <span className="text-[9px] font-black uppercase text-amber-400 tracking-widest bg-amber-500/5 px-2.5 py-1 rounded-md border border-amber-500/10">
-                Multiplicador Ativo
+              <span className="text-[8px] font-black uppercase text-amber-600 dark:text-amber-400 tracking-wider bg-amber-500/5 px-2 py-0.5 rounded border border-amber-500/10">
+                MULTIPLICADOR
               </span>
             </div>
 
             <div>
-              <h4 className="text-xl font-black text-white italic uppercase tracking-tight leading-tight">
+              <h4 className="text-sm font-black text-zinc-900 dark:text-white italic uppercase tracking-tight leading-none">
                 CAMPO MINADO AURA
               </h4>
-              <p className="text-[10px] font-bold text-white/30 uppercase mt-1">
+              <p className="text-[9px] font-bold text-zinc-400 dark:text-white/30 uppercase mt-1 leading-normal">
                 Ache canais seguros para subir de multiplicador e faça cashout!
               </p>
             </div>
@@ -965,25 +964,25 @@ export default function Games() {
         {/* Card 3: Reflexo Rápido */}
         <motion.div 
           onClick={() => { playSynthSound('click'); setActiveModal('reflex'); }}
-          whileHover={{ y: -4, scale: 1.01 }}
-          className="bg-[#0c0c0c] border border-white/[0.08] hover:border-blue-500/20 rounded-[40px] p-8 relative overflow-hidden group cursor-pointer transition-all"
+          whileHover={{ y: -2 }}
+          className="bg-zinc-100/60 dark:bg-[#0c0c0c]/80 border border-zinc-200/60 dark:border-white/[0.08] hover:border-blue-500/20 dark:hover:border-blue-500/20 rounded-2xl p-5 relative overflow-hidden group cursor-pointer transition-all flex flex-col justify-between"
         >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 blur-3xl rounded-full" />
-          <div className="flex flex-col justify-between h-full space-y-6">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 blur-2xl rounded-full" />
+          <div className="flex flex-col justify-between h-full space-y-4">
             <div className="flex items-center justify-between">
-              <div className="w-14 h-14 bg-blue-500/10 border border-blue-500/20 rounded-2xl flex items-center justify-center text-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.1)]">
-                <Target size={24} />
+              <div className="w-10 h-10 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center text-blue-500 shadow-sm">
+                <Target size={18} />
               </div>
-              <span className="text-[9px] font-black uppercase text-blue-400 tracking-widest bg-blue-500/5 px-2.5 py-1 rounded-md border border-blue-500/10">
-                Treino de Reação
+              <span className="text-[8px] font-black uppercase text-blue-600 dark:text-blue-400 tracking-wider bg-blue-500/5 px-2 py-0.5 rounded border border-blue-500/10">
+                REAÇÃO RÁPIDA
               </span>
             </div>
 
             <div>
-              <h4 className="text-xl font-black text-white italic uppercase tracking-tight leading-tight">
+              <h4 className="text-sm font-black text-zinc-900 dark:text-white italic uppercase tracking-tight leading-none">
                 REFLEXO RADIAL
               </h4>
-              <p className="text-[10px] font-bold text-white/30 uppercase mt-1">
+              <p className="text-[9px] font-bold text-zinc-400 dark:text-white/30 uppercase mt-1 leading-normal">
                 Acerte os alvos mutantes o mais rápido possível em 10 segundos!
               </p>
             </div>

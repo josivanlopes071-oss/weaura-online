@@ -321,14 +321,14 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`bg-[#0b0b0b] border border-white/[0.05] p-4 md:p-4 rounded-[24px] space-y-3 hover:border-purple-500/10 transition-colors relative ${
+      className={`bg-[#0b0b0b] border border-white/[0.04] p-3 sm:p-3.5 rounded-2xl space-y-2.5 hover:border-purple-500/10 transition-colors relative ${
         post.isPinned ? 'border-indigo-500/30 bg-indigo-950/5' : ''
       }`}
     >
       {/* Pinned label indicators */}
       {post.isPinned && (
-        <div className="absolute top-4 right-14 flex items-center gap-1 bg-indigo-500/20 px-2.5 py-1 rounded-full border border-indigo-500/30 text-[8px] font-black tracking-widest text-indigo-300 uppercase">
-          <Pin size={9} className="rotate-45" />
+        <div className="absolute top-3 right-12 flex items-center gap-1 bg-indigo-500/20 px-2 py-0.5 rounded-full border border-indigo-500/30 text-[7px] font-black tracking-widest text-indigo-300 uppercase">
+          <Pin size={8} className="rotate-45" />
           <span>Fixado</span>
         </div>
       )}
@@ -336,22 +336,22 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
       {/* Author Row Header */}
       <div className="flex items-center justify-between">
         <div 
-          className="flex items-center gap-4 cursor-pointer" 
+          className="flex items-center gap-2.5 cursor-pointer" 
           onClick={() => navigate(`/profile/${post.userId}`)}
         >
-          <UserAvatar uid={post.userId} className="w-12 h-12" />
+          <UserAvatar uid={post.userId} className="w-10 h-10" />
           <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h4 className="text-xs md:text-sm font-black text-white uppercase italic tracking-wide leading-none hover:text-purple-400 transition-colors">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h4 className="text-[11px] md:text-xs font-extrabold text-white uppercase italic tracking-wide leading-none hover:text-purple-400 transition-colors">
                 {post.userName}
               </h4>
-              <span className="bg-yellow-500 text-black text-[7.5px] font-black px-1.5 py-0.5 rounded-full">
+              <span className="bg-yellow-500 text-black text-[7px] font-black px-1 py-0.5 rounded-full">
                 LV.{post.userLevel || 1}
               </span>
             </div>
-            <div className="flex items-center gap-1.5 mt-1.5">
-              <Globe size={10} className="text-white/20" />
-              <span className="text-[8.5px] font-bold text-white/20 uppercase tracking-widest pointer-events-none">
+            <div className="flex items-center gap-1 mt-0.5">
+              <Globe size={9} className="text-white/20" />
+              <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest pointer-events-none">
                 Cantinho • {post.createdAt ? new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' }).format(new Date(post.createdAt)) : 'Recente'}
               </span>
             </div>
@@ -359,7 +359,7 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
         </div>
 
         {/* Action controls for Owners & Admins */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {isOwner && (
             <>
               {showDeleteConfirm ? (
@@ -390,12 +390,12 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
                 <>
                   <button
                     onClick={handlePinToggle}
-                    className={`p-2 rounded-xl border transition-all ${
+                    className={`p-1.5 rounded-lg border transition-all ${
                       post.isPinned ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-400' : 'bg-white/5 border-white/5 text-white/30 hover:text-white'
                     }`}
                     title={post.isPinned ? "Desfixar do perfil" : "Fixar no topo do perfil"}
                   >
-                    <Pin size={13} />
+                    <Pin size={11.5} />
                   </button>
                   <button
                     onClick={() => {
@@ -404,22 +404,22 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
                       setEditImageUrl(post.imageUrl || null);
                       setEditVideoUrl(post.videoUrl || null);
                     }}
-                    className={`p-2 rounded-xl border transition-all ${
+                    className={`p-1.5 rounded-lg border transition-all ${
                       isEditing ? 'bg-amber-500/20 border-amber-500/30 text-amber-400' : 'bg-white/5 border-white/5 text-white/30 hover:text-white'
                     }`}
                     title="Editar publicação"
                   >
-                    <Edit3 size={13} />
+                    <Edit3 size={11.5} />
                   </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowDeleteConfirm(true);
                     }}
-                    className="p-2 bg-rose-500/15 border border-rose-500/20 text-rose-400 hover:text-rose-300 rounded-xl active:scale-95 transition-all"
+                    className="p-1.5 bg-rose-500/15 border border-rose-500/20 text-rose-400 hover:text-rose-300 rounded-lg active:scale-95 transition-all"
                     title="Excluir publicação"
                   >
-                    <Trash2 size={13} />
+                    <Trash2 size={11.5} />
                   </button>
                 </>
               )}
@@ -430,14 +430,14 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
             <>
               {showReportConfirm ? (
                 <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 p-1 px-2 rounded-xl animate-pulse">
-                  <span className="text-[9.5px] font-bold text-red-400 uppercase tracking-wider">Denunciar?</span>
+                  <span className="text-[9px] font-bold text-red-400 uppercase tracking-wider">Denunciar?</span>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       handleReport();
                       setShowReportConfirm(false);
                     }}
-                    className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-[9.5px] font-black uppercase rounded-lg cursor-pointer"
+                    className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-[9px] font-black uppercase rounded-lg cursor-pointer"
                   >
                     Sim
                   </button>
@@ -446,7 +446,7 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
                       e.stopPropagation();
                       setShowReportConfirm(false);
                     }}
-                    className="px-2 py-1 bg-white/10 hover:bg-white/20 text-white text-[9.5px] font-black uppercase rounded-lg cursor-pointer"
+                    className="px-2 py-1 bg-white/10 hover:bg-white/20 text-white text-[9px] font-black uppercase rounded-lg cursor-pointer"
                   >
                     Não
                   </button>
@@ -462,12 +462,12 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
                     }
                     setShowReportConfirm(true);
                   }}
-                  className={`p-2 rounded-xl border transition-all ${
+                  className={`p-1.5 rounded-lg border transition-all ${
                     isReportedByMe ? 'bg-red-500/20 border-red-500/30 text-red-500' : 'bg-white/5 border-white/5 text-white/20 hover:text-white'
                   }`}
                   title="Denunciar conteúdo impróprio"
                 >
-                  <Flag size={13} />
+                  <Flag size={11.5} />
                 </button>
               )}
             </>
@@ -478,10 +478,10 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
       {/* Post Text Description Block */}
       <div className="space-y-2">
         {isEditing ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             <textarea
-              className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-xs font-semibold text-white outline-none focus:border-purple-500/35 resize-none font-sans"
-              rows={3}
+              className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-xs font-semibold text-white outline-none focus:border-purple-500/35 resize-none font-sans"
+              rows={2}
               value={editText}
               onChange={(e) => setEditText(e.target.value)}
             />
@@ -570,7 +570,7 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
                 <p className="text-[11px] text-white/40 italic font-medium">Buscando o bem-estar do clã, o conteúdo foi ocultado temporariamente.</p>
               </div>
             ) : (
-              <p className="text-xs md:text-[13px] font-medium text-zinc-200 leading-relaxed font-sans pr-1 break-words">
+              <p className="text-xs md:text-sm font-medium text-zinc-200 leading-normal font-sans pr-1 break-words">
                 {formatPostText(isTranslated ? getTranslatedText() : post.text)}
               </p>
             )}
@@ -579,13 +579,13 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
             {post.text && !isReportedByMe && (
               <button
                 onClick={() => setIsTranslated(!isTranslated)}
-                className={`flex items-center gap-1 mt-2.5 text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full border transition-all ${
+                className={`flex items-center gap-1 mt-1.5 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border transition-all ${
                   isTranslated
                     ? 'bg-purple-500/15 border-purple-500/20 text-purple-400'
                     : 'bg-white/5 border-white/5 text-white/30 hover:text-white'
                 }`}
               >
-                <Languages size={10} />
+                <Languages size={9} />
                 <span>{isTranslated ? "Ver Original" : "Traduzir"}</span>
               </button>
             )}
@@ -601,11 +601,11 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
             setZoomScale(1);
           }}
           onDoubleClick={handleImageDoubleClick}
-          className="w-full h-52 sm:h-60 rounded-2xl overflow-hidden border border-white/5 cursor-zoom-in group relative select-none flex items-center justify-center bg-[#070707] text-white"
+          className="w-full h-40 sm:h-48 rounded-xl overflow-hidden border border-white/5 cursor-zoom-in group relative select-none flex items-center justify-center bg-[#070707] text-white"
         >
           <img 
             src={post.imageUrl} 
-            className="w-full h-full object-cover rounded-2xl group-hover:scale-[1.02] transition-transform duration-500" 
+            className="w-full h-full object-cover rounded-xl group-hover:scale-[1.01] transition-transform duration-500" 
             alt="Anexo do Cantinho" 
             referrerPolicy="no-referrer"
           />
@@ -694,7 +694,7 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
 
       {/* Post Video Attachment with autoplay & control options */}
       {post.videoUrl && !isReportedByMe && (
-        <div className="rounded-2xl overflow-hidden border border-white/5 bg-black max-h-[350px] mb-1 relative flex items-center justify-center group text-white">
+        <div className="rounded-xl overflow-hidden border border-white/5 bg-black max-h-[250px] mb-1 relative flex items-center justify-center group text-white">
           <video 
             ref={videoRef}
             src={post.videoUrl} 
@@ -702,7 +702,7 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
             muted
             loop
             playsInline
-            className="w-full rounded-2xl object-contain max-h-[350px] cursor-pointer" 
+            className="w-full rounded-xl object-contain max-h-[250px] cursor-pointer" 
           />
 
           {/* Delete Video Button directly on the video for the owner */}
@@ -763,7 +763,7 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
       )}
 
       {/* Interaction Icons bar & indicators list */}
-      <div className="flex items-center justify-between pt-4 border-t border-white/[0.04] relative select-none">
+      <div className="flex items-center justify-between pt-2.5 border-t border-white/[0.03] relative select-none">
         
         {/* Dynamic Reaction Popover overlay (Love, Laugh, Fire etc) */}
         <AnimatePresence>
@@ -818,11 +818,11 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
           >
             <button
               onClick={handleLikeToggle}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full border text-[10px] font-black uppercase transition-all tracking-wider cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase transition-all tracking-wider cursor-pointer ${
                 isLiked ? 'bg-rose-500/10 border-rose-500/20 text-rose-500' : 'bg-white/5 border-white/5 text-white/40'
               }`}
             >
-              <Heart size={12} className={isLiked ? 'fill-rose-500 text-rose-500' : ''} />
+              <Heart size={11} className={isLiked ? 'fill-rose-500 text-rose-500' : ''} />
               <span>{likesCount} {likesCount === 1 ? 'Apoio' : 'Apoios'}</span>
             </button>
           </div>
@@ -830,9 +830,9 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
           {/* Comment access */}
           <button
             onClick={() => onCommentClick(post)}
-            className="flex items-center gap-2 bg-white/5 border border-white/5 text-white/40 hover:text-white px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+            className="flex items-center gap-1.5 bg-white/5 border border-white/5 text-white/40 hover:text-white px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
           >
-            <MessageSquare size={12} />
+            <MessageSquare size={11} />
             <span>{commentsCount}</span>
           </button>
         </div>
@@ -840,20 +840,20 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
         {/* Floating actions right (Bookmark, view counts etc) */}
         <div className="flex items-center gap-2">
           {/* View count indicator display badge */}
-          <div className="flex items-center gap-1.5 bg-white/[0.02] border border-white/5 text-white/20 px-3 py-2 rounded-full text-[9px] font-bold tracking-wider pointer-events-none">
-            <Eye size={11} className="text-white/30" />
+          <div className="flex items-center gap-1 bg-white/[0.02] border border-white/5 text-white/20 px-2 py-1 rounded-full text-[8.5px] font-bold tracking-wider pointer-events-none">
+            <Eye size={10} className="text-white/30" />
             <span className="tabular-nums">{viewsCount}</span>
           </div>
 
           {/* Save Post Bookmark action */}
           <button
             onClick={handleSaveToggle}
-            className={`p-2 rounded-xl border transition-all cursor-pointer ${
+            className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
               isSaved ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' : 'bg-white/5 border-white/5 text-white/30 hover:text-white'
             }`}
             title="Salvar publicação nos favoritos"
           >
-            <Bookmark size={13} className={isSaved ? 'fill-amber-500' : ''} />
+            <Bookmark size={11} className={isSaved ? 'fill-amber-500' : ''} />
           </button>
 
           {/* Share Action */}
@@ -871,10 +871,10 @@ export default function PostCard({ post, onCommentClick, onHashtagClick }: PostC
                 console.error(err);
               }
             }}
-            className="p-2 bg-white/5 border border-white/5 text-white/30 hover:text-white rounded-xl active:scale-90 transition-all cursor-pointer"
+            className="p-1.5 bg-white/5 border border-white/5 text-white/30 hover:text-white rounded-lg active:scale-90 transition-all cursor-pointer"
             title="Copiar link de compartilhamento"
           >
-            <Share2 size={13} />
+            <Share2 size={11.5} />
           </button>
         </div>
 

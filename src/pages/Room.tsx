@@ -324,6 +324,7 @@ export default function Room() {
   const [showSpeakRequestsQueue, setShowSpeakRequestsQueue] = useState(false);
   const [showRoomRank, setShowRoomRank] = useState(false);
   const [showShareToast, setShowShareToast] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [uptime, setUptime] = useState('00:00');
   const [entranceAnnouncements, setEntranceAnnouncements] = useState<{ id: string, uid: string, name: string, photoURL: string, role?: string, isVip?: boolean, vipPlan?: string | null }[]>([]);
   
@@ -1412,7 +1413,7 @@ export default function Room() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 relative">
           {/* Unified Stats & Diagnostics Icon */}
           <button 
             onClick={() => setShowSignalModal(true)}
@@ -1459,27 +1460,61 @@ export default function Room() {
             );
           })()}
 
-          <button 
-            onClick={() => setForceShowTour(true)}
-            className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-white/30 hover:text-white hover:border-white/20 transition-all active:scale-90"
-            title="Como Funciona"
-          >
-            <HelpCircle size={22} />
-          </button>
-          <button 
-            onClick={handleShareRoom}
-            className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-pink-400 hover:text-pink-300 hover:border-pink-500/20 transition-all active:scale-90"
-            title="Compartilhar Link da Sala"
-          >
-            <Share2 size={20} />
-          </button>
-          <button 
-            onClick={handleLeaveRoom}
-            className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white text-black hover:bg-red-500 hover:text-white transition-all active:scale-90 shadow-[0_10px_20px_rgba(255,255,255,0.1)]"
-            title="Sair Canal"
-          >
-            <LogOut size={22} />
-          </button>
+          {/* More Menu Dropdown */}
+          <div className="relative z-30">
+            <button 
+              onClick={() => setShowMoreMenu(!showMoreMenu)}
+              className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/5 border border-white/10 text-white/40 hover:text-white transition-all active:scale-90 cursor-pointer"
+              title="Mais Opções"
+            >
+              <MoreVertical size={20} />
+            </button>
+            
+            {showMoreMenu && (
+              <>
+                <div 
+                  className="fixed inset-0 z-30" 
+                  onClick={() => setShowMoreMenu(false)} 
+                />
+                <div className="absolute right-0 mt-2.5 w-52 bg-[#0c0c0c] border border-white/10 rounded-2xl shadow-2xl p-2 z-40 space-y-1 backdrop-blur-xl">
+                  <button
+                    onClick={() => {
+                      setShowMoreMenu(false);
+                      handleShareRoom();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-xs text-white/85 hover:bg-white/5 hover:text-white font-black uppercase tracking-wider transition-all"
+                  >
+                    <Share2 size={16} className="text-pink-400" />
+                    <span>Compartilhar</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowMoreMenu(false);
+                      setForceShowTour(true);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-xs text-white/85 hover:bg-white/5 hover:text-white font-black uppercase tracking-wider transition-all"
+                  >
+                    <HelpCircle size={16} className="text-purple-400" />
+                    <span>Como Funciona</span>
+                  </button>
+
+                  <div className="h-[1px] bg-white/5 my-1" />
+
+                  <button
+                    onClick={() => {
+                      setShowMoreMenu(false);
+                      handleLeaveRoom();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left text-xs font-black uppercase tracking-wider text-red-500 hover:bg-red-500/10 transition-all"
+                  >
+                    <LogOut size={16} />
+                    <span>Sair da Sala</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
@@ -1974,9 +2009,6 @@ export default function Room() {
                       style={{ accentColor: currentTheme.primary }}
                     />
                   </div>
-                  <p className="text-[10px] text-white/40 mt-3 font-semibold leading-relaxed">
-                    Ajuste o volume deste participante para você. Mudanças aqui não afetam outras pessoas na sala.
-                  </p>
                 </div>
               )}
 
@@ -2182,7 +2214,6 @@ export default function Room() {
             <div className="flex justify-between items-center mb-10 max-w-sm mx-auto w-full">
               <div>
                  <h2 className="text-xl font-bold text-white">Configurações</h2>
-                 <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest mt-1">Gestão da Sala</p>
               </div>
               <button onClick={() => setShowSettings(false)} className="p-2.5 bg-white/5 rounded-2xl text-white/40 border border-white/5 active:scale-90 transition-all">
                 <X size={20} />
@@ -2272,7 +2303,6 @@ export default function Room() {
                 <div className="p-4 bg-white/5 rounded-2xl border border-white/5 flex items-center justify-between">
                   <div>
                     <h4 className="text-xs font-bold text-white">Microfone Livre</h4>
-                    <p className="text-[10px] text-white/20 font-medium">Permitir que todos falem</p>
                   </div>
                   <button 
                     onClick={() => setEditFreeMic(!editFreeMic)}
@@ -2285,7 +2315,6 @@ export default function Room() {
                 <div className="p-4 bg-white/5 rounded-2xl border border-white/5 flex items-center justify-between">
                   <div>
                     <h4 className="text-xs font-bold text-white">Convidados ao Lado do Host</h4>
-                    <p className="text-[10px] text-white/20 font-medium">Permitir assentos de co-host (1 e 2)</p>
                   </div>
                   <button 
                     onClick={() => setEditAllowGuestsNextToHost(!editAllowGuestsNextToHost)}

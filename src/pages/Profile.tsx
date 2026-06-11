@@ -72,6 +72,7 @@ export default function Profile() {
   const [sentGifts, setSentGifts] = useState<any[]>([]);
   const [selectedMedal, setSelectedMedal] = useState<any | null>(null);
   const [visibleActivitiesCount, setVisibleActivitiesCount] = useState(5);
+  const [showAllUtilities, setShowAllUtilities] = useState(false);
 
   // States for simplified popups
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
@@ -125,7 +126,7 @@ export default function Profile() {
             </div>
             <div className="text-left">
               <h3 className="text-sm font-black text-white uppercase italic tracking-wide group-hover:text-purple-400 transition-colors">{title}</h3>
-              <p className="text-[9px] text-white/30 uppercase tracking-widest leading-none mt-1">{subtitle}</p>
+              {subtitle && <p className="text-[9px] text-white/30 uppercase tracking-widest leading-none mt-1">{subtitle}</p>}
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -799,7 +800,7 @@ export default function Profile() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="pb-32 bg-[#020202] min-h-screen"
+      className="pb-32 bg-transparent min-h-screen"
     >
       {/* Hidden File Input for Gallery */}
       <input 
@@ -1153,54 +1154,54 @@ export default function Profile() {
               {activeTab === 'perfil' && (
                 <div className="w-full space-y-4">
                   {renderCollapsibleCard(
-                    'bio',
-                    'Biografia do Explorador',
-                    'Sua apresentação pessoal',
+                    'bio_progresso',
+                    'Aura & Progressão',
+                    '',
                     Edit2,
-                    null,
-                    <div className="premium-card p-6 bg-[#0c0c0c] border border-white/[0.04] rounded-[28px] text-left">
-                      <p className="text-xs text-white/70 font-semibold leading-relaxed whitespace-pre-line text-left">
-                        {displayProfile.bio || "O explorador prefere o mistério e ainda não preencheu sua biografia."}
-                      </p>
-                    </div>
-                  )}
-
-                  {renderCollapsibleCard(
-                    'nivel',
-                    'Nível e XP Progresso',
-                    'Seu progresso geral na rede',
-                    Smile,
                     `Nível ${displayProfile.level || 1}`,
-                    (() => {
-                      const currentLvl = displayProfile.level || 1;
-                      const currentXp = displayProfile.xp || 0;
-                      const xpNeeded = getXpNeededForLevel(currentLvl);
-                      const pct = Math.min(100, Math.floor((currentXp / xpNeeded) * 100));
-
-                      return (
-                        <div className="premium-card p-6 bg-[#0c0c0c] border border-white/[0.04] rounded-[28px] space-y-4 text-left">
-                          <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider text-left">
-                            <span className="text-white/40">Progresso do Nível {currentLvl}</span>
-                            <span className="text-purple-400 font-mono">{currentXp} / {xpNeeded} XP ({pct}%)</span>
-                          </div>
-                          <div className="w-full h-2.5 bg-black rounded-full overflow-hidden p-0.5 border border-white/5 pink-inner">
-                            <div 
-                              className="h-full bg-gradient-to-r from-[#8A2EFF] to-pink-500 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(138,46,255,0.4)]"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                          <p className="text-[10px] text-white/30 font-semibold uppercase tracking-wider italic text-left">
-                            Adquira moedas, complete partidas e ganhe destaque no clã para acelerar seu avanço de classe.
-                          </p>
+                    <div className="premium-card p-6 bg-[#0c0c0c] border border-white/[0.04] rounded-[28px] text-left space-y-6">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-purple-400">
+                          <Edit2 size={11} /> Biografia do Explorador
                         </div>
-                      );
-                    })()
+                        <p className="text-xs text-white/70 font-semibold leading-relaxed whitespace-pre-line text-left">
+                          {displayProfile.bio || "O explorador prefere o mistério e ainda não preencheu sua biografia."}
+                        </p>
+                      </div>
+
+                      <div className="h-px bg-white/[0.04] w-full" />
+
+                      {(() => {
+                        const currentLvl = displayProfile.level || 1;
+                        const currentXp = displayProfile.xp || 0;
+                        const xpNeeded = getXpNeededForLevel(currentLvl);
+                        const pct = Math.min(100, Math.floor((currentXp / xpNeeded) * 100));
+
+                        return (
+                          <div className="space-y-4 text-left">
+                            <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-purple-400">
+                              <Smile size={11} /> Progresso do Nível {currentLvl}
+                            </div>
+                            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider text-left">
+                              <span className="text-white/40">Progresso Geral</span>
+                              <span className="text-purple-400 font-mono">{currentXp} / {xpNeeded} XP ({pct}%)</span>
+                            </div>
+                            <div className="w-full h-2.5 bg-black rounded-full overflow-hidden p-0.5 border border-white/5 pink-inner">
+                              <div 
+                                className="h-full bg-gradient-to-r from-[#8A2EFF] to-pink-500 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(138,46,255,0.4)]"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
                   )}
 
                   {renderCollapsibleCard(
                     'conquistas',
                     'Conquistas Principais',
-                    'Missões e Emblemas WeAura',
+                    '',
                     Trophy,
                     `${calculateAchievements().filter(a => a.unlocked).length} / ${calculateAchievements().length} Desbl.`,
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1">
@@ -1234,11 +1235,11 @@ export default function Profile() {
 
               {/* Tab 2 - Aura */}
               {activeTab === 'aura' && (
-                <div className="w-full space-y-4">
+                <div className="w-full space-y-4 font-sans">
                   {renderCollapsibleCard(
                     'auraTotal',
-                    'Aura Total e Prestígio',
-                    'Insígnias e Atributos de Aura',
+                    'Aura & Ranking Global',
+                    '',
                     Sparkles,
                     `✨ ${(displayProfile.aura || 0).toLocaleString()}`,
                     <div className="w-full space-y-6">
@@ -1252,66 +1253,68 @@ export default function Profile() {
                         const targetDiff = maxPoints - minPoints;
                         const earnedInLevel = auraPoints - minPoints;
                         const auraProgressPct = Math.max(0, Math.min(100, targetDiff > 0 ? Math.floor((earnedInLevel / targetDiff) * 100) : 100));
+                        const rankPos = leaderboard.findIndex(u => u.id === displayProfile.uid) + 1;
 
                         return (
                           <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Certificado */}
-                            <div className="premium-card p-6 relative flex flex-col justify-between overflow-hidden group border border-purple-500/10 min-h-[220px] text-left">
+                            <div className="premium-card p-6 relative flex flex-col justify-between overflow-hidden group border border-purple-500/10 min-h-[200px] text-left">
                                <div className="absolute -top-12 -right-12 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
                                <div className="relative z-10">
                                   <span className="text-[10px] font-black uppercase tracking-[0.3em] text-purple-400 italic mb-2 block flex items-center gap-1.5">
                                      <Sparkles size={11} className="text-pink-500/80" /> Certificado de Aura
                                   </span>
-                                  <h3 className="text-2xl font-black text-white italic uppercase tracking-tight leading-tight mt-1">
+                                  <h3 className="text-xl font-black text-white italic uppercase tracking-tight leading-tight mt-1">
                                      {auraInfo.name}
                                   </h3>
-                                  <p className="text-[11px] font-semibold text-white/40 mt-2 uppercase tracking-wider italic">
+                                  <p className="text-[10px] font-semibold text-white/40 mt-1 uppercase tracking-wider italic">
                                      Insígnia: <span className="text-purple-400 font-extrabold">{auraInfo.insignia}</span>
                                   </p>
                                </div>
-                               <div className="relative z-10 flex items-end justify-between mt-6">
+                               <div className="relative z-10 flex items-end justify-between mt-4">
                                   <div className="text-left">
                                      <span className="text-[9px] font-black uppercase tracking-widest text-white/30 block">Valor Acumulado</span>
-                                     <span className="text-xl font-black italic tracking-tighter text-white">
+                                     <span className="text-base font-black italic tracking-tighter text-white">
                                         ✨ {auraPoints.toLocaleString('pt-BR')}
                                      </span>
                                   </div>
-                                  <div className={`p-3 rounded-[16px] border ${auraInfo.badgeBorder} ${auraInfo.badgeBg} flex items-center justify-center`}>
-                                     <span className="text-xs font-mono font-black text-white">Classe {currentAuraLevel}</span>
+                                  <div className={`p-2.5 rounded-[12px] border ${auraInfo.badgeBorder} ${auraInfo.badgeBg} flex items-center justify-center`}>
+                                     <span className="text-[10px] font-mono font-black text-white">Classe {currentAuraLevel}</span>
                                   </div>
                                </div>
                             </div>
 
                             {/* Progresso / Prerrogativas */}
-                            <div className="premium-card p-6 relative flex flex-col justify-between overflow-hidden border border-white/[0.04] min-h-[220px] text-left">
-                               <div className="space-y-3">
-                                  <div className="flex justify-between items-center">
-                                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 italic">Progresso de Brilho</span>
+                            <div className="premium-card p-6 relative flex flex-col justify-between overflow-hidden border border-white/[0.04] min-h-[200px] text-left">
+                               <div className="space-y-2">
+                                  <div className="flex justify-between items-center bg-[#060606] px-3 py-1.5 rounded-xl border border-white/5">
+                                     <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/40 italic">Sua Colocação</span>
                                      <span className="text-xs font-black text-purple-400 font-mono italic">
-                                        {auraProgressPct}%
+                                        #{rankPos > 0 ? rankPos : '100+'} / {leaderboard.length || 100}
                                      </span>
                                   </div>
-                                  <div className="w-full h-3 bg-black rounded-full overflow-hidden p-0.5 border border-white/5">
+                                  <div className="flex justify-between items-center text-[10px] font-black uppercase text-white/40">
+                                     <span>Progresso de Brilho</span>
+                                     <span className="text-[#8A2EFF] font-semibold">{auraProgressPct}%</span>
+                                  </div>
+                                  <div className="w-full h-2 bg-black rounded-full overflow-hidden p-0.5 border border-white/5">
                                      <div 
-                                        className="h-full bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded-full shadow-[0_0_15px_rgba(168,85,247,0.5)]"
+                                        className="h-full bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded-full"
                                         style={{ width: `${auraProgressPct}%` }}
                                      />
                                   </div>
                                </div>
 
-                               <div className="bg-black/40 border border-white/[0.03] p-4 rounded-2xl space-y-1.5 mt-4">
-                                  <h4 className="text-[9px] font-black text-white/30 uppercase tracking-widest italic flex items-center gap-1.5">
-                                     <Unlock size={11} className="text-emerald-400" /> Prerrogativas do Nível
+                               <div className="bg-black/40 border border-white/[0.03] p-3 rounded-xl space-y-1 mt-3">
+                                  <h4 className="text-[8px] font-black text-white/30 uppercase tracking-widest italic flex items-center gap-1">
+                                     <Unlock size={10} className="text-emerald-400" /> Prerrogativas do Nível
                                   </h4>
-                                  <div className="grid grid-cols-2 gap-2 text-[9.5px] font-black text-white/60 text-left">
+                                  <div className="grid grid-cols-2 gap-2 text-[9px] font-black text-white/60 text-left">
                                      {auraInfo.benefits.slice(0, 4).map((b, idx) => (
-                                        <div key={idx} className="flex items-center gap-1.5 truncate">
+                                        <div key={idx} className="flex items-center gap-1 truncate">
                                            <span className="text-emerald-400">✓</span> {b}
                                         </div>
                                      ))}
-                                     {auraInfo.benefits.length === 0 && (
-                                        <div className="col-span-2 text-white/35 italic">Benefícios de Prestígio Base</div>
-                                     )}
                                   </div>
                                </div>
                             </div>
@@ -1324,7 +1327,7 @@ export default function Profile() {
                   {renderCollapsibleCard(
                     'historicoAura',
                     'Histórico de Presentes e Transações',
-                    'Aura de Presentes Recebidos',
+                    '',
                     Clock,
                     `${receivedGifts.length} Transações`,
                     <div className="space-y-3 text-left">
@@ -1357,7 +1360,7 @@ export default function Profile() {
                   {renderCollapsibleCard(
                     'ranking',
                     'Ranking Global',
-                    'Sua colocação no servidor',
+                    '',
                     TrendingUp,
                     (() => {
                       const rankPos = leaderboard.findIndex(u => u.id === displayProfile.uid) + 1;
@@ -1400,7 +1403,7 @@ export default function Profile() {
                   {renderCollapsibleCard(
                     'presentes',
                     'Estojo de Presentes Recebidos',
-                    'Vitrine de mimos e presentes',
+                    '',
                     Gift,
                     `${receivedGifts.reduce((acc: number, t: any) => acc + (t.quantity || 1), 0)} Recebidos`,
                     <div>
@@ -1451,7 +1454,7 @@ export default function Profile() {
                   {renderCollapsibleCard(
                     'todasMedalhas',
                     'Mural de Medalhas de Honra',
-                    'Suas medalhas recebidas por conquistas no clã',
+                    '',
                     Shield,
                     `${calculateMedals().filter(m => m.unlocked).length} / ${calculateMedals().length} Desbl.`,
                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 pt-1">
@@ -1484,83 +1487,78 @@ export default function Profile() {
                   )}
 
                   {renderCollapsibleCard(
-                    'titulos',
-                    'Títulos e Patentes Ativas',
-                    'Seleções honorárias das suas patentes',
+                    'titulos_distintivos',
+                    'Títulos e Distintivos Sociais',
+                    '',
                     Crown,
-                    displayProfile.equippedTitle || 'Nenhum',
-                    <div className="premium-card p-6 bg-[#0c0c0c] border border-white/[0.04] rounded-[28px] text-left space-y-4">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[#8A2EFF] italic block text-left">Mural de Patentes Ativas</span>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
-                        {EXCLUSIVE_TITLES.map((titleDef) => {
-                          const hasLevel = (displayProfile.level || 1) >= titleDef.minLevel;
-                          const isEquipped = displayProfile.equippedTitle === titleDef.title;
-                          return (
-                            <div 
-                              key={titleDef.title} 
-                              className={`p-4 rounded-2xl border flex items-center justify-between transition-all text-left ${
-                                isEquipped 
-                                  ? 'border-[#8A2EFF]/30 bg-purple-950/10 shadow-[0_0_12px_rgba(138,46,255,0.08)]' 
-                                  : hasLevel 
-                                    ? 'border-white/5 bg-[#080808]/40' 
-                                    : 'border-white/[0.02] bg-black/60 opacity-30 shadow-none'
-                              }`}
-                            >
-                              <div className="flex items-center gap-3">
-                                <span className="text-xl">🏆</span>
-                                <div>
-                                  <h4 className={`text-xs font-black uppercase tracking-wider italic ${titleDef.colorClass}`}>{titleDef.title}</h4>
-                                  <p className="text-[9px] text-white/40 block mt-0.5 leading-none">Min. Lvl {titleDef.minLevel}</p>
+                    displayProfile.equippedTitle ? `Título: ${displayProfile.equippedTitle}` : (displayProfile.role === 'admin' ? 'Master Admin' : 'Explorador'),
+                    <div className="space-y-6">
+                      <div className="premium-card p-6 bg-[#0c0c0c] border border-white/[0.04] rounded-[28px] text-left space-y-4">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[#8A2EFF] italic block text-left">Mural de Patentes Ativas</span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                          {EXCLUSIVE_TITLES.map((titleDef) => {
+                            const hasLevel = (displayProfile.level || 1) >= titleDef.minLevel;
+                            const isEquipped = displayProfile.equippedTitle === titleDef.title;
+                            return (
+                              <div 
+                                key={titleDef.title} 
+                                className={`p-4 rounded-2xl border flex items-center justify-between transition-all text-left ${
+                                  isEquipped 
+                                    ? 'border-[#8A2EFF]/30 bg-purple-950/10 shadow-[0_0_12px_rgba(138,46,255,0.08)]' 
+                                    : hasLevel 
+                                      ? 'border-white/5 bg-[#080808]/40' 
+                                      : 'border-white/[0.02] bg-black/60 opacity-30 shadow-none'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <span className="text-xl">🏆</span>
+                                  <div>
+                                    <h4 className={`text-xs font-black uppercase tracking-wider italic ${titleDef.colorClass}`}>{titleDef.title}</h4>
+                                    <p className="text-[9px] text-white/40 block mt-0.5 leading-none">Min. Lvl {titleDef.minLevel}</p>
+                                  </div>
                                 </div>
+                                {isEquipped ? (
+                                  <span className="text-[8px] font-black text-[#8A2EFF] bg-[#8A2EFF]/10 border border-[#8A2EFF]/25 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0">Equipado</span>
+                                ) : hasLevel ? (
+                                  <span className="text-[8px] font-black text-white/40 uppercase tracking-widest shrink-0">Disponível</span>
+                                ) : (
+                                  <span className="text-[8px] text-white/20 font-black shrink-0"><Lock size={10} /></span>
+                                )}
                               </div>
-                              {isEquipped ? (
-                                <span className="text-[8px] font-black text-[#8A2EFF] bg-[#8A2EFF]/10 border border-[#8A2EFF]/25 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0">Equipado</span>
-                              ) : hasLevel ? (
-                                <span className="text-[8px] font-black text-white/40 uppercase tracking-widest shrink-0">Disponível</span>
-                              ) : (
-                                <span className="text-[8px] text-white/20 font-black shrink-0"><Lock size={10} /></span>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {renderCollapsibleCard(
-                    'distintivos',
-                    'Patentes e Distintivos Sociais',
-                    'Marcas honorárias e graduações WeAura',
-                    ShieldAlert,
-                    displayProfile.role === 'admin' ? 'Master Admin' : 'Explorador',
-                    <div className="premium-card p-6 bg-[#0c0c0c] border border-white/[0.04] rounded-[28px] text-left space-y-4">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-[#8A2EFF] italic block">Insígnias de Influência Social</span>
-                      <div className="flex flex-col gap-3">
-                        <div className="p-4 bg-[#080808]/40 border border-white/5 rounded-2xl flex items-center gap-4 text-left">
-                          <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/25 flex items-center justify-center shrink-0">
-                            <Shield size={18} className="text-purple-400" />
-                          </div>
-                          <div>
-                            <span className="text-xs font-black text-white uppercase italic block leading-none">
-                              {displayProfile.role === 'admin' ? 'Moderador Supremo' : 'Membro Explorador'}
-                            </span>
-                            <span className="text-[9px] text-white/45 uppercase tracking-wide block mt-1.5 leading-relaxed">
-                              {displayProfile.role === 'admin' ? 'Autoridade administrativa com acesso a ferramentas de gestão de chat, denúncia e banimento' : 'Membro civil e explorador ativo na comunidade WeAura'}
-                            </span>
-                          </div>
+                            );
+                          })}
                         </div>
+                      </div>
 
-                        <div className="p-4 bg-[#080808]/40 border border-white/5 rounded-2xl flex items-center gap-4 text-left">
-                          <div className="w-10 h-10 rounded-xl bg-yellow-500/10 border border-yellow-500/25 flex items-center justify-center shrink-0">
-                            <Crown size={18} className="text-yellow-400" />
+                      <div className="premium-card p-6 bg-[#0c0c0c] border border-white/[0.04] rounded-[28px] text-left space-y-4">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-[#8A2EFF] italic block">Insígnias de Influência Social</span>
+                        <div className="flex flex-col gap-3">
+                          <div className="p-4 bg-[#080808]/40 border border-white/5 rounded-2xl flex items-center gap-4 text-left">
+                            <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/25 flex items-center justify-center shrink-0">
+                              <Shield size={18} className="text-purple-400" />
+                            </div>
+                            <div>
+                              <span className="text-xs font-black text-white uppercase italic block leading-none">
+                                {displayProfile.role === 'admin' ? 'Moderador Supremo' : 'Membro Explorador'}
+                              </span>
+                              <span className="text-[9px] text-white/45 uppercase tracking-wide block mt-1.5 leading-relaxed">
+                                {displayProfile.role === 'admin' ? 'Autoridade administrativa com acesso a ferramentas de gestão de chat, denúncia e banimento' : 'Membro civil e explorador ativo na comunidade WeAura'}
+                              </span>
+                            </div>
                           </div>
-                          <div>
-                            <span className="text-xs font-black text-white uppercase italic block leading-none">
-                              {displayProfile.isVip ? `Assinante VIP (${displayProfile.vipPlan})` : 'Assinante Standard'}
-                            </span>
-                            <span className="text-[9px] text-white/45 uppercase tracking-wide block mt-1.5 leading-relaxed">
-                              {displayProfile.isVip ? `Nível de prestígio elevado com multiplicador de Aura, cores de chat exclusivas e histórias` : 'Assinatura comum sem privilégios adicionais de nobreza clã'}
-                            </span>
+
+                          <div className="p-4 bg-[#080808]/40 border border-white/5 rounded-2xl flex items-center gap-4 text-left">
+                            <div className="w-10 h-10 rounded-xl bg-yellow-500/10 border border-yellow-500/25 flex items-center justify-center shrink-0">
+                              <Crown size={18} className="text-yellow-400" />
+                            </div>
+                            <div>
+                              <span className="text-xs font-black text-white uppercase italic block leading-none">
+                                {displayProfile.isVip ? `Assinante VIP (${displayProfile.vipPlan})` : 'Assinante Standard'}
+                              </span>
+                              <span className="text-[9px] text-white/45 uppercase tracking-wide block mt-1.5 leading-relaxed">
+                                {displayProfile.isVip ? `Nível de prestígio elevado com multiplicador de Aura, cores de chat exclusivas e histórias` : 'Assinatura comum sem privilégios adicionais de nobreza clã'}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1575,7 +1573,7 @@ export default function Profile() {
                   {renderCollapsibleCard(
                     'visitantes',
                     'Visitantes do Perfil Recentes',
-                    'Membros que visualizaram sua aura',
+                    '',
                     Eye,
                     recentVisitors.length,
                     <div className="premium-card p-6 bg-[#0c0c0c] border border-white/[0.04] rounded-[28px] text-left text-semibold">
@@ -1621,48 +1619,60 @@ export default function Profile() {
                   {isMyProfile && renderCollapsibleCard(
                     'eventos',
                     'Central de Utilidades e Painéis',
-                    'Stories, Humores, Segurança e Suporte',
+                    '',
                     Settings,
                     'Painel de Controle',
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-left">
-                      {[
-                        { label: 'Momentos', desc: 'Stories temporários de 24h', icon: Clock, color: 'text-purple-400 border-purple-500/20 bg-purple-500/5', action: () => setIsMomentsOpen(true) },
-                        { label: 'Status Ativo', desc: 'Sua mensagem & humor ativo', icon: Smile, color: 'text-rose-400 border-rose-500/20 bg-rose-500/5', action: () => setIsStatusOpen(true) },
-                        { label: 'Visitantes Recentes', desc: 'Quem andou visitando seu perfil', icon: Users, color: 'text-blue-400 border-blue-500/20 bg-blue-500/5', action: () => setIsVisitorsOpen(true) },
-                        { label: 'Convidar Amigos', desc: 'Indique amigos e fature moedas', icon: Gift, color: 'text-pink-400 border-pink-500/20 bg-pink-500/5', action: () => setIsInviteOpen(true) },
-                        { label: 'Grau de Nobreza', desc: 'Confira sua influência no clã', icon: Crown, color: 'text-amber-400 border-amber-500/20 bg-amber-500/5', action: () => setIsNobilityOpen(true) },
-                        { label: 'Centro de Segurança', desc: 'Proteção 2FA, SMS & Aparelhos', icon: ShieldAlert, color: 'text-green-400 border-green-500/20 bg-green-500/5', action: () => setIsSecurityOpen(true) },
-                        { label: 'Tópicos de Contribuição', desc: 'Deixe feedbacks e colabore', icon: MessageSquareText, color: 'text-cyan-400 border-cyan-500/20 bg-[#0c0c0c]', action: () => setIsFeedbackOpen(true) },
-                        { label: 'Controle Parental', desc: 'Limite de chat e bloqueios', icon: HeartHandshake, color: 'text-red-400 border-rose-500/20 bg-red-500/5', action: () => setIsParentalOpen(true) },
-                        { label: 'Central de Ajuda WeAura', desc: 'Guia de XP, Moedas e Regras', icon: HelpCircle, color: 'text-zinc-400 border-zinc-500/20 bg-zinc-500/5', action: () => setIsHelpOpen(true) },
-                      ].map((opt, idx) => {
-                        const IconComponent = opt.icon;
-                        return (
-                          <button
-                            key={idx}
-                            onClick={opt.action}
-                            className="flex items-center justify-between p-5 bg-[#0c0c0c] border border-white/[0.04] hover:border-[#8A2EFF]/30 transition-all rounded-[24px] text-left group cursor-pointer w-full"
-                          >
-                             <div className="flex items-center gap-4 min-w-0">
-                                <div className={`w-12 h-12 rounded-2xl border ${opt.color} flex items-center justify-center shrink-0`}>
-                                   <IconComponent size={20} />
-                                </div>
-                                <div className="truncate">
-                                   <h4 className="text-sm font-black text-white uppercase italic tracking-wide group-hover:text-[#8A2EFF] transition-colors">{opt.label}</h4>
-                                   <p className="text-[9px] font-bold text-white/35 uppercase tracking-widest mt-1 truncate">{opt.desc}</p>
-                                </div>
-                             </div>
-                             <ChevronRight size={16} className="text-white/20 group-hover:text-white transition-colors shrink-0" />
-                          </button>
-                        );
-                      })}
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-left">
+                        {[
+                          { label: 'Momentos', desc: 'Stories temporários de 24h', icon: Clock, color: 'text-purple-400 border-purple-500/20 bg-purple-500/5', action: () => setIsMomentsOpen(true) },
+                          { label: 'Status Ativo', desc: 'Sua mensagem & humor ativo', icon: Smile, color: 'text-rose-400 border-rose-500/20 bg-rose-500/5', action: () => setIsStatusOpen(true) },
+                          { label: 'Visitantes Recentes', desc: 'Quem andou visitando seu perfil', icon: Users, color: 'text-blue-400 border-blue-500/20 bg-blue-500/5', action: () => setIsVisitorsOpen(true) },
+                          { label: 'Convidar Amigos', desc: 'Indique amigos e fature moedas', icon: Gift, color: 'text-pink-400 border-pink-500/20 bg-pink-500/5', action: () => setIsInviteOpen(true) },
+                          { label: 'Grau de Nobreza', desc: 'Confira sua influência no clã', icon: Crown, color: 'text-amber-400 border-amber-500/20 bg-amber-500/5', action: () => setIsNobilityOpen(true) },
+                          { label: 'Centro de Segurança', desc: 'Proteção 2FA, SMS & Aparelhos', icon: ShieldAlert, color: 'text-green-400 border-green-500/20 bg-green-500/5', action: () => setIsSecurityOpen(true) },
+                          { label: 'Tópicos de Contribuição', desc: 'Deixe feedbacks e colabore', icon: MessageSquareText, color: 'text-cyan-400 border-cyan-500/20 bg-[#0c0c0c]', action: () => setIsFeedbackOpen(true) },
+                          { label: 'Controle Parental', desc: 'Limite de chat e bloqueios', icon: HeartHandshake, color: 'text-red-400 border-rose-500/20 bg-red-500/5', action: () => setIsParentalOpen(true) },
+                          { label: 'Central de Ajuda WeAura', desc: 'Guia de XP, Moedas e Regras', icon: HelpCircle, color: 'text-zinc-400 border-zinc-500/20 bg-zinc-500/5', action: () => setIsHelpOpen(true) },
+                        ].filter((_, idx) => showAllUtilities || idx < 4).map((opt, idx) => {
+                          const IconComponent = opt.icon;
+                          return (
+                            <button
+                              key={idx}
+                              onClick={opt.action}
+                              className="flex items-center justify-between p-5 bg-[#0c0c0c] border border-white/[0.04] hover:border-[#8A2EFF]/30 transition-all rounded-[24px] text-left group cursor-pointer w-full text-semibold"
+                            >
+                               <div className="flex items-center gap-4 min-w-0">
+                                  <div className={`w-12 h-12 rounded-2xl border ${opt.color} flex items-center justify-center shrink-0`}>
+                                     <IconComponent size={20} />
+                                  </div>
+                                  <div className="truncate">
+                                     <h4 className="text-sm font-black text-white uppercase italic tracking-wide group-hover:text-[#8A2EFF] transition-colors">{opt.label}</h4>
+                                  </div>
+                               </div>
+                               <ChevronRight size={16} className="text-white/20 group-hover:text-white transition-colors shrink-0" />
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex justify-center pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowAllUtilities(!showAllUtilities)}
+                          className="px-5 py-2.5 rounded-xl border border-white/5 bg-[#0b0b0b] hover:bg-neutral-900 text-white font-black uppercase text-[9px] tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
+                        >
+                          {showAllUtilities ? "Recolher Painéis" : "Ver Mais Utilidades"}
+                          <ChevronDown size={12} className={`transform transition-transform ${showAllUtilities ? 'rotate-180' : ''}`} />
+                        </button>
+                      </div>
                     </div>
                   )}
 
                   {renderCollapsibleCard(
                     'historicoAtividades',
                     'Histórico de Atividades Recentes',
-                    'Seu log geral de disputas e conquistas',
+                    '',
                     Clock,
                     `${getActivityTimeline().length} Registros`,
                     <div className="text-left mt-2">
@@ -1954,7 +1964,6 @@ export default function Profile() {
                               </div>
                               <div className="truncate">
                                  <h4 className="text-sm font-black text-white uppercase italic tracking-wide group-hover:text-purple-400 transition-colors">{opt.label}</h4>
-                                 <p className="text-[9px] font-bold text-white/35 uppercase tracking-widest mt-1 truncate">{opt.desc}</p>
                               </div>
                            </div>
                            <ChevronRight size={16} className="text-white/20 group-hover:text-white transition-colors shrink-0" />
@@ -2774,7 +2783,6 @@ export default function Profile() {
                      </div>
                      <button onClick={() => setIsFeedbackOpen(false)} className="p-2 bg-white/5 rounded-xl text-white/40"><X size={16} /></button>
                   </div>
-                  <p className="text-[11px] text-white/50 leading-relaxed font-semibold">Deixe sua opinião, relate breves bugs ou sugira recursos para a equipe de devs do WeAura!</p>
                   <textarea
                      rows={4}
                      value={feedbackText}
@@ -2824,7 +2832,6 @@ export default function Profile() {
                      </div>
                      <button onClick={() => setIsParentalOpen(false)} className="p-2 bg-white/5 rounded-xl text-white/40"><X size={16} /></button>
                   </div>
-                  <p className="text-[11px] text-white/50 leading-relaxed font-semibold">Ative filtros de conversação agressivos e oculte salas com limite de idade utilizando sua senha PIN pessoal de 4 dígitos.</p>
                   
                   <div className="space-y-4">
                      <div className="flex items-center justify-between p-4 bg-black/40 border border-white/5 rounded-2xl">

@@ -1047,7 +1047,6 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
                         <Terminal size={14} className="text-[#FF4D9D]" />
                         BUSCA DE ALVO (DATABASE)
                       </h4>
-                      <p className="text-[10px] text-white/40 mt-1">Busque usuários por ID numérico ou UID interno.</p>
                     </div>
 
                     <div className="flex gap-1.5 p-1 bg-white/5 rounded-lg border border-white/5">
@@ -1435,7 +1434,6 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-black text-white uppercase tracking-widest">Painel Operacional de Salas</h3>
-                    <p className="text-[10px] text-white/40 mt-1">Monitore e promova as melhores salas de voz do We Aura.</p>
                   </div>
                 </div>
 
@@ -1539,7 +1537,6 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
               <motion.div initial={{ opacity: 0, scale: 0.99 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
                 <div>
                   <h3 className="text-sm font-black text-white uppercase tracking-widest">Painel Moderativo de Comunicações</h3>
-                  <p className="text-[10px] text-white/40 mt-1">Filtre conversas indesejadas e envie broadcasts imediatos para todos os usuários.</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1549,7 +1546,6 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
                       <Shield size={14} className="text-[#FF4D9D]" />
                       Filtro de Anti-Spam
                     </span>
-                    <p className="text-[10px] text-white/40 leading-relaxed">Aumentar o threshold reduz a sensibilidade do robô nas salas de conversa.</p>
                     
                     <div className="flex items-center gap-4">
                       <input 
@@ -1570,7 +1566,6 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
                     <div className="flex items-center justify-between">
                       <div>
                         <span className="text-xs font-black text-white uppercase tracking-wider block">Silenciar Chat Global</span>
-                        <p className="text-[9px] text-white/30 mt-0.5">Impede submissão de mensagens em toda a plataforma.</p>
                       </div>
                       <button 
                         onClick={() => {
@@ -1596,7 +1591,6 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
                         <Award size={14} className="text-[#00F0FF]" />
                         Anúncio Oficial Global (ADM)
                       </span>
-                      <p className="text-[10px] text-white/40 mt-1 leading-relaxed">Envie um banner oficial em tempo real para todos os painéis e chatsativos.</p>
                     </div>
 
                     <div className="space-y-3">
@@ -1648,7 +1642,6 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
               <motion.div initial={{ opacity: 0, scale: 0.99 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
                 <div>
                   <h3 className="text-sm font-black text-white uppercase tracking-widest">Painel Operativo de Molduras Personalizadas</h3>
-                  <p className="text-[10px] text-white/40 mt-1">Crie e configure molduras premium exclusivas. As imagens PNG, GIF ou WebP enviadas são publicadas imediatamente na loja e inventário.</p>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -1976,7 +1969,6 @@ export default function AdminMenu({ isOpen, onClose }: AdminMenuProps) {
                         <Cpu className="text-[#00F0FF] animate-pulse" size={14} />
                         SISTEMA ANTI-CHEAT & VARREDURA BIOMÉTRICA
                       </h3>
-                      <p className="text-[10px] text-white/40 mt-1">Efetua diagnóstico de integridade de canais e sessões com IA local.</p>
                     </div>
 
                     <button 

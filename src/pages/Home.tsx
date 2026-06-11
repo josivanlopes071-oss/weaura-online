@@ -59,7 +59,7 @@ export default function Home() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { theme } = useTheme();
-  const [showPatchNotes, setShowPatchNotes] = useState(false);
+  const [showPatchNotes, setShowPatchNotes] = useState(() => sessionStorage.getItem('dismissed_patch_notes_lightmode') !== 'true');
 
   useEffect(() => {
     if (!user) return;
@@ -226,7 +226,7 @@ export default function Home() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="p-6 pb-36 space-y-8 bg-[#020202] min-h-screen"
+      className="p-4 pb-32 space-y-4.5 bg-transparent min-h-screen"
     >
       <AnimatePresence>
         {passwordRoom && (
@@ -253,7 +253,7 @@ export default function Home() {
                   <h3 className="text-xl font-black text-white italic uppercase tracking-tight">Sala Trancada</h3>
                   <p className="text-xs text-white/40 mt-2 font-medium">Esta sala requer uma chave de acesso para entrar.</p>
                 </div>
-
+ 
                 <div className="w-full space-y-4">
                   <input 
                     type="password"
@@ -267,7 +267,7 @@ export default function Home() {
                     <p className="text-[10px] font-black text-red-500 uppercase tracking-widest animate-pulse">Senha Incorreta</p>
                   )}
                 </div>
-
+ 
                 <div className="w-full flex gap-3">
                   <button 
                     onClick={() => setPasswordRoom(null)}
@@ -288,187 +288,113 @@ export default function Home() {
           </div>
         )}
       </AnimatePresence>
-
-      {/* Premium Header */}
-      <section className="flex items-center justify-between pt-4">
-        <div className="flex items-center gap-3">
-           <div className="relative group" onClick={() => navigate('/profile')}>
-             <img 
-               src={profile?.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.uid}`} 
-               className="w-11 h-11 rounded-2xl border border-white/5 object-cover bg-zinc-900 active:scale-95 transition-transform"
-               alt=""
-               loading="lazy"
-             />
-             <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 border-2 border-[#020202] rounded-full"></div>
-           </div>
-           <div>
-             <h2 className="text-sm font-bold text-white tracking-tight">Olá, {(profile?.displayName || 'Membro').split(' ')[0]}</h2>
-             <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.1em]">LV.{profile?.level || 1} • {profile?.displayId || '000000'}</p>
-           </div>
+ 
+      {/* Refined Welcome Message */}
+      <div className="pt-2 px-1 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-white uppercase italic">
+            Olá, {(profile?.displayName || 'Membro').split(' ')[0]} 👋
+          </h2>
+          <p className="text-[10px] font-black text-zinc-450 dark:text-white/30 uppercase tracking-[0.25em] leading-none mt-1.5 italic">
+            Nível {profile?.level || 1} • Id {profile?.displayId || '000000'}
+          </p>
         </div>
-        <div className="flex items-center gap-2.5">
-           <div className="flex items-center gap-1.5 bg-white/5 px-3 py-1.5 rounded-2xl border border-white/5">
-              <span className="text-[11px] font-bold text-yellow-500">{(profile as any)?.coins || 0}</span>
-              <Gamepad2 size={12} className="text-yellow-500" />
-           </div>
-           
-           <button 
-             onClick={() => {
-               setNewRoomName('');
-               setRoomPasswordInput('');
-               setRoomLimitInput(12);
-               setShowCreate(true);
-             }}
-             className="p-2.5 bg-purple-500/10 rounded-2xl text-purple-400 hover:text-purple-300 hover:bg-purple-500/20 transition-all active:scale-90 border border-purple-500/20 flex items-center justify-center cursor-pointer"
-             title="Criar Sala"
-           >
-             <Plus size={20} />
-           </button>
-
-           <button onClick={() => navigate('/social')} className="p-2.5 bg-white/5 rounded-2xl text-white/30 hover:text-white transition-all active:scale-90 border border-white/5">
-             <MessageSquare size={20} />
-           </button>
-        </div>
-      </section>
-
+        <p className="text-[11px] text-zinc-400 dark:text-white/20 font-semibold italic select-none hidden sm:block">
+          Sintonize sua frequência e conheça pessoas
+        </p>
+      </div>
+ 
       <AnimatePresence>
         {showPatchNotes && (
           <motion.section 
-            initial={{ height: 0, opacity: 0, y: -20 }}
+            initial={{ height: 0, opacity: 0, y: -10 }}
             animate={{ height: 'auto', opacity: 1, y: 0 }}
-            exit={{ height: 0, opacity: 0, y: -20 }}
-            className="overflow-hidden mb-6"
+            exit={{ height: 0, opacity: 0, y: -10 }}
+            className="overflow-hidden mb-4"
           >
-            <div className="p-6 relative rounded-[32px] bg-gradient-to-tr from-purple-900/30 via-indigo-900/20 to-purple-500/10 border border-purple-500/20 dark:border-purple-500/10 shadow-[0_15px_40px_rgba(168,85,247,0.1)]">
+            <div className="p-3.5 pr-10 relative rounded-2xl bg-gradient-to-r from-purple-500/10 via-pink-500/5 to-transparent border border-purple-500/10 shadow-sm flex items-center justify-between gap-3 text-left">
+              <div className="flex items-center gap-2.5">
+                <Sparkles size={16} className="text-purple-600 dark:text-purple-400 shrink-0" />
+                <p className="text-[11px] font-medium text-zinc-700 dark:text-white/80">
+                  <strong className="font-extrabold text-purple-700 dark:text-purple-300">Nova v1.1:</strong> Tema Claro aprimorado, inteligência de cores do clã e performance de layout otimizada!
+                </p>
+              </div>
               <button 
                 onClick={() => {
                   sessionStorage.setItem('dismissed_patch_notes_lightmode', 'true');
                   setShowPatchNotes(false);
                 }}
-                className="absolute top-4 right-4 p-2 rounded-full bg-black/20 dark:bg-white/5 text-white/50 hover:text-white dark:hover:text-white transition-all hover:scale-105 active:scale-95"
+                className="absolute top-1/2 -translate-y-1/2 right-3 p-1.5 rounded-lg bg-zinc-250/50 dark:bg-white/5 text-zinc-500 dark:text-white/40 hover:text-zinc-700 dark:hover:text-white transition-all"
               >
-                <X size={15} />
+                <X size={12} />
               </button>
-              
-              <div className="flex gap-4 items-start">
-                <div className="w-12 h-12 rounded-2xl bg-purple-500/20 flex items-center justify-center border border-purple-500/30 text-purple-400 shrink-0">
-                  <Sparkles size={22} className="animate-pulse text-purple-600 dark:text-purple-400" />
-                </div>
-                <div className="space-y-3">
-                  <div>
-                    <span className="text-[9px] font-black uppercase text-purple-600 dark:text-purple-400 tracking-[0.2em] bg-purple-500/10 px-2.5 py-1 rounded-full border border-purple-500/25">Atualização de Sistema</span>
-                    <h3 className="text-lg font-black text-zinc-900 dark:text-white italic uppercase tracking-tighter mt-2">O que há de novo (v1.1)</h3>
-                  </div>
-                  
-                  <div className="space-y-2.5 text-xs text-zinc-600 dark:text-white/70">
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-5 h-5 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                        <Check size={12} className="text-green-600 dark:text-green-400" />
-                      </div>
-                      <p className="leading-relaxed">
-                        <strong className="text-zinc-900 dark:text-white">Modo Claro Lindo de Verdade:</strong> Chega de bugs e partes pretas no Tema Claro! Ajustamos todas as tabelas de damas, minijogos, dezenas de cards e balões de chat para um visual limpo e super contrastante.
-                      </p>
-                    </div>
-                    
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-5 h-5 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                        <Check size={12} className="text-green-600 dark:text-green-400" />
-                      </div>
-                      <p className="leading-relaxed">
-                        <strong className="text-zinc-900 dark:text-white">Fidelidade de Cores Adaptável:</strong> Os headers, avatares, moedas e barras de navegação agora alternam automaticamente com brilhos e tons suaves que combinam perfeitamente com o seu estilo escolhido.
-                      </p>
-                    </div>
-
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-5 h-5 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                        <Check size={12} className="text-green-600 dark:text-green-400" />
-                      </div>
-                      <p className="leading-relaxed">
-                        <strong className="text-zinc-900 dark:text-white">Estabilidade e Performance:</strong> Elementos flutuantes, inputs de formulário e alertas agora têm bordas suaves de alta nitidez que facilitam a leitura sob a luz do dia do novo tema claro.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           </motion.section>
         )}
       </AnimatePresence>
-
+ 
       {/* Featured Banners - Horizontal Swipe Carousel */}
-      <section className="flex gap-4 overflow-x-auto pb-4 px-1 scrollbar-hide snap-x snap-mandatory w-full mb-2">
+      <section className="flex gap-3 overflow-x-auto pb-3 px-1 scrollbar-hide snap-x snap-mandatory w-full mb-1">
         {/* Banner 1: Missão Especial */}
         <div 
-          className="relative h-44 sm:h-48 rounded-[36px] sm:rounded-[48px] overflow-hidden group cursor-pointer shadow-premium w-[85vw] sm:w-[48%] min-w-[280px] md:flex-1 shrink-0 snap-center transition-all duration-300" 
+          className="relative h-26 rounded-xl overflow-hidden group cursor-pointer border border-purple-500/10 dark:border-white/5 bg-zinc-100 dark:bg-[#0c0c0c] w-[75vw] sm:w-[48%] min-w-[240px] md:flex-1 shrink-0 snap-center transition-all duration-300"
           onClick={() => navigate('/challenges')}
         >
-          <div className="absolute inset-0 bg-[#0c0c0c] border border-white/[0.08] rounded-[36px] sm:rounded-[48px]">
-             <div className="absolute inset-0 bg-gradient-to-br from-purple-600/30 via-transparent to-blue-600/10" />
-             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-500/20 blur-[100px] rounded-full animate-pulse" />
-          </div>
-          <div className="absolute inset-0 p-8 sm:p-10 flex flex-col justify-center relative z-10">
-              <div className="bg-white/10 w-fit px-3 py-1.5 rounded-full border border-white/10 mb-3 sm:mb-5">
-                 <span className="text-[9px] sm:text-[10px] font-black uppercase text-purple-400 tracking-[0.3em] italic">Missão Especial</span>
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-blue-500/5 dark:from-purple-600/10 dark:to-blue-600/5 pointer-events-none" />
+          <div className="absolute inset-0 p-4 flex flex-col justify-between relative z-10">
+              <div className="bg-purple-100 dark:bg-purple-500/10 w-fit px-2.5 py-0.5 rounded-full border border-purple-200 dark:border-purple-500/20">
+                 <span className="text-[8px] font-black uppercase text-purple-605 dark:text-purple-400 tracking-wider">Missão Especial</span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-black text-white leading-none uppercase tracking-tighter italic">Desafios <br/><span className="text-purple-500">Temporários</span></h2>
-              <p className="text-white/30 text-[9px] sm:text-[10px] font-bold mt-2 sm:mt-4 uppercase tracking-[0.2em] italic">Complete e ganhe Aura Coins</p>
+              <div>
+                 <h2 className="text-sm font-extrabold text-zinc-900 dark:text-white leading-tight uppercase tracking-tight italic">Desafios <span className="text-purple-500">Temporários</span></h2>
+                 <p className="text-zinc-505 dark:text-white/30 text-[8.5px] font-semibold mt-0.5 uppercase tracking-wider leading-none">Complete e ganhe Aura Coins</p>
+              </div>
           </div>
-          <div className="absolute right-[-20px] bottom-[-20px] opacity-20 group-hover:scale-110 transition-transform duration-1000">
-             <Trophy size={140} className="text-white blur-xs" />
+          <div className="absolute right-3 bottom-1.5 text-purple-500/10 dark:text-purple-550/10 group-hover:scale-105 transition-transform duration-750 pointer-events-none">
+             <Trophy size={60} className="stroke-[1.5]" />
           </div>
         </div>
-
+ 
         {/* Banner 2: Arena de Jogos */}
         <div 
-          className="relative h-44 sm:h-48 rounded-[36px] sm:rounded-[48px] overflow-hidden group cursor-pointer shadow-premium border border-fuchsia-500/10 hover:border-fuchsia-500/30 w-[85vw] sm:w-[48%] min-w-[280px] md:flex-1 shrink-0 snap-center transition-all duration-300" 
+          className="relative h-26 rounded-xl overflow-hidden group cursor-pointer border border-pink-500/10 dark:border-white/5 bg-zinc-100 dark:bg-[#06030c] w-[75vw] sm:w-[48%] min-w-[240px] md:flex-1 shrink-0 snap-center transition-all duration-300"
           onClick={() => navigate('/games')}
         >
-          <div className="absolute inset-0 bg-[#06030c]">
-             <div className="absolute inset-0 bg-gradient-to-br from-[#00F0FF]/15 via-transparent to-[#FF4D9D]/20" />
-             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 bg-fuchsia-600/10 blur-[90px] rounded-full animate-pulse" />
-          </div>
-          <div className="absolute inset-0 p-8 sm:p-10 flex flex-col justify-center relative z-10">
-              <div className="bg-[#00F0FF]/10 w-fit px-3 py-1.5 rounded-full border border-[#00F0FF]/20 mb-3 sm:mb-5 flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,240,255,0.15)]">
-                 <span className="w-1.5 h-1.5 rounded-full bg-[#00F0FF] animate-ping" />
-                 <span className="text-[9px] sm:text-[10px] font-black uppercase text-[#00F0FF] tracking-[0.3em] italic">Arena de Jogos</span>
+          <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-indigo-500/5 dark:from-pink-600/10 dark:to-indigo-600/5 pointer-events-none" />
+          <div className="absolute inset-0 p-4 flex flex-col justify-between relative z-10">
+              <div className="bg-pink-100 dark:bg-pink-500/10 w-fit px-2.5 py-0.5 rounded-full border border-pink-200 dark:border-pink-500/20 flex items-center gap-1">
+                 <span className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-ping" />
+                 <span className="text-[8px] font-bold uppercase text-pink-600 dark:text-pink-400 tracking-wider">Arena de Jogos</span>
               </div>
-              <h2 className="text-2xl sm:text-3xl font-black text-white leading-none uppercase tracking-tighter italic">ARENA DE <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-[#FF4D9D]">MINIJOGOS</span></h2>
-              <p className="text-white/40 text-[9px] font-bold mt-2 sm:mt-4 uppercase tracking-[0.2em] italic flex items-center gap-1">Damas 1v1 • Jogo da Velha • Campo Minado • Prêmios 🔥</p>
+              <div>
+                 <h2 className="text-sm font-extrabold text-zinc-900 dark:text-white leading-tight uppercase tracking-tight italic">Arena de <span className="text-pink-500">Minijogos</span></h2>
+                 <p className="text-zinc-505 dark:text-white/30 text-[8.5px] font-semibold mt-0.5 uppercase tracking-wider leading-none">Damas • Jogo da Velha • Campo Minado</p>
+              </div>
           </div>
-          <div className="absolute right-[-10px] bottom-[-10px] opacity-25 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-1000">
-             <Gamepad2 size={130} className="text-fuchsia-400 blur-xs" />
+          <div className="absolute right-3 bottom-1.5 text-pink-500/10 dark:text-pink-550/10 group-hover:scale-105 group-hover:rotate-3 transition-transform duration-750 pointer-events-none">
+             <Gamepad2 size={60} className="stroke-[1.5]" />
           </div>
         </div>
       </section>
-
+ 
       {/* Modern Categories */}
-      <div className="space-y-4">
-        <div className="flex gap-4 overflow-x-auto pb-4 px-1 scrollbar-hide">
+      <div className="space-y-2">
+        <div className="flex gap-2 overflow-x-auto pb-2.5 px-1 scrollbar-hide">
           {CATEGORIES.map((cat, idx) => {
             const Icon = cat.icon;
             const isActive = activeFilter === cat.id;
-            const colors = [
-              'border-purple-500 text-purple-400 bg-purple-500/10 shadow-[0_0_20px_rgba(168,85,247,0.2)]',
-              'border-blue-500 text-blue-400 bg-blue-500/10 shadow-[0_0_20px_rgba(59,130,246,0.2)]',
-              'border-pink-500 text-pink-400 bg-pink-500/10 shadow-[0_0_20px_rgba(236,72,153,0.2)]',
-              'border-yellow-500 text-yellow-400 bg-yellow-500/10 shadow-[0_0_20_px_rgba(234,179,8,0.2)]',
-              'border-green-500 text-green-400 bg-green-500/10 shadow-[0_0_20_px_rgba(34,197,94,0.2)]',
-              'border-orange-500 text-orange-400 bg-orange-500/10 shadow-[0_0_20_px_rgba(249,115,22,0.2)]',
-            ];
-            const colorClass = isActive ? colors[idx % colors.length] : 'bg-[#0c0c0c] border-white/5 text-white/30 hover:border-white/20';
-
             return (
               <button 
                 key={cat.id} 
                 onClick={() => setActiveFilter(cat.id)}
-                className={`flex flex-col items-center gap-3 transition-all min-w-[72px] group`}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-full border text-[10px] font-black uppercase tracking-wider transition-all duration-350 shrink-0 cursor-pointer ${
+                  isActive 
+                    ? 'bg-purple-600 border-purple-500 text-white shadow-sm' 
+                    : 'bg-zinc-150 dark:bg-white/5 border-zinc-200 dark:border-white/5 text-zinc-500 dark:text-white/30 hover:border-zinc-300 dark:hover:border-white/10'
+                }`}
               >
-                <div className={`w-18 h-18 rounded-[28px] flex items-center justify-center border transition-all active:scale-95 ${colorClass}`}>
-                  <Icon size={26} className={isActive ? 'scale-110' : ''} />
-                </div>
-                <span className={`text-[10px] font-black uppercase tracking-tight ${isActive ? 'text-white' : 'text-white/20'}`}>
-                  {cat.label.split(' ')[0]}
-                </span>
+                <Icon size={12} className={isActive ? 'text-white' : 'text-zinc-400 dark:text-zinc-505'} />
+                <span>{cat.label}</span>
               </button>
             );
           })}
@@ -476,100 +402,100 @@ export default function Home() {
       </div>
 
       {/* Room Grid */}
-      <div className="space-y-6">
+      <div className="space-y-3.5">
         <div className="flex items-center justify-between px-2">
           <div className="flex flex-col">
-             <h3 className="text-xl font-black italic uppercase text-white tracking-tighter">Salas ao vivo</h3>
-             <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mt-1">Sintonize sua frequência</span>
+             <h3 className="text-lg font-black italic uppercase text-white tracking-tighter">Salas ao vivo</h3>
+             <span className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] mt-0.5">Sintonize sua frequência</span>
           </div>
-          <div className="flex items-center gap-1.5 p-2 bg-purple-500/10 rounded-xl border border-purple-500/20">
-             <Mic size={14} className="text-purple-400" />
-             <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest leading-none">12 Ativas</span>
+          <div className="flex items-center gap-1.5 p-1.5 bg-purple-500/10 rounded-lg border border-purple-500/20">
+             <Mic size={12} className="text-purple-400" />
+             <span className="text-[9px] font-black text-purple-400 uppercase tracking-widest leading-none">12 Ativas</span>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3.5">
           {filteredRooms.map((room, idx) => {
             const category = room.category || 'Geral';
-            let tagColor = 'bg-blue-500/10 border-blue-500/20 text-blue-400';
-            if (category.toLowerCase().includes('jogo')) tagColor = 'bg-orange-500/10 border-orange-500/20 text-orange-400';
-            if (category.toLowerCase().includes('fundo') || category.toLowerCase().includes('família') || category.toLowerCase().includes('amizade')) tagColor = 'bg-green-500/10 border-green-500/20 text-green-400';
+            let tagColor = 'bg-blue-500/10 border-blue-500/20 text-blue-500 dark:text-blue-400';
+            if (category.toLowerCase().includes('jogo')) tagColor = 'bg-orange-500/10 border-orange-500/20 text-orange-500 dark:text-orange-400';
+            if (category.toLowerCase().includes('fundo') || category.toLowerCase().includes('família') || category.toLowerCase().includes('amizade')) tagColor = 'bg-green-500/10 border-green-500/20 text-green-500 dark:text-green-400';
 
             return (
               <motion.div
                 key={room.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.05, duration: 0.5 }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: idx * 0.03, duration: 0.3 }}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
                 onClick={() => handleRoomClick(room)}
-                className="bg-[#0c0c0c] rounded-[32px] border border-white/[0.05] p-4 flex gap-5 group cursor-pointer active:border-purple-500/30 transition-all shadow-[0_10px_40px_rgba(0,0,0,0.6)] relative overflow-hidden active:bg-zinc-900/50"
+                className="bg-zinc-100 dark:bg-[#0c0c0c] rounded-xl border border-zinc-200 dark:border-white/[0.05] p-3 flex gap-3 group cursor-pointer active:border-purple-500/30 transition-all duration-300 relative overflow-hidden"
               >
                 {/* Glow Effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/0 via-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/0 via-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-550 pointer-events-none" />
                 
-                {/* Left: Large Avatar */}
+                {/* Left: Refined Compact Avatar */}
                 <div className="relative shrink-0">
-                  <div className="w-[110px] h-[110px] rounded-[28px] overflow-hidden border border-white/10 shadow-premium relative z-10 transition-all duration-500 group-hover:rounded-[22px]">
+                  <div className="w-12 h-12 rounded-lg overflow-hidden border border-zinc-250 dark:border-white/10 shadow-sm relative z-10">
                     <img 
                       src={room.hostInfo?.photoURL || (room as any).coverURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${room.id}`} 
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       alt={room.name}
                       loading="lazy"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-40" />
                   </div>
                   {/* Status Indicator */}
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 border-4 border-[#0c0c0c] rounded-full z-20 shadow-lg"></div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-550 dark:bg-green-500 border-2 border-zinc-100 dark:border-[#0c0c0c] rounded-full z-20 shadow-sm"></div>
                 </div>
 
                 {/* Right: Room Info */}
-                <div className="flex-1 min-w-0 py-1 flex flex-col justify-between relative z-10">
-                  <div className="space-y-1.5">
+                <div className="flex-1 min-w-0 flex flex-col justify-between relative z-10">
+                  <div className="space-y-0.5">
                     {/* Category Tag */}
-                    <div className="flex flex-wrap gap-1.5 items-center">
-                      <div className={`w-fit px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-[0.15em] italic ${tagColor}`}>
+                    <div className="flex flex-wrap gap-1 items-center">
+                      <div className={`w-fit px-2 py-0.5 rounded-full border text-[7.5px] font-bold uppercase tracking-[0.1em] ${tagColor}`}>
                         {category}
                       </div>
                       {room.isPinned && (
-                        <div className="bg-[#00BFFF]/20 border border-[#00BFFF]/40 text-[#00BFFF] px-2.5 py-1 rounded-full text-[8.5px] font-black uppercase tracking-[0.1em]">
+                        <div className="bg-sky-500/10 border border-sky-500/20 text-sky-600 dark:text-sky-400 px-2 py-0.5 rounded-full text-[7.5px] font-black uppercase tracking-[0.08em]">
                           📌 FIXADA
                         </div>
                       )}
                       {room.isOfficial && (
-                        <div className="bg-[#a855f7]/20 border border-[#a855f7]/40 text-purple-300 px-2.5 py-1 rounded-full text-[8.5px] font-black uppercase tracking-[0.1em]">
-                          ⭐️ OFICINA
+                        <div className="bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-300 px-2 py-0.5 rounded-full text-[7.5px] font-black uppercase tracking-[0.08em]">
+                          ⭐️ OFICIAL
                         </div>
                       )}
                     </div>
                     
                     {/* Room Name */}
                     <div className="flex items-center justify-between">
-                      <h3 className="text-xl font-black text-white truncate italic uppercase tracking-tighter leading-tight group-hover:text-purple-400 transition-colors">
+                      <h3 className="text-sm font-extrabold text-zinc-900 dark:text-white truncate uppercase tracking-tight leading-normal group-hover:text-purple-650 dark:group-hover:text-purple-400 transition-colors">
                         {room.name}
                       </h3>
-                      <span className="text-lg grayscale group-hover:grayscale-0 transition-all opacity-40 group-hover:opacity-100">🇧🇷</span>
+                      <span className="text-xs grayscale group-hover:grayscale-0 transition-all opacity-40 group-hover:opacity-100">🇧🇷</span>
                     </div>
 
-                    {/* Host & Info */}
-                    <p className="text-[11px] font-medium text-white/30 truncate uppercase tracking-widest italic">
+                    {/* Host & Description */}
+                    <p className="text-[10px] font-medium text-zinc-400 dark:text-white/30 truncate uppercase tracking-wider leading-none">
                       {(room as any).description || 'Sintonize nesta vibração agora'}
                     </p>
                   </div>
 
                   {/* Footer Stats */}
-                  <div className="flex items-center justify-between mt-2">
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-2xl border border-white/5">
-                        <Users size={12} className="text-white/40" />
-                        <span className="text-[10px] font-black text-white tabular-nums tracking-wide">{room.members?.length || 0}</span>
+                  <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-zinc-200/40 dark:border-white/[0.03]">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 bg-zinc-200/50 dark:bg-white/5 rounded-full border border-zinc-300/30 dark:border-white/5">
+                        <Users size={9} className="text-zinc-550 dark:text-white/40" />
+                        <span className="text-[8.5px] font-black text-zinc-700 dark:text-white tabular-nums tracking-wide">{room.members?.length || 0}</span>
                       </div>
                       
-                      <div className="flex -space-x-2">
+                      <div className="flex -space-x-1">
                         {room.members && room.members.length > 0 ? (
                           room.members.slice(0, 3).map((memberUid: string) => (
-                            <div key={memberUid} className="w-5 h-5 rounded-full border-2 border-[#0c0c0c] bg-zinc-800 overflow-hidden" title="Membro Ativo">
+                            <div key={memberUid} className="w-[14px] h-[14px] rounded-full border border-zinc-100 dark:border-[#0c0c0c] bg-zinc-800 overflow-hidden" title="Membro Ativo">
                               <img 
                                 src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${memberUid}`} 
                                 className="w-full h-full object-cover" 
@@ -580,19 +506,16 @@ export default function Home() {
                             </div>
                           ))
                         ) : (
-                          <div className="text-[9px] text-white/20 font-bold uppercase tracking-wider pl-1.5 font-mono">
+                          <div className="text-[8px] text-zinc-400 dark:text-white/20 font-bold uppercase tracking-wider pl-1 font-mono">
                             Sala Vazia
                           </div>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex gap-0.5 items-end h-5">
-                       {[1, 2, 3, 4].map(i => (
-                         <div key={i} className="w-[3px] bg-purple-500/30 rounded-full animate-bounce" 
-                           style={{ height: `${20 + Math.random() * 80}%`, animationDelay: `${i * 0.1}s`, animationDuration: `${0.5 + Math.random()}s` }} 
-                         />
-                       ))}
+                    <div className="flex gap-1 items-center h-3.5 text-purple-600 dark:text-purple-400">
+                      <span className="w-1 h-1 rounded-full bg-purple-500 dark:bg-purple-400 animate-pulse" />
+                      <span className="text-[8px] font-bold tracking-wider pl-0.5 uppercase font-mono">AO VIVO</span>
                     </div>
                   </div>
                 </div>
@@ -602,32 +525,16 @@ export default function Home() {
 
           
           {filteredRooms.length === 0 && (
-             <div className="col-span-full py-20 text-center bg-zinc-900/40 rounded-[40px] border border-white/5">
-                <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/[0.03]">
-                   <MessageCircle className="text-white/10" size={24} />
+             <div className="col-span-full py-16 text-center bg-zinc-150 dark:bg-zinc-900/40 rounded-3xl border border-zinc-200 dark:border-white/5">
+                <div className="w-12 h-12 bg-zinc-200 dark:bg-white/5 rounded-xl flex items-center justify-center mx-auto mb-3 border border-zinc-350 dark:border-white/[0.03]">
+                   <MessageCircle className="text-zinc-400 dark:text-white/15" size={18} />
                 </div>
-                <h4 className="text-white font-bold text-base">Silêncio no universo</h4>
-                <p className="text-white/20 text-[11px] mt-2 max-w-[180px] mx-auto font-medium">Explore outras categorias ou crie sua própria sala.</p>
+                <h4 className="text-zinc-900 dark:text-white font-extrabold text-sm uppercase">Silêncio no universo</h4>
+                <p className="text-zinc-450 dark:text-white/20 text-[10px] mt-1 max-w-[190px] mx-auto font-semibold uppercase tracking-wider leading-relaxed">Explore outras categorias ou crie sua própria sala.</p>
              </div>
           )}
         </div>
       </div>
-
-      {/* Floating Action Button */}
-      <motion.button
-        whileHover={{ scale: 1.05, shadow: "0 0 25px rgba(168,85,247,0.5)" }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => {
-          setNewRoomName('');
-          setRoomPasswordInput('');
-          setRoomLimitInput(12);
-          setShowCreate(true);
-        }}
-        className="fixed bottom-24 right-6 sm:right-10 z-50 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center shadow-[0_8px_32px_rgba(168,85,247,0.4)] border border-purple-400/20 cursor-pointer"
-        title="Criar Sala"
-      >
-        <Plus size={28} className="animate-pulse" />
-      </motion.button>
 
       {/* Create Room Modal */}
       <AnimatePresence>

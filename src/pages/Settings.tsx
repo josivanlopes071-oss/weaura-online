@@ -165,9 +165,6 @@ export default function Settings() {
                              <span className="text-[15px] font-black text-white leading-none tracking-tight">
                                {item.label}
                              </span>
-                             {item.isSwitch && (
-                                <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest mt-1">Status: {item.value ? 'Ativado' : 'Desativado'}</span>
-                             )}
                           </div>
                        </div>
                        
