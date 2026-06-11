@@ -475,7 +475,6 @@ export default function Home() {
                       <h3 className="text-sm font-extrabold text-zinc-900 dark:text-white truncate uppercase tracking-tight leading-normal group-hover:text-purple-650 dark:group-hover:text-purple-400 transition-colors">
                         {room.name}
                       </h3>
-                      <span className="text-xs grayscale group-hover:grayscale-0 transition-all opacity-40 group-hover:opacity-100">🇧🇷</span>
                     </div>
 
                     {/* Host & Description */}
