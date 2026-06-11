@@ -246,7 +246,7 @@ function AppContent() {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col ${themeBgClass} ${!isRoomPage ? 'pt-6' : ''}`}>
+    <div className={`min-h-screen w-full max-w-full overflow-x-hidden flex flex-col ${themeBgClass} ${!isRoomPage ? 'pt-6' : ''}`}>
       {/* Real-time Admin Announcement Overlay */}
       <AnimatePresence>
         {showAnnouncement && latestAnnouncement && (
