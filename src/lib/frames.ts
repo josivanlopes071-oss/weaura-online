@@ -45,7 +45,8 @@ export const PREMIUM_FRAMES: FrameItem[] = [
     description: 'Moldura Elite Oficial do Aura Room. Glow sagrado e efeitos de aura pulsante.',
     price: 350,
     driveUrl: 'https://drive.google.com/file/d/1up3OJYPGNi9pXxdUsukkMTgK-DVjLuwv/view?usp=drivesdk',
-    imageUrl: getDirectDriveUrl('https://drive.google.com/file/d/1up3OJYPGNi9pXxdUsukkMTgK-DVjLuwv/view?usp=drivesdk'),
+    imageUrl: '/moldura_67_1779407125172.png',
+    noProcessing: true,
     glowColor: '#a855f7', // Purple-magenta glow
     glowClass: 'shadow-purple-500/50',
     isVip: true,
